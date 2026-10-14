@@ -1,0 +1,438 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import {
+  buildPaginationMeta,
+  getPaginationParams,
+} from '../common/utils/pagination';
+import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AdminConsultationQueryDto } from './dto/admin-consultation-query.dto';
+import {
+  ConsultationCategoryQueryDto,
+  ConsultationLanguage,
+} from './dto/consultation-category-query.dto';
+import { CreateConsultationCategoryDto } from './dto/create-consultation-category.dto';
+import { CreateConsultationRequestDto } from './dto/create-consultation-request.dto';
+import { UpdateConsultationCategoryDto } from './dto/update-consultation-category.dto';
+import { UpdateConsultationRequestDto } from './dto/update-consultation-request.dto';
+
+const consultationCategorySelect = {
+  id: true,
+  nameAr: true,
+  nameEn: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ConsultationCategorySelect;
+
+const consultationRequestSelect = {
+  id: true,
+  categoryId: true,
+  fullName: true,
+  age: true,
+  gender: true,
+  country: true,
+  phone: true,
+  whatsApp: true,
+  email: true,
+  consultationTopic: true,
+  notes: true,
+  childAge: true,
+  relation: true,
+  sessionType: true,
+  preferredTime: true,
+  status: true,
+  scheduledAt: true,
+  adminNotes: true,
+  createdAt: true,
+  updatedAt: true,
+  category: {
+    select: consultationCategorySelect,
+  },
+} satisfies Prisma.ConsultationRequestSelect;
+
+type ConsultationCategoryRecord = Prisma.ConsultationCategoryGetPayload<{
+  select: typeof consultationCategorySelect;
+}>;
+
+type ConsultationRequestRecord = Prisma.ConsultationRequestGetPayload<{
+  select: typeof consultationRequestSelect;
+}>;
+
+type EmptyData = Record<string, never>;
+
+@Injectable()
+export class ConsultationsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  async findActiveCategories(query: ConsultationCategoryQueryDto) {
+    const categories = await this.prisma.consultationCategory.findMany({
+      where: { isActive: true },
+      select: consultationCategorySelect,
+      orderBy: this.getLocalizedOrderBy(query.lang),
+    });
+
+    return categories.map((category) =>
+      this.toPublicCategory(category, query.lang),
+    );
+  }
+
+  /** Requests sent with the signed-in user's email (the form pre-fills it). Admin notes stay private. */
+  async findMyRequests(email: string) {
+    const requests = await this.prisma.consultationRequest.findMany({
+      where: {
+        email: { equals: this.normalizeEmail(email), mode: 'insensitive' },
+      },
+      select: { ...consultationRequestSelect, adminNotes: false },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return {
+      message: 'Consultation requests returned successfully',
+      data: { items: requests },
+    };
+  }
+
+  async submitRequest(
+    createConsultationRequestDto: CreateConsultationRequestDto,
+  ): Promise<{ message: string; data: EmptyData }> {
+    await this.ensureActiveCategoryExists(
+      createConsultationRequestDto.categoryId,
+    );
+
+    const request = await this.prisma.consultationRequest.create({
+      data: {
+        categoryId: createConsultationRequestDto.categoryId,
+        fullName: createConsultationRequestDto.fullName,
+        age: createConsultationRequestDto.age,
+        gender: createConsultationRequestDto.gender,
+        country: createConsultationRequestDto.country,
+        phone: createConsultationRequestDto.phone,
+        whatsApp: createConsultationRequestDto.whatsApp,
+        email: this.normalizeEmail(createConsultationRequestDto.email),
+        consultationTopic: createConsultationRequestDto.consultationTopic,
+        notes: createConsultationRequestDto.notes,
+        childAge: createConsultationRequestDto.childAge,
+        relation: createConsultationRequestDto.relation,
+        sessionType: createConsultationRequestDto.sessionType,
+        preferredTime: createConsultationRequestDto.preferredTime,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        consultationTopic: true,
+      },
+    });
+
+    await Promise.all([
+      this.notificationsService.sendConsultationRequestSubmitted({
+        email: request.email,
+        fullName: request.fullName,
+        topic: request.consultationTopic,
+      }),
+      this.notificationsService.sendAdminConsultationRequestSubmitted({
+        email: request.email,
+        requesterEmail: request.email,
+        fullName: request.fullName,
+        topic: request.consultationTopic,
+      }),
+    ]);
+
+    return {
+      message:
+        'Consultation request submitted successfully. We will contact you as soon as possible.',
+      data: {},
+    };
+  }
+
+  adminFindCategories() {
+    return this.prisma.consultationCategory.findMany({
+      select: consultationCategorySelect,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async adminFindCategory(id: string) {
+    return this.findCategoryOrThrow(id);
+  }
+
+  async adminCreateCategory(
+    createConsultationCategoryDto: CreateConsultationCategoryDto,
+  ) {
+    const category = await this.prisma.consultationCategory.create({
+      data: {
+        nameAr: createConsultationCategoryDto.nameAr,
+        nameEn: createConsultationCategoryDto.nameEn,
+        isActive: createConsultationCategoryDto.isActive ?? true,
+      },
+      select: consultationCategorySelect,
+    });
+
+    return {
+      message: 'Consultation category created successfully',
+      data: { category },
+    };
+  }
+
+  async adminUpdateCategory(
+    id: string,
+    updateConsultationCategoryDto: UpdateConsultationCategoryDto,
+  ) {
+    await this.findCategoryOrThrow(id);
+
+    const category = await this.prisma.consultationCategory.update({
+      where: { id },
+      data: {
+        nameAr: updateConsultationCategoryDto.nameAr,
+        nameEn: updateConsultationCategoryDto.nameEn,
+        isActive: updateConsultationCategoryDto.isActive,
+      },
+      select: consultationCategorySelect,
+    });
+
+    return {
+      message: 'Consultation category updated successfully',
+      data: { category },
+    };
+  }
+
+  async adminDeleteCategory(
+    id: string,
+  ): Promise<{ message: string; data: EmptyData }> {
+    await this.findCategoryOrThrow(id);
+
+    const requestsCount = await this.prisma.consultationRequest.count({
+      where: { categoryId: id },
+    });
+
+    if (requestsCount > 0) {
+      throw new ConflictException(
+        'Consultation category cannot be deleted while requests are assigned to it. Set isActive to false instead.',
+      );
+    }
+
+    await this.prisma.consultationCategory.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Consultation category deleted successfully',
+      data: {},
+    };
+  }
+
+  async adminFindRequests(query: AdminConsultationQueryDto) {
+    const { page, limit, skip } = getPaginationParams(query);
+    const where = this.buildAdminRequestsWhere(query);
+
+    const [total, requests] = await this.prisma.$transaction([
+      this.prisma.consultationRequest.count({ where }),
+      this.prisma.consultationRequest.findMany({
+        where,
+        select: consultationRequestSelect,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      message: 'Consultation requests returned successfully',
+      data: {
+        requests: requests.map((request) => this.toRequest(request)),
+        pagination: buildPaginationMeta(page, limit, total),
+      },
+    };
+  }
+
+  async adminFindRequest(id: string) {
+    const request = await this.prisma.consultationRequest.findUnique({
+      where: { id },
+      select: consultationRequestSelect,
+    });
+
+    if (!request) {
+      throw new NotFoundException('Consultation request not found.');
+    }
+
+    return this.toRequest(request);
+  }
+
+  async adminUpdateRequest(
+    id: string,
+    updateDto: UpdateConsultationRequestDto,
+  ) {
+    await this.adminFindRequest(id);
+
+    const data: Prisma.ConsultationRequestUpdateInput = {};
+
+    if (updateDto.status !== undefined) {
+      data.status = updateDto.status;
+    }
+
+    if (updateDto.scheduledAt !== undefined) {
+      data.scheduledAt =
+        updateDto.scheduledAt === null ? null : new Date(updateDto.scheduledAt);
+    }
+
+    if (updateDto.adminNotes !== undefined) {
+      data.adminNotes = updateDto.adminNotes || null;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('At least one field must be provided.');
+    }
+
+    const request = await this.prisma.consultationRequest.update({
+      where: { id },
+      data,
+      select: consultationRequestSelect,
+    });
+
+    return {
+      message: 'Consultation request updated successfully',
+      data: { request: this.toRequest(request) },
+    };
+  }
+
+  async adminDeleteRequest(
+    id: string,
+  ): Promise<{ message: string; data: EmptyData }> {
+    await this.adminFindRequest(id);
+
+    await this.prisma.consultationRequest.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Consultation request deleted successfully',
+      data: {},
+    };
+  }
+
+  private async ensureActiveCategoryExists(categoryId: string): Promise<void> {
+    const category = await this.prisma.consultationCategory.findFirst({
+      where: {
+        id: categoryId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    if (!category) {
+      throw new BadRequestException(
+        'Consultation category does not exist or is inactive.',
+      );
+    }
+  }
+
+  private async findCategoryOrThrow(
+    id: string,
+  ): Promise<ConsultationCategoryRecord> {
+    const category = await this.prisma.consultationCategory.findUnique({
+      where: { id },
+      select: consultationCategorySelect,
+    });
+
+    if (!category) {
+      throw new NotFoundException('Consultation category not found.');
+    }
+
+    return category;
+  }
+
+  private buildAdminRequestsWhere(
+    query: AdminConsultationQueryDto,
+  ): Prisma.ConsultationRequestWhereInput {
+    const where: Prisma.ConsultationRequestWhereInput = {};
+    const search = query.search?.trim();
+
+    if (query.categoryId) {
+      where.categoryId = query.categoryId;
+    }
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { whatsApp: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { country: { contains: search, mode: 'insensitive' } },
+        { consultationTopic: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    return where;
+  }
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private toPublicCategory(
+    category: ConsultationCategoryRecord,
+    language?: ConsultationLanguage,
+  ) {
+    return {
+      id: category.id,
+      name: this.getLocalizedName(category, language),
+      nameAr: category.nameAr,
+      nameEn: category.nameEn,
+    };
+  }
+
+  private toRequest(request: ConsultationRequestRecord) {
+    return {
+      id: request.id,
+      categoryId: request.categoryId,
+      fullName: request.fullName,
+      age: request.age,
+      gender: request.gender,
+      country: request.country,
+      phone: request.phone,
+      whatsApp: request.whatsApp,
+      email: request.email,
+      consultationTopic: request.consultationTopic,
+      notes: request.notes,
+      childAge: request.childAge,
+      relation: request.relation,
+      sessionType: request.sessionType,
+      preferredTime: request.preferredTime,
+      status: request.status,
+      scheduledAt: request.scheduledAt,
+      adminNotes: request.adminNotes,
+      createdAt: request.createdAt,
+      updatedAt: request.updatedAt,
+      category: request.category,
+    };
+  }
+
+  private getLocalizedName(
+    record: { nameAr: string; nameEn: string },
+    language?: ConsultationLanguage,
+  ): string {
+    return language === ConsultationLanguage.Arabic
+      ? record.nameAr
+      : record.nameEn;
+  }
+
+  private getLocalizedOrderBy(language?: ConsultationLanguage) {
+    return language === ConsultationLanguage.Arabic
+      ? { nameAr: 'asc' as const }
+      : { nameEn: 'asc' as const };
+  }
+}
