@@ -1,0 +1,4 @@
+.env.local
+start-local.log
+.DS_Store
+node_modules
