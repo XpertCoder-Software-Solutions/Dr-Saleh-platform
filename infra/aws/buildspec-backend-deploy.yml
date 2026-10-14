@@ -1,0 +1,46 @@
+# CodeBuild: ship backend/ to the EC2 server without SSH.
+# 1. pack backend/ and upload it to the artifact bucket;
+# 2. SSM Run Command on the instance downloads it through a short-lived presigned
+#    URL and runs backend/scripts/deploy-on-server.sh as the deploy user
+#    (npm ci, prisma migrate deploy, build, PM2 reload, health check, rollback);
+# 3. wait for the command and fail the pipeline if it failed.
+# ARTIFACT_BUCKET, EC2_INSTANCE_ID, EC2_REGION, DEPLOY_USER, APP_DIR, DEPLOY_RUNTIME
+# come from the CodeBuild project; REVISION from the pipeline.
+version: 0.2
+phases:
+  build:
+    commands:
+      - REVISION="${REVISION:-$CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - KEY="releases/backend-${REVISION:-manual}-${CODEBUILD_BUILD_NUMBER}.tgz"
+      - tar czf /tmp/backend.tgz -C "$CODEBUILD_SRC_DIR/backend" --exclude=./node_modules --exclude=./dist --exclude=./uploads --exclude='./.env*' .
+      - aws s3 cp /tmp/backend.tgz "s3://${ARTIFACT_BUCKET}/${KEY}"
+      - URL=$(aws s3 presign "s3://${ARTIFACT_BUCKET}/${KEY}" --expires-in 3600)
+      - |
+        jq -n --arg url "$URL" --arg user "$DEPLOY_USER" --arg dir "$APP_DIR" \
+              --arg runtime "$DEPLOY_RUNTIME" --arg rev "$REVISION" '{
+          commands: [
+            "set -eu",
+            "rm -rf /tmp/dr-saleh-release && mkdir -p /tmp/dr-saleh-release",
+            ("curl -fsSL \"" + $url + "\" -o /tmp/dr-saleh-release.tgz"),
+            "tar xzf /tmp/dr-saleh-release.tgz -C /tmp/dr-saleh-release",
+            "chown -R \($user): /tmp/dr-saleh-release",
+            ("sudo -u \($user) -H bash -lc \"APP_DIR=\($dir) DEPLOY_RUNTIME=\($runtime) REVISION=\($rev) bash /tmp/dr-saleh-release/scripts/deploy-on-server.sh /tmp/dr-saleh-release\"")
+          ],
+          executionTimeout: ["1800"]
+        }' > /tmp/ssm-params.json
+      - |
+        CMD=$(aws ssm send-command --region "$EC2_REGION" --instance-ids "$EC2_INSTANCE_ID" \
+          --document-name AWS-RunShellScript --comment "dr-saleh backend ${REVISION}" \
+          --parameters file:///tmp/ssm-params.json --query Command.CommandId --output text)
+        echo "SSM command: $CMD"
+        STATUS=Pending
+        for i in $(seq 1 180); do
+          sleep 10
+          STATUS=$(aws ssm get-command-invocation --region "$EC2_REGION" --command-id "$CMD" \
+            --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+          case "$STATUS" in Pending|InProgress|Delayed) continue ;; *) break ;; esac
+        done
+        aws ssm get-command-invocation --region "$EC2_REGION" --command-id "$CMD" \
+          --instance-id "$EC2_INSTANCE_ID" --query '[StandardOutputContent,StandardErrorContent]' --output text || true
+        echo "Deploy status: $STATUS"
+        [ "$STATUS" = "Success" ]

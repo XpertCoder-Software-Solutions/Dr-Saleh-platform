@@ -1,0 +1,26 @@
+# CodeBuild: frontend lint + typecheck + build, upload to S3, invalidate CloudFront.
+# SITE_BUCKET, DISTRIBUTION_ID and VITE_API_URL come from the CodeBuild project.
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+  build:
+    commands:
+      - cd "$CODEBUILD_SRC_DIR/frontend"
+      - npm ci
+      - npm run lint
+      - npm run build
+  post_build:
+    commands:
+      - |
+        if [ "$CODEBUILD_BUILD_SUCCEEDING" != "1" ]; then echo "Build failed, nothing published"; exit 1; fi
+      - cd "$CODEBUILD_SRC_DIR/frontend/dist"
+      # Hashed bundles never change -> cache a year; other files an hour; index.html never.
+      - aws s3 sync assets "s3://${SITE_BUCKET}/assets" --delete --cache-control "public,max-age=31536000,immutable"
+      - aws s3 sync . "s3://${SITE_BUCKET}" --delete --exclude "assets/*" --exclude "index.html" --cache-control "public,max-age=3600"
+      - aws s3 cp index.html "s3://${SITE_BUCKET}/index.html" --cache-control "no-cache" --content-type "text/html; charset=utf-8"
+      - aws cloudfront create-invalidation --distribution-id "${DISTRIBUTION_ID}" --paths "/*" --query Invalidation.Id --output text
+cache:
+  paths:
+    - /root/.npm/**/*

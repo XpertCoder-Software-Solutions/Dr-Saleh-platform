@@ -24,10 +24,10 @@ On the first run the database and uploads are filled with the demo content from
 
 ## CI/CD and deploying
 
-GitHub Actions (`.github/workflows`) check every pull request and deploy on every
-push to `main`: the backend to EC2 at https://api.drsalehabdelkarim.com (PM2, RDS, Redis)
-and the frontend to S3 behind CloudFront at https://drsalehabdelkarim.com. Setup,
-secrets and AWS steps:
+AWS CodePipeline deploys every push to `main`: the backend to the EC2 server at
+https://api.drsalehabdelkarim.com (through SSM, no SSH) and the frontend to S3 behind
+CloudFront at https://drsalehabdelkarim.com. Each pipeline runs only when its folder
+changes. The whole setup is CloudFormation in [`infra/aws`](infra/aws); steps in
 [docs/deployment/aws.md](docs/deployment/aws.md).
 
 The backend image (`backend/Dockerfile`) also runs on any Docker host; see the

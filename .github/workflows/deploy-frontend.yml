@@ -1,3 +1,6 @@
+# Backup pipeline. The main CI/CD runs on AWS CodePipeline (infra/aws, docs/deployment/aws.md).
+# Manual-only while the GitHub organization's Actions billing is locked.
+
 name: Deploy · frontend (S3 + CloudFront)
 
 # Builds frontend/ and publishes it to the S3 bucket behind CloudFront on every
@@ -5,9 +8,6 @@ name: Deploy · frontend (S3 + CloudFront)
 # Setup and the variables it needs: docs/deployment/aws.md
 
 on:
-  push:
-    branches: [main]
-    paths: ['frontend/**', '.github/workflows/deploy-frontend.yml']
   workflow_dispatch:
 
 permissions:

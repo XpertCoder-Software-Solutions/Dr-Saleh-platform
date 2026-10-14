@@ -1,8 +1,10 @@
+# Backup pipeline. The main CI/CD runs on AWS CodePipeline (infra/aws, docs/deployment/aws.md).
+# Manual-only while the GitHub organization's Actions billing is locked.
+
 name: CI · backend
 
 on:
-  pull_request:
-    paths: ['backend/**', '.github/workflows/ci-backend.yml']
+  workflow_dispatch:
   # Deploy workflows call this before deploying, so pushes to main are checked there.
   workflow_call:
 

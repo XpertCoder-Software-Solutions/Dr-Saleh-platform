@@ -1,0 +1,433 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Dr. Saleh platform - step 2 (deploy in us-east-1): website hosting (S3 + CloudFront
+  + ACM + Route 53 aliases) and CI/CD (CodeStar connection to GitHub, CodeBuild,
+  and two CodePipeline V2 pipelines: backend -> EC2 through SSM, frontend -> S3).
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: drsalehabdelkarim.com
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: HostedZoneId output of the dns stack.
+  GitHubRepository:
+    Type: String
+    Default: XpertCoder-Software-Solutions/Dr-Saleh-platform
+  Branch:
+    Type: String
+    Default: main
+  ApiUrl:
+    Type: String
+    Default: https://api.drsalehabdelkarim.com/api
+    Description: API base URL the website is built against.
+  Ec2InstanceId:
+    Type: String
+    AllowedPattern: '^i-[0-9a-f]+$'
+    Description: ID of the EC2 instance that runs the API.
+  Ec2Region:
+    Type: String
+    Default: eu-central-1
+    Description: Region of that EC2 instance.
+  DeployUser:
+    Type: String
+    Default: ubuntu
+    Description: Linux user on the server that owns the API folder and runs PM2.
+  AppDir:
+    Type: String
+    Default: /var/www/dr-saleh-api
+    Description: API folder on the server.
+  DeployRuntime:
+    Type: String
+    Default: pm2
+    AllowedValues: [pm2, docker-compose]
+
+Resources:
+  # ---------------------------------------------------------------- website
+
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Sub www.${DomainName}
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+        - DomainName: !Sub www.${DomainName}
+          HostedZoneId: !Ref HostedZoneId
+
+  SpaRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: dr-saleh-spa-rewrite
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Client-side routes -> /index.html (same as infra/cloudfront/spa-rewrite.js)
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          var last = uri.substring(uri.lastIndexOf('/') + 1);
+          if (last.indexOf('.') === -1) {
+            request.uri = '/index.html';
+          }
+          return request;
+        }
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: dr-saleh-site
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Dr. Saleh website
+        Aliases:
+          - !Ref DomainName
+          - !Sub www.${DomainName}
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_200 # includes the Middle East edge locations
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewriteFunction.FunctionMetadata.FunctionARN
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${SiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+
+  ApexRecordA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2 # CloudFront
+  ApexRecordAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+  WwwRecordA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub www.${DomainName}
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+  WwwRecordAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Sub www.${DomainName}
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+  # ---------------------------------------------------------------- CI/CD
+
+  GitHubConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: dr-saleh-github
+      ProviderType: GitHub
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-artifacts
+            Status: Enabled
+            ExpirationInDays: 30
+
+  BuildLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /dr-saleh/codebuild
+      RetentionInDays: 30
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: dr-saleh-codebuild
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub ${BuildLogs.Arn}:*
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:GetObjectVersion]
+                Resource: !Sub ${ArtifactBucket.Arn}/*
+              - Effect: Allow
+                Action: [s3:PutObject, s3:DeleteObject, s3:GetObject]
+                Resource: !Sub ${SiteBucket.Arn}/*
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: [!GetAtt SiteBucket.Arn, !GetAtt ArtifactBucket.Arn]
+              - Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ec2:${Ec2Region}:${AWS::AccountId}:instance/${Ec2InstanceId}
+                  - !Sub arn:aws:ssm:${Ec2Region}::document/AWS-RunShellScript
+              - Effect: Allow
+                Action: [ssm:GetCommandInvocation, ssm:ListCommandInvocations]
+                Resource: '*'
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: dr-saleh-pipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:GetObjectVersion, s3:GetBucketVersioning]
+                Resource: [!GetAtt ArtifactBucket.Arn, !Sub '${ArtifactBucket.Arn}/*']
+              - Effect: Allow
+                Action: [codebuild:StartBuild, codebuild:BatchGetBuilds]
+                Resource:
+                  - !GetAtt BackendCheckProject.Arn
+                  - !GetAtt BackendDeployProject.Arn
+                  - !GetAtt FrontendProject.Arn
+              - Effect: Allow
+                Action: codestar-connections:UseConnection
+                Resource: !Ref GitHubConnection
+
+  BackendCheckProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: dr-saleh-backend-check
+      Description: Backend lint, unit tests and build
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts: { Type: CODEPIPELINE }
+      Source: { Type: CODEPIPELINE, BuildSpec: infra/aws/buildspec-backend-check.yml }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+      LogsConfig:
+        CloudWatchLogs: { Status: ENABLED, GroupName: !Ref BuildLogs, StreamName: backend-check }
+      TimeoutInMinutes: 30
+
+  BackendDeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: dr-saleh-backend-deploy
+      Description: Ship backend/ to the EC2 server through SSM Run Command
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts: { Type: CODEPIPELINE }
+      Source: { Type: CODEPIPELINE, BuildSpec: infra/aws/buildspec-backend-deploy.yml }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - { Name: ARTIFACT_BUCKET, Value: !Ref ArtifactBucket }
+          - { Name: EC2_INSTANCE_ID, Value: !Ref Ec2InstanceId }
+          - { Name: EC2_REGION, Value: !Ref Ec2Region }
+          - { Name: DEPLOY_USER, Value: !Ref DeployUser }
+          - { Name: APP_DIR, Value: !Ref AppDir }
+          - { Name: DEPLOY_RUNTIME, Value: !Ref DeployRuntime }
+      LogsConfig:
+        CloudWatchLogs: { Status: ENABLED, GroupName: !Ref BuildLogs, StreamName: backend-deploy }
+      TimeoutInMinutes: 45
+
+  FrontendProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: dr-saleh-frontend
+      Description: Frontend checks, build, upload to S3 and CloudFront invalidation
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts: { Type: CODEPIPELINE }
+      Source: { Type: CODEPIPELINE, BuildSpec: infra/aws/buildspec-frontend.yml }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        EnvironmentVariables:
+          - { Name: SITE_BUCKET, Value: !Ref SiteBucket }
+          - { Name: DISTRIBUTION_ID, Value: !Ref Distribution }
+          - { Name: VITE_API_URL, Value: !Ref ApiUrl }
+      LogsConfig:
+        CloudWatchLogs: { Status: ENABLED, GroupName: !Ref BuildLogs, StreamName: frontend }
+      TimeoutInMinutes: 20
+
+  BackendPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: dr-saleh-backend
+      PipelineType: V2
+      ExecutionMode: QUEUED
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore: { Type: S3, Location: !Ref ArtifactBucket }
+      Triggers:
+        - ProviderType: CodeStarSourceConnection
+          GitConfiguration:
+            SourceActionName: Source
+            Push:
+              - Branches: { Includes: [!Ref Branch] }
+                FilePaths:
+                  Includes: ['backend/**', 'infra/aws/buildspec-backend-*.yml']
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId: { Category: Source, Owner: AWS, Provider: CodeStarSourceConnection, Version: '1' }
+              Configuration:
+                ConnectionArn: !Ref GitHubConnection
+                FullRepositoryId: !Ref GitHubRepository
+                BranchName: !Ref Branch
+                OutputArtifactFormat: CODE_ZIP
+                DetectChanges: false # the trigger above decides
+              Namespace: SourceVariables
+              OutputArtifacts: [{ Name: Code }]
+        - Name: Check
+          Actions:
+            - Name: LintTestBuild
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: '1' }
+              Configuration: { ProjectName: !Ref BackendCheckProject }
+              InputArtifacts: [{ Name: Code }]
+        - Name: Deploy
+          Actions:
+            - Name: DeployToEC2
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: '1' }
+              Configuration:
+                ProjectName: !Ref BackendDeployProject
+                EnvironmentVariables: '[{"name":"REVISION","value":"#{SourceVariables.CommitId}","type":"PLAINTEXT"}]'
+              InputArtifacts: [{ Name: Code }]
+
+  FrontendPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: dr-saleh-frontend
+      PipelineType: V2
+      ExecutionMode: QUEUED
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore: { Type: S3, Location: !Ref ArtifactBucket }
+      Triggers:
+        - ProviderType: CodeStarSourceConnection
+          GitConfiguration:
+            SourceActionName: Source
+            Push:
+              - Branches: { Includes: [!Ref Branch] }
+                FilePaths:
+                  Includes: ['frontend/**', 'infra/aws/buildspec-frontend.yml']
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId: { Category: Source, Owner: AWS, Provider: CodeStarSourceConnection, Version: '1' }
+              Configuration:
+                ConnectionArn: !Ref GitHubConnection
+                FullRepositoryId: !Ref GitHubRepository
+                BranchName: !Ref Branch
+                OutputArtifactFormat: CODE_ZIP
+                DetectChanges: false
+              OutputArtifacts: [{ Name: Code }]
+        - Name: BuildAndDeploy
+          Actions:
+            - Name: CheckBuildPublish
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: '1' }
+              Configuration: { ProjectName: !Ref FrontendProject }
+              InputArtifacts: [{ Name: Code }]
+
+Outputs:
+  WebsiteUrl:
+    Value: !Sub https://${DomainName}
+  CloudFrontDomain:
+    Value: !GetAtt Distribution.DomainName
+  SiteBucket:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref Distribution
+  GitHubConnection:
+    Description: Approve it once in Developer Tools > Settings > Connections (status PENDING -> AVAILABLE).
+    Value: !Ref GitHubConnection
+  Pipelines:
+    Value: !Sub https://console.aws.amazon.com/codesuite/codepipeline/pipelines?region=${AWS::Region}

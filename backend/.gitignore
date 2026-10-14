@@ -63,3 +63,6 @@ dump.rdb
 uploads/**/*
 !uploads/**/
 !uploads/**/.gitkeep
+
+# Finder duplicates of the build output
+/dist */

@@ -1,107 +1,91 @@
-# Deploying to AWS (CI/CD)
+# Deploying to AWS (CI/CD with CodePipeline)
 
 ```
- https://drsalehabdelkarim.com, https://www.drsalehabdelkarim.com
-        │  Route 53 alias
-   CloudFront (ACM certificate, us-east-1) ── spa-rewrite function
-        │  Origin Access Control
-   S3 bucket: the built frontend
+ GitHub (main) ──CodeStar connection──► CodePipeline
+                                          ├─ dr-saleh-backend  (backend/** changed)
+                                          │    CodeBuild: lint · tests · build
+                                          │    CodeBuild: upload release to S3 → SSM Run Command on EC2
+                                          │      → backend/scripts/deploy-on-server.sh
+                                          │        (npm ci · prisma migrate deploy · build · PM2 reload ·
+                                          │         health check · rollback on failure)
+                                          └─ dr-saleh-frontend (frontend/** changed)
+                                               CodeBuild: lint · typecheck · build → S3 → CloudFront invalidation
 
- https://api.drsalehabdelkarim.com
-        │  Route 53 A record
-   EC2: nginx + Let's Encrypt → API (PM2, port 3000)
-        ├─ RDS PostgreSQL
-        ├─ Redis
-        └─ S3 + CloudFront signed URLs for lesson videos
+ https://drsalehabdelkarim.com, https://www.drsalehabdelkarim.com → CloudFront → S3 (site)
+ https://api.drsalehabdelkarim.com → EC2 (nginx + Let's Encrypt → API on PM2) → RDS, Redis
 ```
 
-The website calls the API at `https://api.drsalehabdelkarim.com/api`, and uploaded
-images are served from `https://api.drsalehabdelkarim.com/uploads/...`.
+Everything is defined in CloudFormation under `infra/aws/`:
 
-## Pipelines (`.github/workflows`)
-
-| Workflow | Runs on | Does |
-|---|---|---|
-| `ci-backend.yml` | PRs touching `backend/` | lint, unit tests, build |
-| `ci-frontend.yml` | PRs touching `frontend/` | lint, typecheck, build |
-| `deploy-backend.yml` | push to `main` touching `backend/`, or manual | CI → rsync `backend/` to EC2 → `npm ci`, `prisma migrate deploy`, build → PM2 reload → health check, rollback to the previous build if it fails |
-| `deploy-frontend.yml` | push to `main` touching `frontend/`, or manual | CI → build → `s3 sync` (hashed assets cached 1 year, `index.html` no-cache) → CloudFront invalidation |
-
-Both deploy jobs use the GitHub environment **production**. Add required reviewers to it
-in *Settings → Environments* if deploys should wait for an approval.
-
-## GitHub settings (Settings → Secrets and variables → Actions)
-
-Secrets:
-
-| Name | Value |
+| File | What it creates |
 |---|---|
-| `EC2_HOST` | `api.drsalehabdelkarim.com` (or the server's public IP) |
-| `EC2_USERNAME` | SSH user, e.g. `ubuntu` |
-| `EC2_SSH_KEY` | private key of a deploy key pair (its public key in `~/.ssh/authorized_keys` on EC2) |
-| `APP_DIR` | the API folder on the server, e.g. `/var/www/dr-saleh-api` |
-| `AWS_DEPLOY_ROLE_ARN` | ARN of the IAM role in step 5 |
+| `dns.yml` | Route 53 hosted zone for the domain + `api` A record to the EC2 server |
+| `platform.yml` | ACM certificate, site bucket, CloudFront (+ SPA rewrite function), `@`/`www` alias records, GitHub connection, CodeBuild projects, the two pipelines, their IAM roles and logs |
+| `buildspec-*.yml` | what each CodeBuild step runs |
 
-Variables:
+No SSH keys, no AWS access keys in GitHub. A pipeline runs only when its own folder changes.
 
-| Name | Value |
+## One-time setup
+
+### 0. The API server (EC2)
+1. **SSM agent + role.** The instance must be visible in *Systems Manager → Fleet Manager*.
+   Ubuntu and Amazon Linux AMIs already have the agent; the instance needs an IAM role with the
+   managed policy `AmazonSSMManagedInstanceCore` (EC2 → instance → Actions → Security → Modify IAM role).
+2. Node 22 and PM2 installed for the deploy user (default `ubuntu`), `/var/log/dr-saleh-api`
+   writable by that user, and the API folder (default `/var/www/dr-saleh-api`) owned by it.
+3. `/etc/dr-saleh-api/.env` (template `backend/docs/deployment/production.env.example`) with:
+
+   ```
+   APP_PLATFORM_URL=https://drsalehabdelkarim.com
+   CORS_ALLOWED_ORIGINS=https://drsalehabdelkarim.com,https://www.drsalehabdelkarim.com
+   PAYMOB_REDIRECTION_URL=https://drsalehabdelkarim.com/checkout/result
+   PAYPAL_RETURN_URL=https://drsalehabdelkarim.com/checkout/result
+   PAYPAL_CANCEL_URL=https://drsalehabdelkarim.com/checkout/result
+   ```
+
+   plus the RDS `DATABASE_URL`, Redis, JWT secrets, CloudFront signing keys, Paymob/PayPal and Brevo keys.
+
+### 1. DNS stack (any region)
+CloudFormation → Create stack → upload `infra/aws/dns.yml` (name it `dr-saleh-dns`).
+Then at **Hostinger** → the domain → *Nameservers* → *Change nameservers* → the four values
+from the stack's `NameServers` output. Wait until `dig NS drsalehabdelkarim.com` shows the
+`awsdns` servers (minutes to a few hours).
+
+### 2. Platform stack (**us-east-1**, required for the CloudFront certificate)
+CloudFormation (region N. Virginia) → Create stack → upload `infra/aws/platform.yml`
+(name it `dr-saleh-platform`) with:
+
+| Parameter | Value |
 |---|---|
-| `AWS_REGION` | region of the site bucket, e.g. `eu-central-1` |
-| `FRONTEND_S3_BUCKET` | site bucket name |
-| `CLOUDFRONT_DISTRIBUTION_ID` | distribution ID |
-| `DEPLOY_RUNTIME` | optional: `pm2` (default) or `docker-compose` |
-| `VITE_API_URL` | optional, defaults to `https://api.drsalehabdelkarim.com/api` |
+| `HostedZoneId` | `HostedZoneId` output of the dns stack |
+| `Ec2InstanceId` | the API instance ID (`i-…`) |
+| `Ec2Region` | the instance's region |
+| `DeployUser`, `AppDir`, `DeployRuntime` | defaults unless the server differs |
 
-## AWS setup (once)
+Creating it takes ~10–20 minutes (certificate validation and CloudFront).
 
-### 1. DNS → Route 53
-The domain's DNS is at Hostinger today (nameservers `*.dns-parking.com`) with three A records
-(`@`, `www`, `api`) all pointing to the EC2 server and no MX/TXT records.
+### 3. Approve the GitHub connection (once)
+Developer Tools → Settings → **Connections** → `dr-saleh-github` (Pending) → *Update pending
+connection* → install/authorize the **AWS Connector for GitHub** app on
+`XpertCoder-Software-Solutions` for the `Dr-Saleh-platform` repo. Status becomes *Available*.
 
-1. Route 53 → Hosted zones → Create `drsalehabdelkarim.com`.
-2. Add `api` → A record → the EC2 IP (the API keeps working through the switch).
-3. At Hostinger: Domains → `drsalehabdelkarim.com` → DNS / Nameservers → *Change nameservers*
-   to the four `awsdns` names Route 53 shows for the zone. Propagation can take a few hours.
+### 4. First run
+CodePipeline → `dr-saleh-backend` and `dr-saleh-frontend` → *Release change*.
+From then on every push to `main` deploys whatever changed.
 
-### 2. Certificate
-ACM in **us-east-1** (required by CloudFront) → request a public certificate for
-`drsalehabdelkarim.com` and `www.drsalehabdelkarim.com`, DNS validation →
-*Create records in Route 53*.
+On a database without roles/admin, seed once on the server (needs dev dependencies, which the
+deploy prunes):
+`cd /var/www/dr-saleh-api && set -a && . /etc/dr-saleh-api/.env && set +a && npm ci && npx prisma db seed && npm prune --omit=dev`
 
-### 3. Site bucket
-S3 bucket (any region), *Block all public access* on, no static website hosting.
+## Day to day
+- Logs: CloudWatch log group `/dr-saleh/codebuild`; each pipeline step links to its build log.
+  The server output of a backend deploy is printed at the end of the deploy step.
+- Roll back: re-run an older execution from the pipeline history (*Release change* on a past
+  commit), or revert the commit on `main`.
+- Cost: CodeBuild has 100 free build minutes a month on the small instance; each V2 pipeline is
+  billed per action minute, a few cents per deploy.
 
-### 4. CloudFront distribution
-- Origin: the bucket, with Origin Access Control; apply the bucket policy CloudFront offers.
-- Alternate domain names: `drsalehabdelkarim.com`, `www.drsalehabdelkarim.com`; certificate from step 2.
-- Default root object `index.html`; viewer protocol: redirect HTTP to HTTPS; cache policy `CachingOptimized`.
-- Functions → create a function from `infra/cloudfront/spa-rewrite.js`, publish it, and attach it
-  to the default behavior on *viewer request* (client-side routes like `/courses/…` → `index.html`).
-- Route 53: `drsalehabdelkarim.com` and `www` → A (alias) → the distribution
-  (replace the old A records that pointed to EC2).
-
-### 5. IAM role for the frontend pipeline (no access keys)
-1. IAM → Identity providers → add OpenID Connect provider
-   `https://token.actions.githubusercontent.com`, audience `sts.amazonaws.com`.
-2. Create a role with the trust policy `infra/iam/github-oidc-trust-policy.json`
-   (only this repo's `production` environment can assume it) and the permissions
-   `infra/iam/frontend-deploy-policy.json`. Replace the `<…>` placeholders.
-3. Put the role ARN in the `AWS_DEPLOY_ROLE_ARN` secret.
-
-### 6. API server (EC2)
-- Needs Node 22, PM2, rsync and `/var/log/dr-saleh-api` writable by the deploy user (see
-  `backend/docs/deployment/final-production-deployment.md`; nginx + TLS for `api.` is already there).
-- In `/etc/dr-saleh-api/.env` set the site URLs:
-
-  ```
-  APP_PLATFORM_URL=https://drsalehabdelkarim.com
-  CORS_ALLOWED_ORIGINS=https://drsalehabdelkarim.com,https://www.drsalehabdelkarim.com
-  PAYMOB_REDIRECTION_URL=https://drsalehabdelkarim.com/checkout/result
-  PAYPAL_RETURN_URL=https://drsalehabdelkarim.com/checkout/result
-  PAYPAL_CANCEL_URL=https://drsalehabdelkarim.com/checkout/result
-  ```
-
-- The first pipeline run applies the new migrations with `prisma migrate deploy`. If the
-  database has no roles/admin yet, seed once on the server (the seed needs dev dependencies,
-  which the deploy prunes):
-  `cd $APP_DIR && set -a && . /etc/dr-saleh-api/.env && set +a && npm ci && npx prisma db seed && npm prune --omit=dev`
+## GitHub Actions (backup)
+`.github/workflows` has the same checks and deploys for GitHub Actions. They are manual-only
+while the organization's Actions billing is locked; to use them, see the git history of this
+file for the secrets they need.

@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Dr. Saleh platform - step 1: Route 53 hosted zone for the domain, with the API
+  record pointing at the existing EC2 server. After creating this stack, set the
+  domain's nameservers at the registrar (Hostinger) to the NameServers output.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: drsalehabdelkarim.com
+  ApiServerIp:
+    Type: String
+    Default: 63.182.153.255
+    Description: Public IP of the EC2 server that runs the API (api.<domain>).
+
+Resources:
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig:
+        Comment: Dr. Saleh platform
+
+  ApiRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub api.${DomainName}
+      Type: A
+      TTL: '300'
+      ResourceRecords:
+        - !Ref ApiServerIp
+
+Outputs:
+  HostedZoneId:
+    Description: Pass this to the platform stack.
+    Value: !Ref HostedZone
+  NameServers:
+    Description: Put these four nameservers at Hostinger.
+    Value: !Join [', ', !GetAtt HostedZone.NameServers]
