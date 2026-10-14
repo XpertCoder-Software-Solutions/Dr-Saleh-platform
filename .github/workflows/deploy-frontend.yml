@@ -53,8 +53,8 @@ jobs:
       - name: Build
         working-directory: frontend
         env:
-          # Same CloudFront domain serves /api from EC2, so "/api" works by default.
-          VITE_API_URL: ${{ vars.VITE_API_URL || '/api' }}
+          # The API runs on the EC2 server at api.drsalehabdelkarim.com.
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.drsalehabdelkarim.com/api' }}
         run: |
           npm ci
           npm run build
