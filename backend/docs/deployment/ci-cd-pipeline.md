@@ -1,3 +1,5 @@
+> **Moved:** in the monorepo the pipelines live in the root `.github/workflows` and are documented in [`docs/deployment/aws.md`](../../../docs/deployment/aws.md). The notes below describe the old backend-only workflow.
+
 # CI/CD Pipeline
 
 Target: GitHub Actions deploying Dr. Saleh Platform backend to an AWS EC2 Ubuntu server.

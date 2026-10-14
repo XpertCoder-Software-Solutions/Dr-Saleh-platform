@@ -1,0 +1,127 @@
+name: Deploy · backend (EC2)
+
+# Ships backend/ to the EC2 server on every push to main that touches it:
+# checks → rsync the source → npm ci, prisma migrate deploy, build → PM2 reload
+# (or docker compose) → health check, rolling back the build if it fails.
+# Setup and the secrets it needs: docs/deployment/aws.md
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/deploy-backend.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci-backend.yml
+
+  deploy:
+    name: Deploy to EC2
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deployment secrets
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          missing=0
+          for name in EC2_HOST EC2_USERNAME EC2_SSH_KEY APP_DIR; do
+            if [ -z "${!name}" ]; then echo "::error::Missing GitHub secret: ${name}"; missing=1; fi
+          done
+          exit "${missing}"
+
+      - name: Configure SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${EC2_SSH_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${EC2_HOST}" >> ~/.ssh/known_hosts
+
+      - name: Upload source
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+        run: |
+          # Excluded paths are also protected from --delete, so the server keeps
+          # its node_modules, current build, uploads and env files.
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude 'dist.prev' \
+            --exclude 'uploads' --exclude '.env' --exclude '.env.*' \
+            backend/ "${EC2_USERNAME}@${EC2_HOST}:${APP_DIR}/"
+
+      - name: Build, migrate and restart
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+          DEPLOY_RUNTIME: ${{ vars.DEPLOY_RUNTIME || 'pm2' }}
+          HEALTHCHECK_URL: ${{ vars.BACKEND_HEALTHCHECK_URL || '' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "${EC2_USERNAME}@${EC2_HOST}" \
+            "APP_DIR='${APP_DIR}' DEPLOY_RUNTIME='${DEPLOY_RUNTIME}' HEALTHCHECK_URL='${HEALTHCHECK_URL}' REVISION='${GITHUB_SHA}' bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+          cd "${APP_DIR}"
+          echo "Deploying ${REVISION}"
+
+          env_file=/etc/dr-saleh-api/.env
+          [ -f "${env_file}" ] || env_file="${APP_DIR}/.env"
+          [ -f "${env_file}" ] || { echo "No env file: /etc/dr-saleh-api/.env or ${APP_DIR}/.env" >&2; exit 1; }
+          set -a; . "${env_file}"; set +a
+          mkdir -p uploads
+
+          case "${DEPLOY_RUNTIME}" in
+            pm2)
+              [ -d dist ] && rm -rf dist.prev && cp -a dist dist.prev
+              npm ci
+              npx prisma generate
+              npx prisma migrate deploy
+              npm run build
+              npm prune --omit=dev
+              pm2 startOrReload ecosystem.config.cjs --env production
+              pm2 save
+              ;;
+            docker-compose)
+              npx --yes prisma@7 migrate deploy
+              docker compose up -d --build app
+              ;;
+            *) echo "Unsupported DEPLOY_RUNTIME: ${DEPLOY_RUNTIME}" >&2; exit 1 ;;
+          esac
+
+          url="${HEALTHCHECK_URL:-http://127.0.0.1:${PORT:-3000}/${API_PREFIX:-api}/health}"
+          for attempt in $(seq 1 12); do
+            if curl -fsS "${url}" >/dev/null; then echo "Health check passed: ${url}"; exit 0; fi
+            echo "Health check ${attempt}/12 failed, retrying"; sleep 5
+          done
+
+          echo "Health check failed" >&2
+          if [ "${DEPLOY_RUNTIME}" = pm2 ] && [ -d dist.prev ]; then
+            echo "Rolling back to the previous build" >&2
+            rm -rf dist && mv dist.prev dist
+            pm2 startOrReload ecosystem.config.cjs --env production || true
+            pm2 logs dr-saleh-api --lines 100 --nostream || true
+          fi
+          exit 1
+          REMOTE
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

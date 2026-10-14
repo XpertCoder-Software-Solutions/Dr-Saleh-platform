@@ -22,9 +22,12 @@ Website: http://localhost:5180 · API: http://localhost:3100/api
 On the first run the database and uploads are filled with the demo content from
 `backend/demo` (see the backend README).
 
-## Deploying
+## CI/CD and deploying
 
-- **Backend** (Railway or any Docker host): service root `backend/`, uses
-  `backend/Dockerfile`, Postgres + Redis, a volume at `/app/uploads`.
-- **Frontend** (Vercel): project root `frontend/`, env `VITE_API_URL` = the API URL
-  ending in `/api`. Add the site's domain to the backend's `CORS_ALLOWED_ORIGINS`.
+GitHub Actions (`.github/workflows`) check every pull request and deploy on every
+push to `main`: the backend to EC2 (PM2, RDS, Redis) and the frontend to S3 behind
+CloudFront, both under one CloudFront domain. Setup, secrets and AWS steps:
+[docs/deployment/aws.md](docs/deployment/aws.md).
+
+The backend image (`backend/Dockerfile`) also runs on any Docker host; see the
+backend README for its optional demo seed.
