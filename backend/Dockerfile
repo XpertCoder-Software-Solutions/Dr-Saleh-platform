@@ -15,6 +15,19 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
+# One-off image that applies Prisma migrations (keeps the prisma CLI, which the
+# runner image prunes). Used by scripts/deploy-on-server.sh:
+#   docker build --target migrator -t dr-saleh-backend-migrator .
+#   docker run --rm --network host --env-file .env dr-saleh-backend-migrator
+FROM dependencies AS migrator
+
+COPY prisma ./prisma
+COPY prisma.config.ts tsconfig.json ./
+# generated client for `npx prisma db seed`
+RUN npm run prisma:generate
+
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 FROM node:22-alpine AS runner
 
 WORKDIR /app

@@ -31,9 +31,15 @@ No SSH keys, no AWS access keys in GitHub. A pipeline runs only when its own fol
 1. **SSM agent + role.** The instance must be visible in *Systems Manager → Fleet Manager*.
    Ubuntu and Amazon Linux AMIs already have the agent; the instance needs an IAM role with the
    managed policy `AmazonSSMManagedInstanceCore` (EC2 → instance → Actions → Security → Modify IAM role).
-2. Node 22 and PM2 installed for the deploy user (default `ubuntu`), `/var/log/dr-saleh-api`
-   writable by that user, and the API folder (default `/var/www/dr-saleh-api`) owned by it.
-3. `/etc/dr-saleh-api/.env` (template `backend/docs/deployment/production.env.example`) with:
+2. Docker with the compose plugin; the deploy user (default `ubuntu`) in the `docker` group and
+   owner of the API folder (default `/var/www/dr-saleh-backend`). No Node is needed on the server:
+   the deploy builds the image, runs `prisma migrate deploy` in a one-off container (Dockerfile
+   target `migrator`) and restarts the stack from `backend/docker-compose.prod.yml`
+   (project `dr-saleh-backend`, API on `127.0.0.1:3000` behind nginx, `uploads/` kept on the host).
+   If the health check fails the previous image is restored. (`DeployRuntime=pm2` is the
+   alternative for a server running the API on Node + PM2.)
+3. The API's `.env` in the API folder (or `/etc/dr-saleh-api/.env`, which is copied over it on each
+   deploy; template `backend/docs/deployment/production.env.example`) with:
 
    ```
    APP_PLATFORM_URL=https://drsalehabdelkarim.com
@@ -43,7 +49,8 @@ No SSH keys, no AWS access keys in GitHub. A pipeline runs only when its own fol
    PAYPAL_CANCEL_URL=https://drsalehabdelkarim.com/checkout/result
    ```
 
-   plus the RDS `DATABASE_URL`, Redis, JWT secrets, CloudFront signing keys, Paymob/PayPal and Brevo keys.
+   plus the database `DATABASE_URL`, Redis (`REDIS_HOST=redis`), JWT secrets, CloudFront signing
+   keys, Paymob/PayPal and Brevo keys.
 
 ### 1. DNS stack (any region)
 CloudFormation → Create stack → upload `infra/aws/dns.yml` (name it `dr-saleh-dns`).
@@ -73,9 +80,8 @@ connection* → install/authorize the **AWS Connector for GitHub** app on
 CodePipeline → `dr-saleh-backend` and `dr-saleh-frontend` → *Release change*.
 From then on every push to `main` deploys whatever changed.
 
-On a database without roles/admin, seed once on the server (needs dev dependencies, which the
-deploy prunes):
-`cd /var/www/dr-saleh-api && set -a && . /etc/dr-saleh-api/.env && set +a && npm ci && npx prisma db seed && npm prune --omit=dev`
+On a database without roles/admin, seed once on the server:
+`cd /var/www/dr-saleh-backend && docker run --rm --network host --env-file .env dr-saleh-backend-migrator npx prisma db seed`
 
 ## Day to day
 - Logs: CloudWatch log group `/dr-saleh/codebuild`; each pipeline step links to its build log.
