@@ -108,3 +108,4 @@ container just starts the API. Mount a persistent volume at `/app/uploads`.
 
 `NODE_ENV=production` requires the CloudFront signing keys for lesson videos; a
 preview without them can run with `NODE_ENV=development` and `SWAGGER_ENABLED=false`.
+
