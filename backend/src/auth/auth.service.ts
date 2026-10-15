@@ -14,7 +14,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Gender, Prisma, RoleName } from '@prisma/client';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import type { StringValue } from 'ms';
 import { AuditLogService } from '../audit-logs/audit-log.service';
 import {
@@ -32,6 +32,7 @@ import {
   EMAIL_VERIFICATION_OTP_RESEND_COOLDOWN_SECONDS,
   PASSWORD_RESET_OTP_MAX_ATTEMPTS,
   PASSWORD_RESET_OTP_RESEND_COOLDOWN_SECONDS,
+  PASSWORD_RESET_TOKEN_TTL_SECONDS,
 } from './constants/email-verification.constants';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -40,6 +41,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
 import { OtpService } from './services/otp.service';
 import { PasswordService } from './services/password.service';
 
@@ -594,11 +596,154 @@ export class AuthService {
     return genericResponse;
   }
 
+  /**
+   * Step 2 of "forgot password": checks the emailed OTP on its own and, when it is right,
+   * returns a short-lived reset token for step 3 (new password). The OTP is used up here.
+   */
+  async verifyPasswordResetOtp(dto: VerifyResetOtpDto): Promise<{
+    message: string;
+    data: { resetToken: string; expiresInSeconds: number };
+  }> {
+    const user = await this.assertValidPasswordResetOtp(dto.email, dto.otp);
+
+    const resetToken = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TOKEN_TTL_SECONDS * 1000,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id, usedAt: null },
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: this.hashResetToken(resetToken),
+          expiresAt,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetOtpHash: null,
+          passwordResetOtpExpiresAt: null,
+          passwordResetAttempts: 0,
+        },
+      }),
+    ]);
+
+    return {
+      message: 'Password reset OTP verified',
+      data: { resetToken, expiresInSeconds: PASSWORD_RESET_TOKEN_TTL_SECONDS },
+    };
+  }
+
+  /**
+   * Step 3: sets the new password with the reset token from step 2
+   * (or, for older clients, directly with the OTP).
+   */
   async resetPassword(
     resetPasswordDto: ResetPasswordDto,
     auditContext?: AuthAuditContext,
   ): Promise<MessageResult> {
-    const email = this.normalizeEmail(resetPasswordDto.email);
+    let user: {
+      id: string;
+      fullName: string;
+      email: string;
+      role: { name: RoleName };
+    };
+    let tokenId: string | null = null;
+
+    if (resetPasswordDto.resetToken) {
+      const token = await this.prisma.passwordResetToken.findUnique({
+        where: { tokenHash: this.hashResetToken(resetPasswordDto.resetToken) },
+        select: {
+          id: true,
+          usedAt: true,
+          expiresAt: true,
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              role: { select: { name: true } },
+            },
+          },
+        },
+      });
+
+      if (
+        !token ||
+        token.usedAt ||
+        token.expiresAt.getTime() <= Date.now() ||
+        token.user.email !== this.normalizeEmail(resetPasswordDto.email)
+      ) {
+        throw new BadRequestException(
+          'Password reset session is invalid or expired.',
+        );
+      }
+
+      user = token.user;
+      tokenId = token.id;
+    } else if (resetPasswordDto.otp) {
+      user = await this.assertValidPasswordResetOtp(
+        resetPasswordDto.email,
+        resetPasswordDto.otp,
+      );
+    } else {
+      throw new BadRequestException('Password reset OTP is missing.');
+    }
+
+    const passwordHash = await this.passwordService.hashPassword(
+      resetPasswordDto.newPassword,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          passwordResetOtpHash: null,
+          passwordResetOtpExpiresAt: null,
+          passwordResetOtpSentAt: null,
+          passwordResetAttempts: 0,
+          hashedRefreshToken: null,
+        },
+      }),
+      tokenId
+        ? this.prisma.passwordResetToken.update({
+            where: { id: tokenId },
+            data: { usedAt: new Date() },
+          })
+        : this.prisma.passwordResetToken.deleteMany({
+            where: { userId: user.id, usedAt: null },
+          }),
+    ]);
+
+    await this.notificationsService.sendPasswordChanged({
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+    });
+
+    this.logAuthAudit({
+      userId: user.id,
+      email: user.email,
+      role: user.role.name,
+      action: AuditActions.PasswordResetCompleted,
+      description: 'User completed a password reset.',
+      auditContext,
+    });
+
+    return {
+      message: 'Password reset successfully',
+      data: {},
+    };
+  }
+
+  /** Checks a password reset OTP; counts wrong attempts. */
+  private async assertValidPasswordResetOtp(rawEmail: string, otp: string) {
+    const email = this.normalizeEmail(rawEmail);
     const user = await this.prisma.user.findUnique({
       where: { email },
       select: {
@@ -639,7 +784,7 @@ export class AuthService {
     }
 
     const isOtpValid = await this.otpService.compareOtp(
-      resetPasswordDto.otp,
+      otp,
       user.passwordResetOtpHash,
     );
 
@@ -656,41 +801,16 @@ export class AuthService {
       throw new BadRequestException('Invalid password reset OTP.');
     }
 
-    const passwordHash = await this.passwordService.hashPassword(
-      resetPasswordDto.newPassword,
-    );
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        passwordResetOtpHash: null,
-        passwordResetOtpExpiresAt: null,
-        passwordResetOtpSentAt: null,
-        passwordResetAttempts: 0,
-        hashedRefreshToken: null,
-      },
-    });
-
-    await this.notificationsService.sendPasswordChanged({
-      userId: user.id,
-      email: user.email,
-      fullName: user.fullName,
-    });
-
-    this.logAuthAudit({
-      userId: user.id,
-      email: user.email,
-      role: user.role.name,
-      action: AuditActions.PasswordResetCompleted,
-      description: 'User completed a password reset.',
-      auditContext,
-    });
-
     return {
-      message: 'Password reset successfully',
-      data: {},
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
     };
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   private async ensureEmailAndPhoneAreUnique(

@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { Children, isValidElement, useEffect, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icon'
 import { buttonClass } from './button'
 import { cn } from '@/lib/cn'
+import { dismissToast, showToast } from '@/lib/toast'
 
 interface StateProps {
   icon?: IconName
@@ -66,16 +67,41 @@ export function Spinner({ label = 'جاري التحميل' }: { label?: string 
   )
 }
 
-export function Alert({ tone, children }: { tone: 'error' | 'success'; children: ReactNode }) {
+/** Plain text of a node tree, so an alert re-pops only when its wording changes. */
+function nodeText(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeText).join('')
+  if (isValidElement<{ children?: ReactNode }>(node)) return nodeText(node.props.children)
+  return Children.toArray(node).map(nodeText).join('')
+}
+
+/**
+ * Errors and warnings show as an on-screen popup (kept while the alert is mounted, closable);
+ * success messages stay inline.
+ */
+export function Alert({
+  tone,
+  children,
+}: {
+  tone: 'error' | 'warning' | 'success'
+  children: ReactNode
+}) {
+  const popup = tone !== 'success'
+  const text = nodeText(children)
+  useEffect(() => {
+    if (!popup || !text) return
+    const id = showToast(tone, children)
+    return () => dismissToast(id)
+    // children is re-created every render; the text decides when to show it again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popup, tone, text])
+
+  if (popup) return null
   return (
     <p
-      role={tone === 'error' ? 'alert' : 'status'}
-      className={cn(
-        'rounded-field border px-4 py-3 text-[15px] leading-relaxed',
-        tone === 'error'
-          ? 'border-red-200 bg-red-50 text-danger'
-          : 'border-green-200 bg-green-50 text-green-800',
-      )}
+      role="status"
+      className="rounded-field border border-green-200 bg-green-50 px-4 py-3 text-[15px] leading-relaxed text-green-800"
     >
       {children}
     </p>

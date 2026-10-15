@@ -8,9 +8,13 @@ import { useAuth, useCopy, useGender } from '@/auth/hooks'
 import { AccountShell, Avatar, Panel } from '@/components/account/AccountShell'
 import { Icon } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
-import { ChoiceChips, PasswordField, TextField } from '@/components/ui/fields'
+import { ChoiceChips, PasswordField, PasswordRules, TextField } from '@/components/ui/fields'
+import { isStrongPassword, PASSWORD_POLICY_TEXT } from '@/lib/password'
 import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import type { Gender } from '@/types/api'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 const MAX_IMAGE_MB = 5
 
@@ -177,8 +181,9 @@ function DetailsForm({ profile }: { profile: Profile }) {
     e.preventDefault()
     const er: Record<string, string> = {}
     if (f.firstName.trim().length < 2) er.firstName = 'اكتب الاسم الأول.'
-    if (f.phone.trim().replace(/\D/g, '').length < 8) er.phone = 'اكتب رقم موبايل صحيح.'
+    if (f.phone && !isValidPhone(f.phone)) er.phone = 'اكتب رقم موبايل صحيح للدولة اللي اخترتها.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
   }
 
@@ -201,13 +206,10 @@ function DetailsForm({ profile }: { profile: Profile }) {
             onChange={(e) => setF({ ...f, lastName: e.target.value })}
           />
           <TextField label="البريد الإلكتروني" type="email" ltr value={profile.email} disabled readOnly />
-          <TextField
+          <PhoneField
             label="رقم الموبايل"
-            type="tel"
-            ltr
-            autoComplete="tel"
             value={f.phone}
-            onChange={(e) => setF({ ...f, phone: e.target.value })}
+            onChange={(v) => setF({ ...f, phone: v })}
             error={errors.phone}
           />
           <ChoiceChips<Gender>
@@ -273,10 +275,11 @@ function PasswordForm() {
     e.preventDefault()
     const er: Record<string, string> = {}
     if (!f.current) er.current = 'اكتب كلمة المرور الحالية.'
-    if (f.next.length < 8) er.next = 'كلمة المرور لازم تكون 8 حروف على الأقل.'
+    if (!isStrongPassword(f.next)) er.next = PASSWORD_POLICY_TEXT
     else if (f.next === f.current) er.next = 'اختار كلمة مرور مختلفة عن الحالية.'
     if (f.confirm !== f.next) er.confirm = 'كلمتين المرور مش زي بعض.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) change.mutate()
   }
 
@@ -295,7 +298,6 @@ function PasswordForm() {
           <PasswordField
             label="كلمة المرور الجديدة"
             autoComplete="new-password"
-            placeholder="8 أحرف على الأقل"
             value={f.next}
             onChange={(e) => setF({ ...f, next: e.target.value })}
             error={errors.next}
@@ -309,6 +311,7 @@ function PasswordForm() {
             error={errors.confirm}
           />
         </div>
+        {f.next && <PasswordRules password={f.next} />}
         {change.isError && <Alert tone="error">{(change.error as Error).message}</Alert>}
         {change.isSuccess && <Alert tone="success">كلمة المرور اتغيّرت.</Alert>}
         <button

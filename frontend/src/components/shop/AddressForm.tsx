@@ -6,6 +6,9 @@ import { buttonClass } from '@/components/ui/button'
 import { SelectField, TextField } from '@/components/ui/fields'
 import { Alert, Spinner } from '@/components/ui/States'
 import { formatEGP } from '@/lib/format'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 /** New shipping address. Shipping cost comes from the chosen governorate. */
 export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => void; onCancel?: () => void }) {
@@ -55,12 +58,13 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
     e.stopPropagation()
     const er: Record<string, string> = {}
     if (f.fullName.trim().length < 3) er.fullName = 'اكتب اسم المستلم.'
-    if (f.phoneNumber.trim().length < 8) er.phoneNumber = 'اكتب رقم صحيح.'
+    if (!isValidPhone(f.phoneNumber)) er.phoneNumber = 'اكتب رقم موبايل صحيح للدولة اللي اخترتها.'
     if (!f.governorateId) er.governorateId = 'اختار المحافظة.'
     if (!f.city.trim()) er.city = 'اكتب المدينة أو المنطقة.'
     if (!f.street.trim()) er.street = 'اكتب الشارع.'
     if (!f.buildingNumber.trim()) er.buildingNumber = 'اكتب رقم العمارة.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
   }
 
@@ -82,14 +86,10 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
           onChange={set('fullName')}
           error={errors.fullName}
         />
-        <TextField
+        <PhoneField
           label="رقم الموبايل"
-          type="tel"
-          ltr
-          autoComplete="tel"
-          placeholder="+20 10 0000 0000"
           value={f.phoneNumber}
-          onChange={set('phoneNumber')}
+          onChange={(v) => set('phoneNumber')({ target: { value: v } })}
           error={errors.phoneNumber}
         />
         <SelectField

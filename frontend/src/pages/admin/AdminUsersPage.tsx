@@ -15,6 +15,9 @@ import { formatDate, formatEGP, sinceLabel } from '@/lib/format'
 import { orderStatus } from '@/lib/order-status'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Gender } from '@/types/api'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 type Tab = 'all' | 'active' | 'suspended'
 
@@ -494,10 +497,11 @@ function AddStudentModal({ onClose }: { onClose: () => void }) {
     e?.preventDefault()
     const er: Record<string, string> = {}
     if (f.fullName.trim().split(/\s+/).length < 2) er.fullName = 'اكتب الاسم الأول واسم العيلة.'
-    if (digits(f.phoneNumber).length < 10) er.phoneNumber = 'اكتب رقم موبايل صحيح.'
+    if (!isValidPhone(f.phoneNumber)) er.phoneNumber = 'اكتب رقم موبايل صحيح.'
     if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) er.email = 'اكتب إيميل صحيح.'
     if (f.password.length < 8) er.password = 'كلمة السر 8 حروف على الأقل.'
     setErrors(er)
+    warnFormErrors(er)
     if (Object.keys(er).length) return
     create.mutate({
       fullName: f.fullName.trim(),
@@ -610,12 +614,10 @@ function AddStudentModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setF({ ...f, fullName: e.target.value })}
             error={errors.fullName}
           />
-          <TextField
+          <PhoneField
             label="رقم الموبايل (واتساب) *"
-            type="tel"
-            ltr
             value={f.phoneNumber}
-            onChange={(e) => setF({ ...f, phoneNumber: e.target.value })}
+            onChange={(v) => setF({ ...f, phoneNumber: v })}
             error={errors.phoneNumber}
           />
           <TextField

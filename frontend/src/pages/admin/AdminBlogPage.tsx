@@ -15,6 +15,7 @@ import { Alert, EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { warnFormErrors } from '@/lib/formErrors'
 
 const KEY = ['admin', 'articles'] as const
 type Tab = 'all' | 'live' | 'hidden'
@@ -177,6 +178,7 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
     if (f.contentAr.trim().length < 20) er.contentAr = 'اكتب المقال.'
     if (!article && !cover) er.cover = 'اختار صورة.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
   }
 

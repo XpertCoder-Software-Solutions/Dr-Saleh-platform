@@ -44,6 +44,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -264,6 +265,33 @@ export class AuthController {
       forgotPasswordDto,
       this.getAuditContext(request),
     );
+  }
+
+  @Post('verify-reset-otp')
+  @Throttle(AUTH_OTP_VERIFY_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Check a password reset OTP and get a short-lived token for setting the new password.',
+  })
+  @ApiOkResponse({
+    description: 'OTP is valid.',
+    schema: {
+      example: {
+        message: 'Password reset OTP verified',
+        data: { resetToken: 'hQ3c…', expiresInSeconds: 900 },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'OTP is missing, expired, invalid, or exhausted.',
+  })
+  @ApiNotFoundResponse({ description: 'User not found.' })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many password reset attempts.',
+  })
+  verifyResetOtp(@Body() dto: VerifyResetOtpDto) {
+    return this.authService.verifyPasswordResetOtp(dto);
   }
 
   @Post('reset-password')

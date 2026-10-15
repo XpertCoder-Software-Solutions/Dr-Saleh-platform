@@ -1,12 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsStrongPassword } from '../../common/decorators/strong-password.decorator';
 import { normalizeEmail, trimString } from './dto-transformers';
 
 export class CreateAdminDto {
@@ -30,9 +25,8 @@ export class CreateAdminDto {
   @MaxLength(32)
   phoneNumber: string;
 
-  @ApiProperty({ example: 'Password123!', minLength: 8 })
-  @IsString()
+  @ApiProperty({ example: 'Str0ng-Pass!2026', minLength: 12 })
   @IsNotEmpty()
-  @MinLength(8)
+  @IsStrongPassword()
   password: string;
 }
