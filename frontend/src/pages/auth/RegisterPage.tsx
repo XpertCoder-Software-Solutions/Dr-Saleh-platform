@@ -9,7 +9,11 @@ import type { Gender } from '@/types/api'
 import { AuthShell, AuthSwitch } from './AuthShell'
 import { buttonClass } from '@/components/ui/button'
 import { Alert } from '@/components/ui/States'
-import { PasswordField, TextField } from '@/components/ui/fields'
+import { PasswordField, PasswordRules, TextField } from '@/components/ui/fields'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { isStrongPassword, PASSWORD_POLICY_TEXT } from '@/lib/password'
+import { warnFormErrors } from '@/lib/formErrors'
 import { pendingSignup } from './pending'
 
 type Errors = Partial<
@@ -22,7 +26,6 @@ const segClass =
   'has-checked:border-blue-400 has-checked:bg-surface-blue has-checked:text-ink has-focus-visible:shadow-[0_0_0_4px_rgba(61,155,216,.25)]'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const PHONE_RE = /^\+?[0-9\s-]{8,16}$/
 
 export function RegisterPage() {
   usePageTitle('إنشاء حساب')
@@ -54,9 +57,9 @@ export function RegisterPage() {
     const e: Errors = {}
     if (form.fullName.trim().split(/\s+/).length < 2) e.fullName = 'اكتب الاسم الأول واسم العيلة.'
     if (!EMAIL_RE.test(form.email.trim())) e.email = 'البريد الإلكتروني مش صحيح.'
-    if (!PHONE_RE.test(form.phoneNumber.trim())) e.phoneNumber = 'رقم الموبايل مش صحيح.'
+    if (!isValidPhone(form.phoneNumber)) e.phoneNumber = 'رقم الموبايل مش صحيح للدولة اللي اخترتها.'
     if (!form.gender) e.gender = 'اختار النوع عشان نكلمك بالصيغة المناسبة.'
-    if (form.password.length < 8) e.password = 'كلمة المرور لازم تكون 8 حروف على الأقل.'
+    if (!isStrongPassword(form.password)) e.password = PASSWORD_POLICY_TEXT
     if (form.confirm !== form.password) e.confirm = 'كلمتين المرور مش متطابقين.'
     return e
   }
@@ -66,7 +69,7 @@ export function RegisterPage() {
     setServerError(null)
     const e = validate()
     setErrors(e)
-    if (Object.keys(e).length) return
+    if (warnFormErrors(e)) return
 
     setBusy(true)
     const email = form.email.trim()
@@ -140,7 +143,7 @@ export function RegisterPage() {
           {errors.gender && <span className="text-sm text-danger">{errors.gender}</span>}
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-3.5 max-[480px]:grid-cols-1">
+        <div className="grid gap-3.5">
           <TextField
             label="البريد الإلكتروني"
             type="email"
@@ -152,27 +155,23 @@ export function RegisterPage() {
             error={errors.email}
             required
           />
-          <TextField
-            label="رقم الموبايل"
-            type="tel"
-            ltr
-            autoComplete="tel"
-            placeholder="+20 10 0000 0000"
-            value={form.phoneNumber}
-            onChange={set('phoneNumber')}
-            error={errors.phoneNumber}
-            required
-          />
         </div>
+        <PhoneField
+          label="رقم الموبايل"
+          value={form.phoneNumber}
+          onChange={(phoneNumber) => setForm((f) => ({ ...f, phoneNumber }))}
+          error={errors.phoneNumber}
+          required
+        />
         <PasswordField
           label="كلمة المرور"
           autoComplete="new-password"
           value={form.password}
           onChange={set('password')}
           error={errors.password}
-          hint="8 حروف على الأقل"
           required
         />
+        <PasswordRules password={form.password} />
         <PasswordField
           label={female ? 'اكتبيها تاني' : male ? 'اكتبها تاني' : 'تأكيد كلمة المرور'}
           autoComplete="new-password"

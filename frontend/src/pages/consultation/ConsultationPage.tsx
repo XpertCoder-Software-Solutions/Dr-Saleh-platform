@@ -14,6 +14,9 @@ import { COUNTRIES } from '@/lib/countries'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Gender } from '@/types/api'
 import { ConsultSuccess } from './ConsultSuccess'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -72,12 +75,14 @@ export function ConsultationPage() {
     if (!form.categoryId) er.categoryId = 'اختار نوع الاستشارة.'
     if (form.fullName.trim().length < 3) er.fullName = 'اكتب اسمك.'
     if (!EMAIL_RE.test(form.email.trim())) er.email = 'البريد الإلكتروني مش صحيح.'
-    if (form.phone.trim().length < 8) er.phone = 'اكتب رقم صحيح.'
+    if (!isValidPhone(form.phone)) er.phone = 'اكتب رقم صحيح للدولة اللي اخترتها.'
+    if (form.whatsApp && !isValidPhone(form.whatsApp)) er.whatsApp = 'رقم الواتساب مش صحيح.'
     if (!(Number(form.age) >= 1 && Number(form.age) <= 120)) er.age = 'اكتب السن.'
     if (!form.gender) er.gender = 'اختار النوع.'
     if (form.topic.trim().length < 3) er.topic = 'اكتب موضوع الاستشارة.'
     if (!form.agree) er.agree = 'لازم توافق على الشروط.'
     setErrors(er)
+    warnFormErrors(er)
     if (Object.keys(er).length === 0) submit.mutate()
   }
 
@@ -162,23 +167,18 @@ export function ConsultationPage() {
                     onChange={(e) => set('email', e.target.value)}
                     error={errors.email}
                   />
-                  <TextField
+                  <PhoneField
                     label="رقم الهاتف"
-                    type="tel"
-                    ltr
-                    placeholder="+20 10 0000 0000"
-                    autoComplete="tel"
                     value={form.phone}
-                    onChange={(e) => set('phone', e.target.value)}
+                    onChange={(v) => set('phone', v)}
                     error={errors.phone}
                   />
-                  <TextField
+                  <PhoneField
                     label="رقم الواتساب"
-                    type="tel"
-                    ltr
-                    placeholder="لو مختلف عن رقم الهاتف"
                     value={form.whatsApp}
-                    onChange={(e) => set('whatsApp', e.target.value)}
+                    onChange={(v) => set('whatsApp', v)}
+                    error={errors.whatsApp}
+                    hint="لو مختلف عن رقم الهاتف"
                   />
                 </div>
                 <div className="grid grid-cols-[1.3fr_0.7fr_1fr] gap-4 max-sm:grid-cols-2">

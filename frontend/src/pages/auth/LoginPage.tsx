@@ -18,9 +18,10 @@ export function LoginPage() {
   const t = useCopy()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from ?? routes.home
+  const navState = location.state as { from?: string; email?: string } | null
+  const from = navState?.from ?? routes.home
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(navState?.email ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -33,7 +34,7 @@ export function LoginPage() {
       const user = await login(email.trim(), password)
       navigate(user.role === 'Admin' && from === routes.home ? routes.admin : from, { replace: true })
     } catch (err) {
-      if (err instanceof ApiClientError && err.statusCode === 403 && /verif/i.test(err.message)) {
+      if (err instanceof ApiClientError && err.statusCode === 403 && /verif/i.test(err.rawMessage)) {
         // Account exists but email isn't verified yet: send a fresh code and go verify.
         pendingSignup.set({ email: email.trim(), password })
         authApi.resendVerification(email.trim()).catch(() => undefined)

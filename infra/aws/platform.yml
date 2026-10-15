@@ -35,11 +35,11 @@ Parameters:
     Description: Linux user on the server that owns the API folder and runs PM2.
   AppDir:
     Type: String
-    Default: /var/www/dr-saleh-api
+    Default: /var/www/dr-saleh-backend
     Description: API folder on the server.
   DeployRuntime:
     Type: String
-    Default: pm2
+    Default: docker-compose
     AllowedValues: [pm2, docker-compose]
 
 Resources:
