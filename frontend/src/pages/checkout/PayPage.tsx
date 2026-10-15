@@ -342,7 +342,7 @@ function Pay({ order }: { order: Order }) {
 function couponError(e: unknown) {
   if (e instanceof ApiClientError) {
     if (e.statusCode === 404) return 'الكود ده مش موجود.'
-    if (/expired|not active|usage limit|minimum/i.test(e.message)) return 'الكود ده مش صالح للطلب ده.'
+    if (/expired|not active|inactive|usage limit|minimum/i.test(e.rawMessage)) return 'الكود ده مش صالح للطلب ده.'
   }
   return e instanceof Error ? e.message : 'مقدرناش نطبّق الكود.'
 }

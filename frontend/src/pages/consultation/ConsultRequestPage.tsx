@@ -11,6 +11,9 @@ import { Alert, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { ConsultSuccess } from './ConsultSuccess'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -94,12 +97,13 @@ export function ConsultRequestPage() {
     e.preventDefault()
     const er: Errors = {}
     if (form.fullName.trim().length < 3) er.fullName = 'اكتب اسمك.'
-    if (form.whatsApp.trim().length < 8) er.whatsApp = 'اكتب رقم واتساب صحيح.'
+    if (!isValidPhone(form.whatsApp)) er.whatsApp = 'اكتب رقم واتساب صحيح.'
     if (!EMAIL_RE.test(form.email.trim())) er.email = 'محتاجين الإيميل عشان نبعتلك تأكيد الطلب.'
     if (!form.categoryId) er.categoryId = 'اختار نوع الاستشارة.'
     if (form.situation.trim().length < 10) er.situation = 'احكيلنا عن الموقف في سطرين على الأقل.'
     if (!form.agree) er.agree = 'محتاجين موافقتك عشان نكلمك على واتساب.'
     setErrors(er)
+    warnFormErrors(er)
     if (Object.keys(er).length === 0) submit.mutate()
   }
 
@@ -171,13 +175,10 @@ export function ConsultRequestPage() {
                     onChange={(e) => set('fullName', e.target.value)}
                     error={errors.fullName}
                   />
-                  <TextField
+                  <PhoneField
                     label="رقم الواتساب *"
-                    type="tel"
-                    ltr
-                    placeholder="+20 100 000 0000"
                     value={form.whatsApp}
-                    onChange={(e) => set('whatsApp', e.target.value)}
+                    onChange={(v) => set('whatsApp', v)}
                     error={errors.whatsApp}
                   />
                   <TextField

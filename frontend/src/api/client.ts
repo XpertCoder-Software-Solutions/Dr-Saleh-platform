@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiError, ApiSuccess, RefreshTokenData } from '@/types/api'
+import { translateApiMessage } from './messages'
 import { tokenStore } from './tokens'
 
 export const API_URL: string = import.meta.env.VITE_API_URL || '/api'
@@ -8,12 +9,15 @@ export const API_URL: string = import.meta.env.VITE_API_URL || '/api'
 export class ApiClientError extends Error {
   readonly statusCode: number
   readonly errors: unknown[]
+  /** The API's own (English) message, for checks in code; `message` is the Arabic text to show. */
+  readonly rawMessage: string
 
-  constructor(message: string, statusCode: number, errors: unknown[] = []) {
+  constructor(message: string, statusCode: number, errors: unknown[] = [], rawMessage = message) {
     super(message)
     this.name = 'ApiClientError'
     this.statusCode = statusCode
     this.errors = errors
+    this.rawMessage = rawMessage
   }
 }
 
@@ -90,11 +94,10 @@ function toClientError(error: AxiosError<ApiError>): ApiClientError {
     return new ApiClientError('تعذّر الاتصال بالخادم. تأكد من الإنترنت وحاول تاني.', 0)
   }
   const body = error.response.data
-  const message =
-    body && typeof body.message === 'string' && body.message
-      ? body.message
-      : 'حصلت مشكلة غير متوقعة. حاول تاني بعد شوية.'
-  return new ApiClientError(message, error.response.status, body?.errors ?? [])
+  const status = error.response.status
+  const errors = body?.errors ?? []
+  const raw = body && typeof body.message === 'string' ? body.message : ''
+  return new ApiClientError(translateApiMessage(raw, status, errors), status, errors, raw)
 }
 
 // ---- envelope unwrapping ----

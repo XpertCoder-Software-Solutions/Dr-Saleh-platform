@@ -13,6 +13,9 @@ import { Alert, Spinner } from '@/components/ui/States'
 import { Highlight } from '@/components/ui/Highlight'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { PhoneField } from '@/components/ui/PhoneField'
+import { isValidPhone } from '@/lib/phone'
+import { warnFormErrors } from '@/lib/formErrors'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -105,9 +108,10 @@ export function ContactPage() {
     const er: typeof errors = {}
     if (form.name.trim().length < 2) er.name = 'اكتب اسمك.'
     if (!EMAIL_RE.test(form.email.trim())) er.email = 'البريد الإلكتروني مش صحيح.'
-    if (form.phone.trim().length < 8) er.phone = 'اكتب رقم نقدر نكلمك عليه.'
+    if (!isValidPhone(form.phone)) er.phone = 'اكتب رقم صحيح نقدر نكلمك عليه.'
     if (form.message.trim().length < 5) er.message = 'اكتب رسالتك.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) send.mutate()
   }
 
@@ -230,14 +234,10 @@ export function ContactPage() {
                     error={errors.email}
                   />
                 </div>
-                <TextField
+                <PhoneField
                   label="رقم الهاتف أو الواتساب"
-                  type="tel"
-                  ltr
-                  autoComplete="tel"
-                  placeholder="+20 10 0000 0000"
                   value={form.phone}
-                  onChange={(e) => set('phone', e.target.value)}
+                  onChange={(v) => set('phone', v)}
                   error={errors.phone}
                 />
                 <TextAreaField

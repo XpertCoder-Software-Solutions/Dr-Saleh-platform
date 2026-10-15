@@ -1,12 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
   IsString,
   Matches,
-  MinLength,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
+import { IsStrongPassword } from '../../common/decorators/strong-password.decorator';
 import { normalizeEmail, trimString } from './dto-transformers';
 
 export class ResetPasswordDto {
@@ -19,22 +21,35 @@ export class ResetPasswordDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({
-    example: '123456',
-    description: 'Six-digit password reset OTP.',
+  @ApiPropertyOptional({
+    example: 'hQ3c…',
+    description:
+      'Token returned by POST /auth/verify-reset-otp. Send this or the OTP.',
   })
+  @ValidateIf((dto: ResetPasswordDto) => !dto.otp)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  resetToken?: string;
+
+  @ApiPropertyOptional({
+    example: '123456',
+    description:
+      'Six-digit password reset OTP (older clients; prefer resetToken).',
+  })
+  @ValidateIf((dto: ResetPasswordDto) => !dto.resetToken)
   @Transform(trimString)
   @IsString()
   @Matches(/^\d{6}$/, { message: 'otp must be exactly 6 digits' })
-  otp: string;
+  otp?: string;
 
   @ApiProperty({
-    example: 'Password123',
-    minLength: 8,
-    description: 'New password. Must be at least 8 characters.',
+    example: 'Str0ng-Pass!2026',
+    minLength: 12,
+    description:
+      'New password. At least 12 characters with an uppercase letter, a number and a symbol.',
   })
-  @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @IsStrongPassword()
   newPassword: string;
 }

@@ -5,3 +5,5 @@ export const EMAIL_VERIFICATION_OTP_MAX_ATTEMPTS = 5;
 export const PASSWORD_RESET_OTP_EXPIRY_MINUTES = 10;
 export const PASSWORD_RESET_OTP_RESEND_COOLDOWN_SECONDS = 60;
 export const PASSWORD_RESET_OTP_MAX_ATTEMPTS = 5;
+/** How long the user has, after confirming the OTP, to choose the new password. */
+export const PASSWORD_RESET_TOKEN_TTL_SECONDS = 15 * 60;

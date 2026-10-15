@@ -9,6 +9,7 @@ import {
 import { Icon } from '@/components/ui/Icon'
 import { inputClass } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
+import { PASSWORD_RULES } from '@/lib/password'
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
@@ -277,5 +278,34 @@ export function CheckField({
       <input type="checkbox" className="mt-0.5 size-5 flex-none accent-blue-600" {...rest} />
       <span>{label}</span>
     </label>
+  )
+}
+
+/** Live checklist under a new-password field. */
+export function PasswordRules({ password }: { password: string }) {
+  return (
+    <ul className="-mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px] max-[420px]:grid-cols-1" aria-label="شروط كلمة المرور">
+      {PASSWORD_RULES.map((r) => {
+        const ok = r.test(password)
+        return (
+          <li
+            key={r.id}
+            className={cn('flex items-center gap-1.5', ok ? 'text-green-700' : 'text-muted')}
+          >
+            <span
+              className={cn(
+                'flex size-4.5 flex-none items-center justify-center rounded-full',
+                ok ? 'bg-green-100' : 'bg-surface',
+              )}
+              aria-hidden="true"
+            >
+              {ok ? <Icon name="check" size={11} /> : <span className="size-1.5 rounded-full bg-line-2" />}
+            </span>
+            {r.label}
+            <span className="sr-only">{ok ? ' (متحقق)' : ' (ناقص)'}</span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

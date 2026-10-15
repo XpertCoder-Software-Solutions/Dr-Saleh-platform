@@ -12,6 +12,7 @@ import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { durationLabel } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Course, CourseSection, Lesson } from '@/types/api'
+import { warnFormErrors } from '@/lib/formErrors'
 
 type Form = Omit<CourseInput, 'priceEGP' | 'priceUSD' | 'discountPriceEGP' | 'discountPriceUSD'> & {
   priceEGP: string
@@ -132,6 +133,7 @@ function Editor({ course }: { course?: Course }) {
     if (f.discountPriceEGP && Number(f.discountPriceEGP) >= Number(f.priceEGP))
       er.discountPriceEGP = 'سعر الخصم لازم يكون أقل من السعر.'
     setErrors(er)
+    warnFormErrors(er)
     if (Object.keys(er).length) return
     save.mutate()
   }

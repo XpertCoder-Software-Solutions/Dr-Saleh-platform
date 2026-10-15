@@ -9,8 +9,8 @@ import {
   IsString,
   Matches,
   MaxLength,
-  MinLength,
 } from 'class-validator';
+import { IsStrongPassword } from '../../common/decorators/strong-password.decorator';
 import {
   normalizeEmail,
   normalizeReferralCode,
@@ -46,13 +46,13 @@ export class RegisterDto {
   phoneNumber: string;
 
   @ApiProperty({
-    example: 'StrongPass123',
-    minLength: 8,
-    description: 'User password. Must be at least 8 characters.',
+    example: 'Str0ng-Pass!2026',
+    minLength: 12,
+    description:
+      'User password. At least 12 characters with an uppercase letter, a number and a symbol.',
   })
-  @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @IsStrongPassword()
   password: string;
 
   @ApiPropertyOptional({

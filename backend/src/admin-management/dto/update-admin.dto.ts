@@ -5,9 +5,9 @@ import {
   IsNotEmpty,
   IsString,
   MaxLength,
-  MinLength,
   ValidateIf,
 } from 'class-validator';
+import { IsStrongPassword } from '../../common/decorators/strong-password.decorator';
 import { toOptionalBoolean, trimString } from './dto-transformers';
 
 export class UpdateAdminDto {
@@ -33,10 +33,9 @@ export class UpdateAdminDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 'NewPassword123!', minLength: 8 })
+  @ApiPropertyOptional({ example: 'Str0ng-Pass!2026', minLength: 12 })
   @ValidateIf((_, value) => value !== undefined)
-  @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @IsStrongPassword()
   password?: string;
 }

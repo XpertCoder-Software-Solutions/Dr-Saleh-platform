@@ -14,6 +14,7 @@ import { FORMAT_TYPE_LABEL } from '@/lib/shop-labels'
 import { durationLabel, formatEGP } from '@/lib/format'
 import { numOrUndef, numToField, slugify } from '@/lib/form'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { warnFormErrors } from '@/lib/formErrors'
 
 type Tab = 'books' | 'products'
 const BOOKS_KEY = ['admin', 'books'] as const
@@ -260,6 +261,7 @@ function BookForm({
     if (f.priceUSD === '') er.priceUSD = 'اكتب السعر بالدولار.'
     if (!book && !cover) er.cover = 'اختار صورة الغلاف.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
   }
 
@@ -688,6 +690,7 @@ function ProductModal({ product, onClose }: { product?: AdminProduct; onClose: (
     if (f.stock === '') er.stock = 'اكتب الكمية.'
     if (!product && !cover) er.cover = 'اختار صورة.'
     setErrors(er)
+    warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
   }
 

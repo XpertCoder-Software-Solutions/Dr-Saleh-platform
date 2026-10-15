@@ -27,7 +27,7 @@ export function useAddToCart() {
       try {
         await api.post('/cart/items', { quantity: 1, ...input })
       } catch (e) {
-        if (e instanceof ApiClientError && e.statusCode === 409 && /already exists in cart/i.test(e.message))
+        if (e instanceof ApiClientError && e.statusCode === 409 && /already exists in cart/i.test(e.rawMessage))
           return
         throw e
       }
