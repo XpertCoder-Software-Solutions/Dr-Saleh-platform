@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiClientError } from '@/api/client'
+import { resetCartCache } from '@/api/cart'
 import { useMyCourses } from '@/api/account'
 import { coursesApi } from '@/api/endpoints'
 import { useWishlist } from '@/api/wishlist'
@@ -396,7 +397,7 @@ function BuyCard({
 
   const addToCart = useMutation({
     mutationFn: () => api.post('/cart/items', { itemType: 'COURSE', itemId: course.id, quantity: 1 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me', 'cart-summary'] }),
+    onSuccess: () => resetCartCache(queryClient),
   })
 
   async function buy(goToCart: boolean) {
