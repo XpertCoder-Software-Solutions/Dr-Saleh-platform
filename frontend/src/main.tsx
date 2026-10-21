@@ -7,6 +7,7 @@ import { ApiClientError } from '@/api/client'
 import { AuthProvider } from '@/auth/AuthContext'
 import { router } from '@/app/router'
 import { Toaster } from '@/components/ui/Toaster'
+import { ConfirmHost } from '@/components/ui/ConfirmHost'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +27,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <RouterProvider router={router} />
         <Toaster />
+        <ConfirmHost />
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

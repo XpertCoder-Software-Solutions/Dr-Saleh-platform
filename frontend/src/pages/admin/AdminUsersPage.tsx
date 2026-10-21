@@ -18,6 +18,7 @@ import type { Gender } from '@/types/api'
 import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
+import { confirmAction } from '@/lib/confirm'
 
 type Tab = 'all' | 'active' | 'suspended'
 
@@ -364,8 +365,15 @@ function StudentPanel({ id }: { id: string }) {
             s.isActive ? 'text-danger' : 'text-success',
           )}
           disabled={toggle.isPending}
-          onClick={() => {
-            if (!s.isActive || window.confirm(`إيقاف حساب ${s.fullName}؟ هيتسجّل خروجه من كل الأجهزة.`))
+          onClick={async () => {
+            if (
+              !s.isActive ||
+              (await confirmAction({
+                title: `توقف حساب ${s.fullName}؟`,
+                body: 'هيتسجّل خروجه من كل الأجهزة ومش هيقدر يدخل لحد ما تفعّله تاني.',
+                confirmLabel: 'أيوه، أوقفه',
+              }))
+            )
               toggle.mutate(!s.isActive)
           }}
         >

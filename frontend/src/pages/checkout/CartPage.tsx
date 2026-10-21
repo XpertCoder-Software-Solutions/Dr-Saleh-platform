@@ -15,6 +15,7 @@ import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion } from '@/lib/region'
+import { confirmAction } from '@/lib/confirm'
 
 const CART_KEY = ['me', 'cart'] as const
 
@@ -99,7 +100,17 @@ export function CartPage() {
                     type="button"
                     className="border-0 bg-transparent font-bold text-danger disabled:opacity-50"
                     disabled={clear.isPending}
-                    onClick={() => clear.mutate()}
+                    onClick={async () => {
+                      if (
+                        await confirmAction({
+                          title: 'تفضّي السلة؟',
+                          body: 'كل الحاجات اللي في السلة هتتشال.',
+                          confirmLabel: 'أيوه، فضّيها',
+                          icon: 'trash',
+                        })
+                      )
+                        clear.mutate()
+                    }}
                   >
                     فضّي السلة
                   </button>
@@ -139,7 +150,7 @@ export function CartPage() {
                   {!!summary?.discount && (
                     <Row label="الخصم" value={`− ${formatMoney(summary.discount, currency)}`} accent />
                   )}
-                  <Row label="الشحن" value={needsShipping ? 'بيتحسب حسب المحافظة' : 'مفيش'} />
+                  {needsShipping && <Row label="الشحن" value="بيتحسب حسب المحافظة" />}
                   <div className="mt-1 flex items-baseline justify-between border-t border-divider pt-3">
                     <b className="text-ink">الإجمالي</b>
                     <b className="font-head text-[28px] text-ink">

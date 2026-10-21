@@ -18,6 +18,7 @@ import { innerClass, sectionClass } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { TONE_CLASS, type Tone } from '@/lib/order-status'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { confirmAction } from '@/lib/confirm'
 
 export type AccountSection =
   | 'dashboard'
@@ -137,6 +138,17 @@ function Sidebar({ active }: { active: AccountSection }) {
           <button
             type="button"
             onClick={async () => {
+              if (
+                !(await confirmAction({
+                  title: 'تسجّل خروج؟',
+                  body: 'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
+                  confirmLabel: 'تسجيل الخروج',
+                  cancelLabel: 'خليني',
+                  tone: 'warning',
+                  icon: 'logout',
+                }))
+              )
+                return
               await logout()
               navigate(routes.home)
             }}

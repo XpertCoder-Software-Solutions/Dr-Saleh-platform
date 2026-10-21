@@ -16,6 +16,7 @@ import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { warnFormErrors } from '@/lib/formErrors'
+import { confirmAction } from '@/lib/confirm'
 
 const KEY = ['admin', 'articles'] as const
 type Tab = 'all' | 'live' | 'hidden'
@@ -195,7 +196,17 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
               type="button"
               className={buttonClass({ variant: 'ghost', className: 'text-danger' })}
               disabled={remove.isPending}
-              onClick={() => window.confirm('حذف المقال نهائيًا؟') && remove.mutate()}
+              onClick={async () => {
+                if (
+                  await confirmAction({
+                    title: 'تحذف المقال نهائيًا؟',
+                    body: 'مش هتقدر ترجّعه بعد كده.',
+                    confirmLabel: 'أيوه، احذف',
+                    icon: 'trash',
+                  })
+                )
+                  remove.mutate()
+              }}
             >
               حذف
             </button>
