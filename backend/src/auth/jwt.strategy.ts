@@ -11,6 +11,8 @@ export type AuthenticatedUser = {
   email: string;
   fullName: string;
   role: RoleName;
+  isSuperAdmin?: boolean;
+  adminPermissions?: string[];
 };
 
 @Injectable()
@@ -40,6 +42,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         isActive: true,
         isEmailVerified: true,
         emailVerifiedAt: true,
+        isSuperAdmin: true,
+        adminPermissions: true,
         role: {
           select: {
             name: true,
@@ -61,6 +65,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: user.email,
       fullName: user.fullName,
       role: user.role.name,
+      isSuperAdmin: user.isSuperAdmin,
+      adminPermissions: user.adminPermissions,
     };
   }
 }

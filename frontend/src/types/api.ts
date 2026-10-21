@@ -103,6 +103,8 @@ export interface CourseSummary {
   categoryId: UUID
   titleAr: string
   titleEn: string
+  /** URL name; older courses may not have one yet (link by id then). */
+  slug?: string | null
   shortDescriptionAr: string
   shortDescriptionEn: string
   descriptionAr?: string

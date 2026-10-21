@@ -34,10 +34,12 @@ import {
 import { LocationsQueryDto } from './dto/locations-query.dto';
 import { UpdateGovernorateDto } from './dto/update-governorate.dto';
 import { LocationsService } from './locations.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Governorates')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('settings', 'orders')
 @Controller('admin/governorates')
 export class AdminGovernoratesController {
   constructor(private readonly locationsService: LocationsService) {}

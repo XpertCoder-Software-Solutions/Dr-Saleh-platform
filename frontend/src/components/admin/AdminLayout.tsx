@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { adminConsultApi, adminKeys, adminOrdersApi } from '@/api/admin'
 import { routes } from '@/app/routes'
@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/hooks'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 import { confirmAction } from '@/lib/confirm'
+import { PAGE_PERMISSION, useAdminAccess } from '@/lib/adminAccess'
 
 const NAV: {
   to: string
@@ -25,7 +26,13 @@ const NAV: {
   { to: routes.adminBlog, label: 'المقالات', icon: 'pen' },
   { to: routes.adminReviews, label: 'التقييمات', icon: 'star' },
   { to: routes.adminSettings, label: 'الإعدادات', icon: 'sliders' },
+  { to: routes.adminStaff, label: 'فريق العمل', icon: 'shield' },
 ]
+
+/** Permission a dashboard path needs (the overview needs none). */
+function permissionFor(path: string) {
+  return PAGE_PERMISSION.find((p) => path === p.path || path.startsWith(`${p.path}/`))?.permission ?? null
+}
 
 const today = new Intl.DateTimeFormat('ar-EG', {
   weekday: 'long',
@@ -37,17 +44,21 @@ const today = new Intl.DateTimeFormat('ar-EG', {
 
 /** Counts shown next to sidebar items: pending orders, new requests, upcoming sessions. */
 function useBadges() {
+  const { can } = useAdminAccess()
   const pending = useQuery({
+    enabled: can('orders'),
     queryKey: [...adminKeys.orders, 'badge'],
     queryFn: () => adminOrdersApi.list({ status: 'PENDING', paymentStatus: 'PENDING', limit: 1 }),
     staleTime: 60_000,
   })
   const fresh = useQuery({
+    enabled: can('consultations'),
     queryKey: [...adminKeys.consultations, 'badge-new'],
     queryFn: () => adminConsultApi.list({ status: 'NEW', limit: 1 }),
     staleTime: 60_000,
   })
   const scheduled = useQuery({
+    enabled: can('consultations'),
     queryKey: [...adminKeys.consultations, 'badge-scheduled'],
     queryFn: () => adminConsultApi.list({ status: 'SCHEDULED', limit: 1 }),
     staleTime: 60_000,
@@ -63,6 +74,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const badges = useBadges()
+  const { can, access } = useAdminAccess()
   return (
     <>
       <Link
@@ -76,7 +88,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </span>
       </Link>
       <nav className="flex flex-1 flex-col gap-1 px-3" aria-label="قائمة الإدارة">
-        {NAV.map((n) => {
+        {NAV.filter((n) => can(permissionFor(n.to))).map((n) => {
           const count = n.badge ? badges[n.badge] : undefined
           return (
             <NavLink
@@ -124,7 +136,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
             <b className="truncate text-sm text-white">{user?.fullName}</b>
-            <span className="text-xs text-on-dark-muted">مدير</span>
+            <span className="text-xs text-on-dark-muted">
+              {access && !access.isSuperAdmin ? 'فريق العمل' : 'مدير'}
+            </span>
           </span>
           <button
             type="button"
@@ -152,6 +166,44 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
     </>
   )
+}
+
+/** Shows the page only when the signed-in admin may open it. */
+function Guarded() {
+  const { pathname } = useLocation()
+  const { can, isLoading, isError, refetch } = useAdminAccess()
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-24 text-blue-600">
+        <span className="size-8 animate-spin rounded-full border-3 border-current border-t-transparent" />
+      </div>
+    )
+  }
+  if (isError) {
+    return (
+      <AdminCard className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+        <b className="text-lg text-ink">مقدرناش نتأكد من صلاحياتك.</b>
+        <button type="button" className="font-bold text-blue-600" onClick={() => refetch()}>
+          حاول تاني
+        </button>
+      </AdminCard>
+    )
+  }
+  if (!can(permissionFor(pathname))) {
+    return (
+      <AdminCard className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+        <span className="flex size-15 items-center justify-center rounded-full bg-amber-50 text-warning">
+          <Icon name="lock" size={26} />
+        </span>
+        <b className="text-xl text-ink">القسم ده مش ضمن صلاحياتك</b>
+        <p className="max-w-110 text-text-2">لو محتاج تفتحه، اطلب من المدير يضيفه لحسابك.</p>
+        <Link to={routes.admin} className="font-bold">
+          ارجع للنظرة العامة
+        </Link>
+      </AdminCard>
+    )
+  }
+  return <Outlet />
 }
 
 /** Admin shell: dark sidebar on the right, slim top bar, page content. */
@@ -196,7 +248,7 @@ export function AdminLayout() {
           </Link>
         </header>
         <main className="flex-1 px-7 py-7 max-sm:px-4">
-          <Outlet />
+          <Guarded />
         </main>
       </div>
     </div>

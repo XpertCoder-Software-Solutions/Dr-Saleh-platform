@@ -13,8 +13,13 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",
+    "@tiptap/extension-placeholder": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
+    "dompurify": "3.4.16",
     "libphonenumber-js": "^1.13.15",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

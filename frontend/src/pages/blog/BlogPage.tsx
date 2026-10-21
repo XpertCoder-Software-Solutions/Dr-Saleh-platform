@@ -11,6 +11,7 @@ import { Pager } from '@/components/ui/Pager'
 import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
+import { richToPlain } from '@/lib/richText'
 import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
 import { formatDate, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
@@ -194,7 +195,7 @@ function Spotlight({ article }: { article: ArticleSummary }) {
         </span>
         <h2 className="text-[clamp(24px,3vw,32px)] leading-snug">{article.title}</h2>
         {article.shortContent && (
-          <p className="line-clamp-3 leading-loose text-muted">{article.shortContent}</p>
+          <p className="line-clamp-3 leading-loose text-muted">{richToPlain(article.shortContent)}</p>
         )}
         <span className="flex gap-4 text-sm text-muted">
           <span className="inline-flex items-center gap-1.5">

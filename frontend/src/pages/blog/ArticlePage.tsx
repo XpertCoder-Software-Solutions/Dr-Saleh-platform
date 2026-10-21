@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ApiClientError, resolveAssetUrl } from '@/api/client'
 import { articlesApi, coursesApi, type ArticleSummary } from '@/api/endpoints'
 import { routes } from '@/app/routes'
-import { ArticleBody } from '@/components/catalog/ArticleBody'
-import { parseArticle } from '@/lib/article'
+import { RichText } from '@/components/ui/RichText'
+import { toSafeHtml, withHeadingAnchors } from '@/lib/richText'
 import { ArticleCard } from '@/components/catalog/ArticleCard'
 import { CourseCard } from '@/components/course/CourseCard'
 import { Breadcrumbs, HeroWave } from '@/components/layout/PageHero'
@@ -53,7 +53,7 @@ export function ArticlePage() {
 }
 
 function Article({ article }: { article: ArticleSummary }) {
-  const { blocks, headings } = useMemo(() => parseArticle(article.content ?? ''), [article.content])
+  const { html, headings } = useMemo(() => withHeadingAnchors(toSafeHtml(article.content)), [article.content])
   const cover = resolveAssetUrl(article.coverImage)
   const words = article.title.split(' ')
   const cut = Math.ceil(words.length * 0.6)
@@ -109,9 +109,12 @@ function Article({ article }: { article: ArticleSummary }) {
         <div className={cn(innerClass, 'grid grid-cols-[1fr_260px] items-start gap-12 max-lg:grid-cols-1')}>
           <article className="min-w-0">
             {article.shortContent && (
-              <p className="mb-6 text-xl leading-[1.9] font-medium text-ink">{article.shortContent}</p>
+              <RichText
+                value={article.shortContent}
+                className="mb-6 text-xl leading-[1.9] font-medium text-ink"
+              />
             )}
-            <ArticleBody blocks={blocks} />
+            <RichText html={html} className="gap-5 text-lg leading-[2]" />
             {!!article.tags?.length && (
               <div className="mt-8 flex flex-wrap gap-2 border-t border-divider pt-6">
                 {article.tags.map((tg) => (

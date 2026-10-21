@@ -486,3 +486,16 @@
     transition: none !important;
   }
 }
+
+/* Rich text editor (admin) */
+.rte .ProseMirror {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.rte .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-muted-2, #9aa5b1);
+}

@@ -186,7 +186,7 @@ export interface CourseInput {
   shortDescriptionEn: string
   descriptionAr: string
   descriptionEn: string
-  promoVideoUrl?: string
+  slug?: string
   priceEGP: number
   priceUSD: number
   discountPriceEGP?: number | null
@@ -223,6 +223,17 @@ export const adminCoursesApi = {
     form.append('thumbnailImage', file)
     return api.post<{ course: Course }>(`/admin/courses/${id}/thumbnail`, form, multipart)
   },
+  removeThumbnail: (id: string) => api.delete<{ course: Course }>(`/admin/courses/${id}/thumbnail`),
+  uploadPromoVideo: (id: string, file: File, onProgress?: (pct: number) => void) => {
+    const form = new FormData()
+    form.append('promoVideo', file)
+    return api.post<{ course: Course }>(`/admin/courses/${id}/promo-video`, form, {
+      ...multipart,
+      timeout: 0,
+      onUploadProgress: (e) => e.total && onProgress?.(Math.round((e.loaded / e.total) * 100)),
+    })
+  },
+  removePromoVideo: (id: string) => api.delete<{ course: Course }>(`/admin/courses/${id}/promo-video`),
   addSection: (courseId: string, body: { titleAr: string; titleEn: string; displayOrder: number }) =>
     api.post(`/admin/courses/${courseId}/sections`, body),
   updateSection: (id: string, body: { titleAr?: string; titleEn?: string; isActive?: boolean }) =>

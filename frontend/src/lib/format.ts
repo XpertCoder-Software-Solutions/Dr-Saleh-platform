@@ -74,7 +74,11 @@ export function formatDate(value: string | Date): string {
 
 /** Rough reading time for article teasers. */
 export function readingMinutes(text: string | null | undefined): number {
-  const words = (text ?? '').trim().split(/\s+/).filter(Boolean).length
+  const words = (text ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length
   return Math.max(1, Math.round(words / 180))
 }
 

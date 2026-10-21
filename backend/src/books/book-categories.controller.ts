@@ -28,8 +28,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BookCategoriesService } from './book-categories.service';
 import { CreateBookCategoryDto } from './dto/create-book-category.dto';
 import { UpdateBookCategoryDto } from './dto/update-book-category.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Book Categories')
+@RequireAdminPermission('catalog', 'settings')
 @Controller('book-categories')
 export class BookCategoriesController {
   constructor(private readonly bookCategoriesService: BookCategoriesService) {}

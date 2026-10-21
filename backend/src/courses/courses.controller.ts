@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -45,11 +45,11 @@ export class CoursesController {
     return this.coursesService.findPublicCategories();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get one active course by id.' })
+  @Get(':idOrSlug')
+  @ApiOperation({ summary: 'Get one active course by id or slug.' })
   @ApiOkResponse({ description: 'Course returned.' })
   @ApiNotFoundResponse({ description: 'Course not found.' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.coursesService.findCourseById(id);
+  findOne(@Param('idOrSlug') idOrSlug: string) {
+    return this.coursesService.findCourseById(idOrSlug);
   }
 }

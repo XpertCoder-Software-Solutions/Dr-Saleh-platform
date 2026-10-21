@@ -27,10 +27,12 @@ import {
 import { CoursesService } from './courses.service';
 import { AdminReviewQueryDto } from './dto/admin-review-query.dto';
 import { UpdateReviewStatusDto } from './dto/update-review-status.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Course Reviews')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('reviews')
 @Controller('admin/course-reviews')
 export class AdminCourseReviewsController {
   constructor(private readonly coursesService: CoursesService) {}

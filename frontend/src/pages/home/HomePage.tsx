@@ -437,11 +437,11 @@ function StatsBand() {
 
   if (!ready || (!totalCourses && !totalBooks)) return null
 
-  const stats: { n: string; suf?: string; label: string; icon: IconName; show: boolean }[] = [
-    { n: nAvg.toFixed(1), suf: '★', label: 'متوسط تقييم الدورات', icon: 'star', show: Boolean(rating) },
-    { n: String(Math.round(nReviews)), label: 'تقييم من المتدربين', icon: 'quote', show: Boolean(rating) },
-    { n: String(Math.round(nCourses)), label: 'دورات مسجّلة بشهادة', icon: 'video', show: totalCourses > 0 },
-    { n: String(Math.round(nBooks)), label: 'كتب ورقية ورقمية وصوتية', icon: 'book', show: totalBooks > 0 },
+  const stats: { n: string; suf?: string; label: string; show: boolean }[] = [
+    { n: nAvg.toFixed(1), suf: '★', label: 'متوسط تقييم الدورات', show: Boolean(rating) },
+    { n: String(Math.round(nReviews)), label: 'تقييم من المتدربين', show: Boolean(rating) },
+    { n: String(Math.round(nCourses)), label: 'دورات مسجّلة بشهادة', show: totalCourses > 0 },
+    { n: String(Math.round(nBooks)), label: 'كتب ورقية ورقمية وصوتية', show: totalBooks > 0 },
   ]
 
   return (
@@ -458,9 +458,6 @@ function StatsBand() {
           .filter((s) => s.show)
           .map((s) => (
             <div key={s.label} className="relative flex flex-col items-center gap-2 py-2 text-center">
-              <span className="mb-1 flex size-12 items-center justify-center rounded-[14px] text-gold-light glass">
-                <Icon name={s.icon} size={22} />
-              </span>
               <span className="font-head text-[50px] leading-none font-bold text-white tabular-nums max-sm:text-[40px]">
                 {s.n}
                 {s.suf && <span className="text-gold-light">{s.suf}</span>}

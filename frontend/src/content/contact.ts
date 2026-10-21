@@ -12,7 +12,7 @@ export const CONTACT = {
   phoneIntl: { label: '+201025733523', href: 'tel:+201025733523' },
   address: {
     label: ADDRESS,
-    href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ADDRESS)}`,
+    href: 'https://maps.app.goo.gl/t2BMdDruvZPUynFa7',
   },
   hours: { days: 'من السبت للخميس', time: 'من 10 الصبح لـ 10 بالليل' },
   social: {

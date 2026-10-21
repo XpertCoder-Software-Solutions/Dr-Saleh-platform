@@ -14,6 +14,7 @@ import { dateTile, upcomingSessions } from '@/lib/consult-status'
 import { formatEGP, sinceLabel } from '@/lib/format'
 import { orderStatus } from '@/lib/order-status'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { useAdminAccess } from '@/lib/adminAccess'
 
 const PERIODS: { id: RevenuePeriod; label: string; buckets: number }[] = [
   { id: 'daily', label: 'يوم', buckets: 14 },
@@ -67,7 +68,9 @@ export function AdminDashboardPage() {
     queryKey: adminKeys.revenue(period),
     queryFn: () => dashboardApi.revenue(period),
   })
+  const { can } = useAdminAccess()
   const sessions = useQuery({
+    enabled: can('consultations'),
     queryKey: [...adminKeys.consultations, 'scheduled'],
     queryFn: () => adminConsultApi.list({ status: 'SCHEDULED', limit: 50 }),
   })

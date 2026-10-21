@@ -36,6 +36,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateProductImageDto } from './dto/create-product-image.dto';
 import { UpdateProductImageDto } from './dto/update-product-image.dto';
 import { ProductsService } from './products.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 const productGalleryUploadDirectory = join(
   process.cwd(),
@@ -53,6 +54,7 @@ const allowedImageMimeTypes = new Set([
 @ApiTags('Product Images')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('catalog')
 @Controller('admin/products')
 export class AdminProductImagesController {
   constructor(private readonly productsService: ProductsService) {}
