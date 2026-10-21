@@ -18,6 +18,7 @@ import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion, type Currency } from '@/lib/region'
 import { RangeSlider } from '@/components/ui/RangeSlider'
 import { formatMoney } from '@/lib/format'
+import { keepScroll, scrollToResults } from '@/lib/scroll'
 
 const PAGE_SIZE = 9
 
@@ -88,7 +89,7 @@ export function CoursesPage() {
       if (v) p.set(k, v)
       else p.delete(k)
     }
-    setParams(p)
+    setParams(p, keepScroll)
   }
 
   function onSearch(e: FormEvent) {
@@ -100,7 +101,7 @@ export function CoursesPage() {
   const pagination = list.data?.pagination
   const totalCount = total.data?.pagination.total
   const filtered = Boolean(search || categoryId || hasPrice)
-  const clearAll = () => setParams(new URLSearchParams())
+  const clearAll = () => setParams(new URLSearchParams(), keepScroll)
 
   return (
     <>
@@ -152,7 +153,7 @@ export function CoursesPage() {
         </form>
       </PageHero>
 
-      <section className={cn(sectionClass, 'pt-8')}>
+      <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={cn(innerClass, 'grid grid-cols-[260px_1fr] items-start gap-7 max-md:grid-cols-1')}>
           <aside className="sticky top-27 flex flex-col gap-4.5 max-md:static" aria-label="تصفية النتائج">
             <div className="flex flex-col gap-3 rounded-card border border-line bg-white p-5">
@@ -289,7 +290,7 @@ export function CoursesPage() {
                 noun="دورة"
                 onChange={(p) => {
                   update({ page: p > 1 ? String(p) : null })
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  scrollToResults()
                 }}
               />
             )}

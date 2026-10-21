@@ -16,6 +16,7 @@ import { bookStartPrice, productPrice } from '@/lib/catalog'
 import { formatMoney, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion } from '@/lib/region'
+import { keepScroll } from '@/lib/scroll'
 
 type Tab = 'all' | 'courses' | 'articles' | 'shop'
 
@@ -78,7 +79,7 @@ export function SearchPage() {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    setParams(draft.trim() ? { q: draft.trim() } : {})
+    setParams(draft.trim() ? { q: draft.trim() } : {}, keepScroll)
   }
 
   const tabs: { id: Tab; label: string; n: number }[] = [
@@ -130,7 +131,7 @@ export function SearchPage() {
               <button
                 key={s}
                 type="button"
-                onClick={() => setParams({ q: s })}
+                onClick={() => setParams({ q: s }, keepScroll)}
                 className="rounded-full px-3 py-1 text-white glass hover:bg-white/15"
               >
                 {s}
