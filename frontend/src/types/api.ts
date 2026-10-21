@@ -207,9 +207,16 @@ export interface ContinueLesson {
   completionPercentage: number
 }
 
+export interface PriceBounds {
+  min: Money
+  max: Money
+}
+
 export interface CourseListData {
   courses: CourseSummary[]
   pagination: Pagination
+  /** Lowest/highest price across active courses (for the price slider). */
+  priceBounds?: Record<Currency, PriceBounds>
 }
 
 export type BookFormatType = 'Physical' | 'Digital' | 'Audio'

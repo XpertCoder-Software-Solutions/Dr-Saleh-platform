@@ -412,6 +412,52 @@
   }
 }
 
+/* two native range inputs stacked into one dual-thumb slider (see RangeSlider.tsx) */
+@utility range-thumb {
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  &::-webkit-slider-thumb {
+    appearance: none;
+    pointer-events: auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 9999px;
+    background: #fff;
+    border: 2px solid var(--color-navy);
+    box-shadow: 0 6px 14px -6px rgba(12, 42, 74, 0.55);
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  &::-moz-range-thumb {
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: #fff;
+    border: 2px solid var(--color-navy);
+    box-shadow: 0 6px 14px -6px rgba(12, 42, 74, 0.55);
+    cursor: grab;
+  }
+  &::-webkit-slider-runnable-track,
+  &::-moz-range-track {
+    background: transparent;
+  }
+  &:active::-webkit-slider-thumb {
+    cursor: grabbing;
+    transform: scale(1.1);
+  }
+  &:focus-visible {
+    outline: none;
+  }
+  &:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 5px rgba(61, 155, 216, 0.3);
+  }
+  &:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 5px rgba(61, 155, 216, 0.3);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

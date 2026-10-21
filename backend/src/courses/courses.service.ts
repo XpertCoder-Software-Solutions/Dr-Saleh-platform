@@ -740,6 +740,36 @@ export class CoursesService {
           courses.map((course) => this.toCourseSummary(course)),
         ),
         pagination: buildPaginationMeta(page, limit, total),
+        priceBounds: await this.getPublicPriceBounds(),
+      },
+    };
+  }
+
+  /** Lowest and highest price a buyer can pay across active courses, for the price slider. */
+  private async getPublicPriceBounds() {
+    const agg = await this.prisma.course.aggregate({
+      where: { isActive: true },
+      _min: {
+        priceEGP: true,
+        discountPriceEGP: true,
+        priceUSD: true,
+        discountPriceUSD: true,
+      },
+      _max: { priceEGP: true, priceUSD: true },
+    });
+    const num = (v: Prisma.Decimal | null | undefined) =>
+      v === null || v === undefined ? null : Number(v);
+    const low = (a: number | null, b: number | null) =>
+      a === null ? (b ?? 0) : b === null ? a : Math.min(a, b);
+
+    return {
+      EGP: {
+        min: low(num(agg._min.priceEGP), num(agg._min.discountPriceEGP)),
+        max: num(agg._max.priceEGP) ?? 0,
+      },
+      USD: {
+        min: low(num(agg._min.priceUSD), num(agg._min.discountPriceUSD)),
+        max: num(agg._max.priceUSD) ?? 0,
       },
     };
   }

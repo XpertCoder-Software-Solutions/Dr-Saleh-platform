@@ -16,6 +16,8 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion, type Currency } from '@/lib/region'
+import { RangeSlider } from '@/components/ui/RangeSlider'
+import type { PriceBounds } from '@/types/api'
 import { formatMoney } from '@/lib/format'
 
 const PAGE_SIZE = 9
@@ -69,6 +71,7 @@ export function CoursesPage() {
     queryFn: () => coursesApi.list({ limit: 1 }),
   })
   const wishlist = useWishlist('COURSE')
+  const priceBounds = total.data?.priceBounds?.[currency]
 
   function update(next: Record<string, string | null>) {
     const p = new URLSearchParams(params)
@@ -186,6 +189,7 @@ export function CoursesPage() {
               </div>
               <PriceFilter
                 currency={currency}
+                bounds={list.data?.priceBounds?.[currency] ?? priceBounds}
                 min={minPrice}
                 max={maxPrice}
                 onChange={(min, max) =>
@@ -295,106 +299,114 @@ function priceParam(v: string | null): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined
 }
 
-/** Ready-made ranges per currency; the last one has no upper bound. */
-const PRICE_RANGES: Record<Currency, { min?: number; max?: number }[]> = {
-  EGP: [{ min: 0, max: 0 }, { min: 1, max: 300 }, { min: 300, max: 600 }, { min: 600 }],
-  USD: [{ min: 0, max: 0 }, { min: 0.01, max: 10 }, { min: 10, max: 20 }, { min: 20 }],
-}
+const STEP: Record<Currency, number> = { EGP: 10, USD: 1 }
 
-function rangeLabel(r: { min?: number; max?: number }, currency: Currency) {
-  if (r.max === 0) return 'مجانًا'
-  if (r.max === undefined) return `أكتر من ${formatMoney(r.min ?? 0, currency)}`
-  if (!r.min || r.min <= 1) return `لحد ${formatMoney(r.max, currency)}`
-  return `${formatMoney(r.min, currency)} – ${formatMoney(r.max, currency)}`
-}
-
+/** Price range slider ("من" / "إلى") over the prices that actually exist, plus typed boxes. */
 function PriceFilter({
   currency,
+  bounds,
   min,
   max,
   onChange,
 }: {
   currency: Currency
+  bounds?: PriceBounds
   min?: number
   max?: number
   onChange: (min?: number, max?: number) => void
 }) {
-  const ranges = PRICE_RANGES[currency]
-  const isRange = (r: { min?: number; max?: number }) => r.min === min && r.max === max
-  // The boxes show only a hand-typed range, not one of the ready-made ones.
-  const boxValue = (v?: number) => (v === undefined || ranges.some(isRange) ? '' : String(v))
-  const [from, setFrom] = useState(boxValue(min))
-  const [to, setTo] = useState(boxValue(max))
-  const [last, setLast] = useState(`${min}|${max}`)
-  if (last !== `${min}|${max}`) {
-    setLast(`${min}|${max}`)
-    setFrom(boxValue(min))
-    setTo(boxValue(max))
+  const step = STEP[currency]
+  const floor = bounds ? Math.floor(bounds.min / step) * step : 0
+  const ceil = Math.max(floor + step, bounds ? Math.ceil(bounds.max / step) * step : step)
+  const applied: [number, number] = [min ?? floor, max ?? ceil]
+  const [draft, setDraft] = useState<[number, number]>(applied)
+  const [boxes, setBoxes] = useState(['', ''])
+  const key = `${applied[0]}|${applied[1]}|${floor}|${ceil}`
+  const [last, setLast] = useState(key)
+  if (last !== key) {
+    setLast(key)
+    setDraft(applied)
+    setBoxes(['', ''])
   }
-  const custom = (min !== undefined || max !== undefined) && !ranges.some(isRange)
-  const num = (v: string) => (v.trim() === '' ? undefined : Math.max(0, Number(v.replace(/[^\d.]/g, '')) || 0))
+  const active = min !== undefined || max !== undefined
+  const fmt = (n: number) => formatMoney(n, currency)
+
+  function commit([a, b]: [number, number]) {
+    const lo = Math.max(floor, Math.min(a, b))
+    const hi = Math.min(ceil, Math.max(a, b))
+    // The full range means "no price filter".
+    onChange(lo <= floor ? undefined : lo, hi >= ceil ? undefined : hi)
+  }
+
+  function boxValue(i: 0 | 1) {
+    return boxes[i] !== '' ? boxes[i] : String(draft[i])
+  }
+
+  function applyBoxes() {
+    const parse = (i: 0 | 1) => {
+      const n = Number(boxValue(i).replace(/[^\d.]/g, ''))
+      return Number.isFinite(n) ? n : draft[i]
+    }
+    commit([parse(0), parse(1)])
+  }
 
   return (
-    <>
-      <span className="mt-2 text-sm font-bold text-ink">السعر</span>
-      <div className="flex flex-col gap-1.5 max-md:flex-row max-md:flex-wrap" role="radiogroup" aria-label="السعر">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={min === undefined && max === undefined}
-          className={categoryBtn}
-          onClick={() => onChange(undefined, undefined)}
-        >
-          كل الأسعار
-        </button>
-        {ranges.map((r) => (
+    <div className="mt-2 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-ink">السعر</span>
+        {active && (
           <button
-            key={`${r.min}-${r.max}`}
             type="button"
-            role="radio"
-            aria-checked={isRange(r)}
-            className={categoryBtn}
-            onClick={() => onChange(r.min, r.max)}
+            className="border-0 bg-transparent p-0 text-sm font-bold text-blue-500"
+            onClick={() => onChange(undefined, undefined)}
           >
-            {rangeLabel(r, currency)}
+            كل الأسعار
           </button>
-        ))}
+        )}
       </div>
+      <p className="-mt-1 text-sm text-text-2" aria-live="polite">
+        من <b className="text-ink">{fmt(draft[0])}</b> إلى <b className="text-ink">{fmt(draft[1])}</b>
+      </p>
+      <RangeSlider
+        min={floor}
+        max={ceil}
+        step={step}
+        value={draft}
+        onChange={setDraft}
+        onCommit={commit}
+        formatValue={fmt}
+        labels={['أقل سعر', 'أعلى سعر']}
+      />
       <form
-        className={cn('mt-1 flex items-center gap-2 rounded-xl p-1', custom && 'bg-surface-blue')}
+        className="grid grid-cols-[1fr_auto_1fr] items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          const a = num(from)
-          const b = num(to)
-          if (a !== undefined && b !== undefined && a > b) onChange(b, a)
-          else onChange(a, b)
+          applyBoxes()
         }}
-        aria-label="سعر مخصص"
+        aria-label="اكتب السعر"
       >
-        <input
-          inputMode="decimal"
-          placeholder="من"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          aria-label={`أقل سعر (${currency === 'USD' ? 'دولار' : 'جنيه'})`}
-          className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-line-2 bg-white px-2.5 text-center text-sm outline-none focus:border-blue-400"
-        />
-        <span className="text-muted">–</span>
-        <input
-          inputMode="decimal"
-          placeholder="إلى"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          aria-label={`أعلى سعر (${currency === 'USD' ? 'دولار' : 'جنيه'})`}
-          className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-line-2 bg-white px-2.5 text-center text-sm outline-none focus:border-blue-400"
-        />
-        <button
-          type="submit"
-          className="h-10 flex-none rounded-[10px] border-0 bg-navy px-3 text-sm font-bold text-white"
-        >
+        {([0, 1] as const).map((i) => (
+          <label key={i} className={cn('flex flex-col gap-1', i === 1 && 'col-start-3')}>
+            <span className="text-xs font-semibold text-muted">{i === 0 ? 'من' : 'إلى'}</span>
+            <span className="flex h-11 items-center gap-1 rounded-xl border-[1.5px] border-line-2 bg-white px-2.5 focus-within:border-blue-400">
+              <input
+                inputMode="decimal"
+                value={boxValue(i)}
+                onChange={(e) => setBoxes((b) => (i === 0 ? [e.target.value, b[1]] : [b[0], e.target.value]))}
+                onBlur={applyBoxes}
+                className="w-full min-w-0 border-0 bg-transparent text-center text-[15px] font-semibold text-ink outline-none"
+              />
+              <span className="flex-none text-xs text-muted">{currency === 'USD' ? '$' : 'ج.م'}</span>
+            </span>
+          </label>
+        ))}
+        <span className="col-start-2 row-start-1 pb-3 text-muted" aria-hidden="true">
+          –
+        </span>
+        <button type="submit" className="sr-only">
           تطبيق
         </button>
       </form>
-    </>
+    </div>
   )
 }
