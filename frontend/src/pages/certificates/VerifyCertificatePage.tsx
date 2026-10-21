@@ -9,6 +9,7 @@ import { buttonClass } from '@/components/ui/button'
 import { ErrorState, Spinner } from '@/components/ui/States'
 import { formatDate } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { keepScroll } from '@/lib/scroll'
 
 /** Public page employers use to check a certificate number (also the QR code target). */
 export function VerifyCertificatePage() {
@@ -27,7 +28,7 @@ export function VerifyCertificatePage() {
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    setParams(draft.trim() ? { n: draft.trim() } : {})
+    setParams(draft.trim() ? { n: draft.trim() } : {}, keepScroll)
   }
 
   return (

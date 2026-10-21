@@ -18,6 +18,7 @@ import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormatType } from '@/types/api'
 import { useRegion } from '@/lib/region'
+import { keepScroll } from '@/lib/scroll'
 
 const FORMAT_TABS: { id: '' | BookFormatType; label: string }[] = [
   { id: '', label: 'الكل' },
@@ -58,7 +59,7 @@ export function LibraryPage() {
     const p = new URLSearchParams(params)
     if (value) p.set(key, value)
     else p.delete(key)
-    setParams(p, { replace: true })
+    setParams(p, { replace: true, ...keepScroll })
   }
 
   return (
