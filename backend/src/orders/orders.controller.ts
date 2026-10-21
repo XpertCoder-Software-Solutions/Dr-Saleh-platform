@@ -25,6 +25,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderCurrencyDto } from './dto/update-order-currency.dto';
 import {
   OrderApiResponseDto,
   OrderListApiResponseDto,
@@ -99,6 +100,32 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.ordersService.findMyOrder(userId, id);
+  }
+
+  @Patch(':id/currency')
+  @ApiOperation({
+    summary: 'Switch a pending unpaid order between EGP and USD.',
+    description:
+      'Re-prices the items in the new currency, for when the buyer picks a payment method that settles in the other currency. Orders with physical items stay in EGP; remove an applied coupon first.',
+  })
+  @ApiOkResponse({
+    description: 'Order re-priced successfully.',
+    type: OrderApiResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Orders with physical items are paid in EGP.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiNotFoundResponse({ description: 'Order not found.' })
+  @ApiConflictResponse({
+    description: 'Order is not pending, is paid, or has a coupon applied.',
+  })
+  changeCurrency(
+    @CurrentUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOrderCurrencyDto,
+  ) {
+    return this.ordersService.changeMyOrderCurrency(userId, id, dto.currency);
   }
 
   @Patch(':id/cancel')

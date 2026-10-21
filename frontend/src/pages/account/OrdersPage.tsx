@@ -14,6 +14,7 @@ import { formatAddress } from '@/lib/address'
 import { cn } from '@/lib/cn'
 import { formatDate, formatEGP } from '@/lib/format'
 import { orderKinds, orderStatus } from '@/lib/order-status'
+import { confirmAction } from '@/lib/confirm'
 
 type Filter = 'all' | 'pending' | 'paid' | 'closed'
 
@@ -224,8 +225,16 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
                   type="button"
                   className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
                   disabled={cancel.isPending}
-                  onClick={() => {
-                    if (window.confirm('متأكد إنك عايز تلغي الطلب؟')) cancel.mutate()
+                  onClick={async () => {
+                    if (
+                      await confirmAction({
+                        title: 'تلغي الطلب؟',
+                        body: 'لو غيّرت رأيك هتقدر تضيف الحاجات للسلة وتطلب تاني.',
+                        confirmLabel: 'أيوه، الغيه',
+                        cancelLabel: 'لأ، خليه',
+                      })
+                    )
+                      cancel.mutate()
                   }}
                 >
                   إلغاء الطلب

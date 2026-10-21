@@ -13,6 +13,7 @@ import { cn } from '@/lib/cn'
 import { formatDate, formatEGP } from '@/lib/format'
 import { numOrUndef, numToField } from '@/lib/form'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { confirmAction } from '@/lib/confirm'
 
 type Tab = 'shipping' | 'coupons' | 'categories'
 
@@ -523,7 +524,16 @@ function NameList({ title, path, noActive }: { title: string; path: string; noAc
               <button
                 type="button"
                 className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
-                onClick={() => window.confirm(`حذف «${c.nameAr}»؟`) && remove.mutate(c.id)}
+                onClick={async () => {
+                  if (
+                    await confirmAction({
+                      title: `تحذف «${c.nameAr}»؟`,
+                      confirmLabel: 'أيوه، احذف',
+                      icon: 'trash',
+                    })
+                  )
+                    remove.mutate(c.id)
+                }}
               >
                 حذف
               </button>

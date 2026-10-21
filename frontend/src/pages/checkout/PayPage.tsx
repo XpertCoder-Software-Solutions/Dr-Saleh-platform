@@ -16,6 +16,7 @@ import { formatEGP } from '@/lib/format'
 import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { confirmAction } from '@/lib/confirm'
 
 type Method = PaymobChannel | 'PAYPAL'
 
@@ -127,14 +128,46 @@ function Pay({ order }: { order: Order }) {
   const queryClient = useQueryClient()
   const usd = order.currency === 'USD'
   const region = useRegion()
-  // Egyptian mobile wallets are only offered to visitors in Egypt.
+  // Egyptian mobile wallets are only offered in Egypt; physical orders ship in Egypt and are
+  // paid in EGP, so PayPal (USD) is left out for them.
   const methods = METHODS.filter(
-    (m) => m.currency === order.currency && (m.id !== 'WALLET' || region.isEgypt),
+    (m) => (m.id !== 'WALLET' || region.isEgypt) && (!order.hasPhysicalItems || m.currency === 'EGP'),
   )
-  const [method, setMethod] = useState<Method>(methods[0].id)
+  const [method, setMethod] = useState<Method>(
+    (methods.find((m) => m.currency === order.currency) ?? methods[0]).id,
+  )
   const [code, setCode] = useState('')
   const money = (n: number) => (usd ? `$${n}` : formatEGP(n))
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['me', 'orders', order.id] })
+
+  // Paymob settles in EGP and PayPal in USD, so picking a method in the other currency
+  // re-prices the order (taking an applied coupon off and putting it back on).
+  const switchCurrency = useMutation({
+    mutationFn: async (next: Method) => {
+      const target = METHODS.find((m) => m.id === next)!.currency
+      if (target === order.currency) return
+      const couponCode = hasCoupon ? code.trim().toUpperCase() : ''
+      if (couponCode) await couponsApi.remove(order.id)
+      const { order: updated } = await ordersApi.setCurrency(order.id, target)
+      queryClient.setQueryData(['me', 'orders', order.id], { order: updated })
+      if (couponCode) {
+        try {
+          await couponsApi.apply(order.id, couponCode)
+        } catch {
+          removeCoupon.reset()
+          coupon.reset()
+          setCode('')
+        }
+      }
+      await refresh()
+    },
+  })
+
+  function chooseMethod(next: Method) {
+    const previous = method
+    setMethod(next)
+    switchCurrency.mutate(next, { onError: () => setMethod(previous) })
+  }
 
   const coupon = useMutation({
     mutationFn: () => couponsApi.apply(order.id, code.trim().toUpperCase()),
@@ -191,7 +224,8 @@ function Pay({ order }: { order: Order }) {
                 type="button"
                 role="radio"
                 aria-checked={method === m.id}
-                onClick={() => setMethod(m.id)}
+                onClick={() => chooseMethod(m.id)}
+                disabled={switchCurrency.isPending}
                 className="flex items-center gap-3 rounded-tile border-2 border-line bg-white p-4 text-start transition-colors hover:border-blue-300 aria-checked:border-blue-400 aria-checked:bg-surface-blue"
               >
                 <span
@@ -217,9 +251,19 @@ function Pay({ order }: { order: Order }) {
               </button>
             ))}
           </div>
-          <p className="mt-4 rounded-tile bg-surface p-4 text-sm leading-relaxed text-text-2">
-            {chosen.note}
+          <p
+            className="mt-4 rounded-tile bg-surface p-4 text-sm leading-relaxed text-text-2"
+            aria-live="polite"
+          >
+            {switchCurrency.isPending
+              ? 'بنحدّث الأسعار…'
+              : chosen.currency === 'USD'
+                ? `${chosen.note} الدفع بالدولار.`
+                : region.isEgypt
+                  ? chosen.note
+                  : `${chosen.note} المبلغ بيتخصم بالجنيه المصري.`}
           </p>
+          {switchCurrency.isError && <Alert tone="error">{(switchCurrency.error as Error).message}</Alert>}
         </div>
 
         <div className={card}>
@@ -316,7 +360,7 @@ function Pay({ order }: { order: Order }) {
             size: 'lg',
             block: true,
           })}
-          disabled={pay.isPending || pay.isSuccess}
+          disabled={pay.isPending || pay.isSuccess || switchCurrency.isPending}
           onClick={() => pay.mutate()}
         >
           {pay.isPending || pay.isSuccess ? (
@@ -332,7 +376,17 @@ function Pay({ order }: { order: Order }) {
           type="button"
           className="mt-1 border-0 bg-transparent text-sm text-muted underline disabled:opacity-50"
           disabled={cancel.isPending}
-          onClick={() => cancel.mutate()}
+          onClick={async () => {
+            if (
+              await confirmAction({
+                title: 'تلغي الطلب؟',
+                body: 'الطلب هيتلغي والحاجات هترجع للسلة لو حبيت تطلبها تاني.',
+                confirmLabel: 'أيوه، الغيه',
+                cancelLabel: 'لأ، كمّل الدفع',
+              })
+            )
+              cancel.mutate()
+          }}
         >
           إلغاء الطلب والرجوع للسلة
         </button>
@@ -347,7 +401,8 @@ function Pay({ order }: { order: Order }) {
 function couponError(e: unknown) {
   if (e instanceof ApiClientError) {
     if (e.statusCode === 404) return 'الكود ده مش موجود.'
-    if (/expired|not active|inactive|usage limit|minimum/i.test(e.rawMessage)) return 'الكود ده مش صالح للطلب ده.'
+    if (/expired|not active|inactive|usage limit|minimum/i.test(e.rawMessage))
+      return 'الكود ده مش صالح للطلب ده.'
   }
   return e instanceof Error ? e.message : 'مقدرناش نطبّق الكود.'
 }

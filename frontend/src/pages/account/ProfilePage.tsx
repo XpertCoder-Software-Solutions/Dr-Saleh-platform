@@ -15,6 +15,7 @@ import type { Gender } from '@/types/api'
 import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
+import { confirmAction } from '@/lib/confirm'
 
 const MAX_IMAGE_MB = 5
 
@@ -131,7 +132,10 @@ function PhotoCard({ profile }: { profile: Profile }) {
           type="button"
           className={buttonClass({ variant: 'ghost', size: 'sm' })}
           disabled={remove.isPending}
-          onClick={() => remove.mutate()}
+          onClick={async () => {
+            if (await confirmAction({ title: 'تشيل صورتك؟', confirmLabel: 'أيوه، شيلها', icon: 'trash' }))
+              remove.mutate()
+          }}
         >
           شيل الصورة
         </button>

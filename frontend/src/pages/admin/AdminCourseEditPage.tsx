@@ -13,6 +13,7 @@ import { durationLabel } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Course, CourseSection, Lesson } from '@/types/api'
 import { warnFormErrors } from '@/lib/formErrors'
+import { confirmAction } from '@/lib/confirm'
 
 type Form = Omit<CourseInput, 'priceEGP' | 'priceUSD' | 'discountPriceEGP' | 'discountPriceUSD'> & {
   priceEGP: string
@@ -458,7 +459,17 @@ function SectionBlock({
           <button
             type="button"
             className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
-            onClick={() => window.confirm('حذف القسم؟') && remove.mutate()}
+            onClick={async () => {
+              if (
+                await confirmAction({
+                  title: 'تحذف القسم؟',
+                  body: 'هيتحذف القسم وكل الدروس اللي جواه.',
+                  confirmLabel: 'أيوه، احذف',
+                  icon: 'trash',
+                })
+              )
+                remove.mutate()
+            }}
           >
             حذف
           </button>
@@ -572,7 +583,17 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
           <button
             type="button"
             className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
-            onClick={() => window.confirm(`حذف «${lesson.titleAr}»؟`) && remove.mutate()}
+            onClick={async () => {
+              if (
+                await confirmAction({
+                  title: `تحذف «${lesson.titleAr}»؟`,
+                  body: 'الدرس هيتشال من الدورة ومش هيظهر للطلاب.',
+                  confirmLabel: 'أيوه، احذف',
+                  icon: 'trash',
+                })
+              )
+                remove.mutate()
+            }}
           >
             حذف
           </button>

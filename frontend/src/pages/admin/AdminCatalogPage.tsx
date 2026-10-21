@@ -15,6 +15,7 @@ import { durationLabel, formatEGP } from '@/lib/format'
 import { numOrUndef, numToField, slugify } from '@/lib/form'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { warnFormErrors } from '@/lib/formErrors'
+import { confirmAction } from '@/lib/confirm'
 
 type Tab = 'books' | 'products'
 const BOOKS_KEY = ['admin', 'books'] as const
@@ -458,9 +459,16 @@ function FormatRow({ book, format }: { book: AdminBook; format: AdminBookFormat 
         type="button"
         className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
         disabled={remove.isPending}
-        onClick={() =>
-          window.confirm(`حذف النسخة ${FORMAT_TYPE_LABEL[format.formatType]}؟`) && remove.mutate()
-        }
+        onClick={async () => {
+          if (
+            await confirmAction({
+              title: `تحذف النسخة ال${FORMAT_TYPE_LABEL[format.formatType]}؟`,
+              confirmLabel: 'أيوه، احذف',
+              icon: 'trash',
+            })
+          )
+            remove.mutate()
+        }}
       >
         حذف
       </button>
