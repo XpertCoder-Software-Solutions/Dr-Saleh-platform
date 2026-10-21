@@ -24,10 +24,12 @@ import {
   ReferralListApiResponseDto,
 } from './dto/referral-response.dto';
 import { ReferralsService } from './referrals.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Referrals')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('students')
 @Controller('admin/referrals')
 export class AdminReferralsController {
   constructor(private readonly referralsService: ReferralsService) {}

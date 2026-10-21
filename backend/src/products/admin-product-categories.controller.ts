@@ -28,10 +28,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateProductCategoryDto } from './dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
 import { ProductsService } from './products.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Product Categories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('catalog', 'settings')
 @Controller('admin/product-categories')
 export class AdminProductCategoriesController {
   constructor(private readonly productsService: ProductsService) {}

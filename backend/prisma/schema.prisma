@@ -49,6 +49,10 @@ model User {
   phoneVerifiedAt               DateTime?
   referralCode                  String?              @unique
   referredByUserId              String?              @db.Uuid
+  /// Full dashboard access, including managing staff accounts.
+  isSuperAdmin                  Boolean              @default(false)
+  /// Dashboard sections a staff admin can use (see src/auth/admin-permissions.ts).
+  adminPermissions              String[]             @default([])
   bookReviews                   BookReview[]
   cart                          Cart?
   certificates                  Certificate[]
@@ -267,6 +271,7 @@ model Course {
   categoryId         String          @db.Uuid
   titleAr            String
   titleEn            String
+  slug               String?         @unique
   shortDescriptionAr String
   shortDescriptionEn String
   descriptionAr      String

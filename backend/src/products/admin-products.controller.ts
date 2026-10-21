@@ -44,6 +44,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { AdminProductQueryDto } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 const productCoversUploadDirectory = join(
   process.cwd(),
@@ -61,6 +62,7 @@ const allowedImageMimeTypes = new Set([
 @ApiTags('Admin Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('catalog')
 @Controller('admin/products')
 export class AdminProductsController {
   constructor(private readonly productsService: ProductsService) {}

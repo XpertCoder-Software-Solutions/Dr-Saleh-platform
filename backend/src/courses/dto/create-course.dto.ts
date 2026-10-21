@@ -7,6 +7,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
@@ -67,6 +69,23 @@ export class CreateCourseDto {
   @IsString()
   @IsNotEmpty()
   thumbnailImage?: string;
+
+  @ApiPropertyOptional({
+    example: 'positive-parenting',
+    description:
+      'URL name: lowercase English letters, numbers and dashes. Generated from titleEn when omitted.',
+  })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() || undefined : value,
+  )
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message:
+      'slug may only contain lowercase English letters, numbers and single dashes.',
+  })
+  slug?: string;
 
   @ApiPropertyOptional({
     example: 'courses/videos/promo.mp4',

@@ -51,6 +51,7 @@ import { CreateBookImagesDto } from './dto/create-book-images.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { UpdateBookFormatDto } from './dto/update-book-format.dto';
 import { UpdateBookImageDto } from './dto/update-book-image.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 const bookCoversUploadDirectory = join(
   process.cwd(),
@@ -101,6 +102,7 @@ type BookFormatUploadFiles = {
 };
 
 @ApiTags('Books')
+@RequireAdminPermission('catalog')
 @Controller('books')
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}

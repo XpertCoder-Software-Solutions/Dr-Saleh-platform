@@ -16,6 +16,8 @@ import {
   getPaginationParams,
 } from '../common/utils/pagination';
 import { randomBytes } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { isPrismaUniqueConstraintError } from '../common/utils/prisma-errors';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -80,6 +82,7 @@ const courseSelect = {
   categoryId: true,
   titleAr: true,
   titleEn: true,
+  slug: true,
   shortDescriptionAr: true,
   shortDescriptionEn: true,
   descriptionAr: true,
@@ -112,6 +115,7 @@ const courseSummarySelect = {
   categoryId: true,
   titleAr: true,
   titleEn: true,
+  slug: true,
   shortDescriptionAr: true,
   shortDescriptionEn: true,
   thumbnailImage: true,
@@ -365,11 +369,16 @@ export class CoursesService {
       discountPriceUSD: createDto.discountPriceUSD,
     });
 
+    const slug = createDto.slug
+      ? await this.ensureCourseSlugAvailable(createDto.slug)
+      : await this.generateUniqueCourseSlug(createDto.titleEn);
+
     const course = await this.prisma.course.create({
       data: {
         categoryId: createDto.categoryId,
         titleAr: createDto.titleAr,
         titleEn: createDto.titleEn,
+        slug,
         shortDescriptionAr: createDto.shortDescriptionAr,
         shortDescriptionEn: createDto.shortDescriptionEn,
         descriptionAr: createDto.descriptionAr,
@@ -461,12 +470,18 @@ export class CoursesService {
         this.toOptionalNumberFromDecimal(currentCourse.discountPriceUSD),
     });
 
+    const slug =
+      updateDto.slug !== undefined
+        ? await this.ensureCourseSlugAvailable(updateDto.slug, id)
+        : undefined;
+
     const course = await this.prisma.course.update({
       where: { id },
       data: {
         categoryId: updateDto.categoryId,
         titleAr: updateDto.titleAr,
         titleEn: updateDto.titleEn,
+        slug,
         shortDescriptionAr: updateDto.shortDescriptionAr,
         shortDescriptionEn: updateDto.shortDescriptionEn,
         descriptionAr: updateDto.descriptionAr,
@@ -491,6 +506,111 @@ export class CoursesService {
         course: this.toCourse(course, { includeProtectedLessonKeys: true }),
       },
     };
+  }
+
+  /** Clears the course image or promo video and deletes the uploaded file. */
+  async adminRemoveCourseMedia(
+    id: string,
+    field: 'thumbnailImage' | 'promoVideoUrl',
+  ) {
+    const current = await this.prisma.course.findUnique({
+      where: { id },
+      select: { thumbnailImage: true, promoVideoUrl: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Course not found.');
+    }
+
+    const course = await this.prisma.course.update({
+      where: { id },
+      data: { [field]: null },
+      select: courseSelect,
+    });
+    await this.deleteUploadedFile(current[field]);
+
+    return {
+      message: 'Course updated successfully',
+      data: {
+        course: this.toCourse(course, { includeProtectedLessonKeys: true }),
+      },
+    };
+  }
+
+  /** Replaces the course image or promo video, deleting the previous uploaded file. */
+  async adminReplaceCourseMedia(
+    id: string,
+    field: 'thumbnailImage' | 'promoVideoUrl',
+    url: string,
+  ) {
+    const current = await this.prisma.course.findUnique({
+      where: { id },
+      select: { thumbnailImage: true, promoVideoUrl: true },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Course not found.');
+    }
+
+    const result = await this.adminUpdateCourse(id, { [field]: url });
+    if (current[field] && current[field] !== url) {
+      await this.deleteUploadedFile(current[field]);
+    }
+    return result;
+  }
+
+  private async deleteUploadedFile(url: string | null) {
+    // Only files this API stored under /uploads/courses/ (never external URLs).
+    if (!url || !url.startsWith('/uploads/courses/')) return;
+    const root = resolve(process.cwd(), 'uploads');
+    const path = resolve(process.cwd(), `.${url}`);
+    if (!path.startsWith(`${root}/`)) return;
+    await unlink(path).catch(() => undefined);
+  }
+
+  private async ensureCourseSlugAvailable(
+    slug: string,
+    excludedCourseId?: string,
+  ): Promise<string> {
+    const taken = await this.prisma.course.findFirst({
+      where: {
+        slug,
+        ...(excludedCourseId ? { id: { not: excludedCourseId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (taken) {
+      throw new ConflictException(
+        'This slug is already used by another course.',
+      );
+    }
+
+    return slug;
+  }
+
+  private async generateUniqueCourseSlug(source: string): Promise<string> {
+    const base =
+      source
+        .trim()
+        .toLowerCase()
+        .replace(/['"]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'course';
+    let slug = base;
+    let suffix = 2;
+
+    while (
+      await this.prisma.course.findFirst({
+        where: { slug },
+        select: { id: true },
+      })
+    ) {
+      slug = `${base}-${suffix}`;
+      suffix += 1;
+    }
+
+    return slug;
   }
 
   async adminDeleteCourse(
@@ -806,10 +926,15 @@ export class CoursesService {
     );
   }
 
-  async findCourseById(id: string) {
+  /** Public course page: looked up by id or by slug. */
+  async findCourseById(idOrSlug: string) {
+    const isId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idOrSlug,
+      );
     const course = await this.prisma.course.findFirst({
       where: {
-        id,
+        ...(isId ? { id: idOrSlug } : { slug: idOrSlug.toLowerCase() }),
         isActive: true,
       },
       select: courseSelect,
@@ -1966,6 +2091,7 @@ export class CoursesService {
       categoryId: course.categoryId,
       titleAr: course.titleAr,
       titleEn: course.titleEn,
+      slug: course.slug,
       shortDescriptionAr: course.shortDescriptionAr,
       shortDescriptionEn: course.shortDescriptionEn,
       thumbnailImage: course.thumbnailImage,

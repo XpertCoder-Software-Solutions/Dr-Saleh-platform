@@ -23,10 +23,12 @@ import {
   DashboardRevenueApiResponseDto,
   DashboardUsersApiResponseDto,
 } from './dto/dashboard-response.dto';
+import { ANY_ADMIN, RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission(ANY_ADMIN)
 @Controller('admin/dashboard')
 export class AdminDashboardController {
   constructor(private readonly adminDashboardService: AdminDashboardService) {}

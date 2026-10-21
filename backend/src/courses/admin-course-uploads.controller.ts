@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Param,
   ParseUUIDPipe,
   Post,
@@ -40,6 +41,7 @@ import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 const uploadsRoot = join(process.cwd(), 'uploads');
 export const courseThumbnailsDirectory = join(
@@ -50,6 +52,8 @@ export const courseThumbnailsDirectory = join(
 // Videos and PDFs are protected: main.ts blocks direct access, and students get
 // signed CloudFront URLs, like digital books.
 export const courseVideosDirectory = join(uploadsRoot, 'courses', 'videos');
+// Promo videos are public previews, served like thumbnails.
+export const coursePromosDirectory = join(uploadsRoot, 'courses', 'promos');
 export const coursePdfsDirectory = join(uploadsRoot, 'courses', 'pdfs');
 
 const IMAGE_TYPES: Record<string, string[]> = {
@@ -88,6 +92,7 @@ class LessonMediaBody {
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
 @ApiForbiddenResponse({ description: 'Admin access is required.' })
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('courses')
 @Controller()
 export class AdminCourseUploadsController {
   constructor(private readonly coursesService: CoursesService) {}
@@ -123,9 +128,77 @@ export class AdminCourseUploadsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('thumbnailImage is required.');
-    return this.coursesService.adminUpdateCourse(id, {
-      thumbnailImage: `/uploads/courses/thumbnails/${file.filename}`,
-    });
+    return this.coursesService.adminReplaceCourseMedia(
+      id,
+      'thumbnailImage',
+      `/uploads/courses/thumbnails/${file.filename}`,
+    );
+  }
+
+  @Delete('admin/courses/:id/thumbnail')
+  @AuditAction({
+    action: AuditActions.CourseUpdated,
+    entityType: AuditEntityTypes.Course,
+    entityIdParam: 'id',
+    description: 'Admin removed a course thumbnail.',
+  })
+  @ApiOperation({ summary: 'Admin: remove the course thumbnail.' })
+  @ApiOkResponse({ description: 'Course updated without a thumbnail.' })
+  removeThumbnail(@Param('id', ParseUUIDPipe) id: string) {
+    return this.coursesService.adminRemoveCourseMedia(id, 'thumbnailImage');
+  }
+
+  @Post('admin/courses/:id/promo-video')
+  @AuditAction({
+    action: AuditActions.CourseUpdated,
+    entityType: AuditEntityTypes.Course,
+    entityIdParam: 'id',
+    description: 'Admin uploaded a course promo video.',
+  })
+  @UseInterceptors(
+    FileInterceptor('promoVideo', {
+      storage: diskTo(() => coursePromosDirectory),
+      limits: { fileSize: 500 * 1024 * 1024 },
+      fileFilter: accept({ promoVideo: VIDEO_TYPES }),
+    }),
+  )
+  @ApiOperation({
+    summary:
+      'Admin: upload the course promo video (mp4, webm, mov; up to 500 MB).',
+    description: 'Public preview shown on the course page before buying.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { promoVideo: { type: 'string', format: 'binary' } },
+      required: ['promoVideo'],
+    },
+  })
+  @ApiOkResponse({ description: 'Course updated with the new promo video.' })
+  uploadPromoVideo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('promoVideo is required.');
+    return this.coursesService.adminReplaceCourseMedia(
+      id,
+      'promoVideoUrl',
+      `/uploads/courses/promos/${file.filename}`,
+    );
+  }
+
+  @Delete('admin/courses/:id/promo-video')
+  @AuditAction({
+    action: AuditActions.CourseUpdated,
+    entityType: AuditEntityTypes.Course,
+    entityIdParam: 'id',
+    description: 'Admin removed a course promo video.',
+  })
+  @ApiOperation({ summary: 'Admin: remove the course promo video.' })
+  @ApiOkResponse({ description: 'Course updated without a promo video.' })
+  removePromoVideo(@Param('id', ParseUUIDPipe) id: string) {
+    return this.coursesService.adminRemoveCourseMedia(id, 'promoVideoUrl');
   }
 
   @Post('admin/lessons/:id/media')

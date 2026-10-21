@@ -4,6 +4,7 @@ import { catalogApi, type AdminBook, type AdminBookFormat, type AdminProduct } f
 import { resolveAssetUrl } from '@/api/client'
 import { AdminCard, AdminHeader } from '@/components/admin/AdminLayout'
 import { CoverInput } from '@/components/admin/AdminForm'
+import { FileDrop } from '@/components/admin/FileDrop'
 import { FilterTabs, StatusPill } from '@/components/account/AccountShell'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
@@ -11,7 +12,7 @@ import { buttonClass } from '@/components/ui/button'
 import { CheckField, SelectField, TextAreaField, TextField } from '@/components/ui/fields'
 import { Alert, EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { FORMAT_TYPE_LABEL } from '@/lib/shop-labels'
-import { durationLabel, formatEGP } from '@/lib/format'
+import { formatEGP } from '@/lib/format'
 import { numOrUndef, numToField, slugify } from '@/lib/form'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { warnFormErrors } from '@/lib/formErrors'
@@ -88,7 +89,16 @@ export function AdminCatalogPage() {
                         'من غير نسخ'}
                     </span>
                   </span>
-                  <b className="text-sm text-ink">{formatEGP(b.discountPriceEGP ?? b.priceEGP)}</b>
+                  <b className="text-sm text-ink">
+                    {(() => {
+                      const prices = (b.formats ?? [])
+                        .filter((f) => f.isActive)
+                        .map((f) => f.discountPriceEGP ?? f.priceEGP ?? b.priceEGP)
+                      return prices.length
+                        ? `من ${formatEGP(Math.min(...prices))}`
+                        : formatEGP(b.discountPriceEGP ?? b.priceEGP)
+                    })()}
+                  </b>
                   {b.isActive ? (
                     <StatusPill tone="success">منشور</StatusPill>
                   ) : (
@@ -194,6 +204,88 @@ function BookModal({
   return <BookForm key={id ?? 'new'} book={book.data} onClose={onClose} onCreated={onCreated} />
 }
 
+type FormatType = AdminBookFormat['formatType']
+const FORMAT_TYPES: FormatType[] = ['Physical', 'Digital', 'Audio']
+
+/** One copy (ورقي / رقمي / صوتي) as edited in the book form. */
+interface FormatDraft {
+  key: string
+  id?: string
+  formatType: FormatType
+  priceEGP: string
+  priceUSD: string
+  discountPriceEGP: string
+  discountPriceUSD: string
+  sku: string
+  stock: string
+  weight: string
+  file: File | null
+  hasFile: boolean
+}
+
+function toDraft(f: AdminBookFormat): FormatDraft {
+  return {
+    key: f.id,
+    id: f.id,
+    formatType: f.formatType,
+    priceEGP: numToField(f.priceEGP),
+    priceUSD: numToField(f.priceUSD),
+    discountPriceEGP: numToField(f.discountPriceEGP),
+    discountPriceUSD: numToField(f.discountPriceUSD),
+    sku: f.sku ?? '',
+    stock: numToField(f.stock),
+    weight: numToField(f.weight),
+    file: null,
+    hasFile: Boolean(f.formatType === 'Digital' ? f.hasReaderFile : f.hasAudioFile),
+  }
+}
+
+function newDraft(formatType: FormatType): FormatDraft {
+  return {
+    key: `new-${formatType}-${Math.random().toString(36).slice(2)}`,
+    formatType,
+    priceEGP: '',
+    priceUSD: '',
+    discountPriceEGP: '',
+    discountPriceUSD: '',
+    sku: '',
+    stock: formatType === 'Physical' ? '0' : '',
+    weight: '',
+    file: null,
+    hasFile: false,
+  }
+}
+
+function audioLength(file: File) {
+  return new Promise<number | undefined>((resolve) => {
+    const url = URL.createObjectURL(file)
+    const a = new Audio()
+    a.onloadedmetadata = () => {
+      URL.revokeObjectURL(url)
+      resolve(Number.isFinite(a.duration) ? Math.round(a.duration) : undefined)
+    }
+    a.onerror = () => resolve(undefined)
+    a.src = url
+  })
+}
+
+/** Fields the API takes for a copy. */
+async function formatFields(d: FormatDraft, isNew: boolean) {
+  return {
+    ...(isNew ? { formatType: d.formatType } : {}),
+    priceEGP: numOrUndef(d.priceEGP),
+    priceUSD: numOrUndef(d.priceUSD),
+    discountPriceEGP: numOrUndef(d.discountPriceEGP),
+    discountPriceUSD: numOrUndef(d.discountPriceUSD),
+    sku: d.sku.trim() || undefined,
+    ...(d.formatType === 'Physical' ? { stock: numOrUndef(d.stock), weight: numOrUndef(d.weight) } : {}),
+    ...(d.formatType === 'Digital' ? { readerFile: d.file } : {}),
+    ...(d.formatType === 'Audio' && d.file
+      ? { audioFile: d.file, audioDuration: await audioLength(d.file) }
+      : {}),
+  }
+}
+
 function BookForm({
   book,
   onClose,
@@ -212,55 +304,104 @@ function BookForm({
     titleEn: book?.titleEn ?? '',
     slug: book?.slug ?? '',
     descriptionAr: book?.descriptionAr ?? '',
-    priceEGP: numToField(book?.priceEGP),
-    discountPriceEGP: numToField(book?.discountPriceEGP),
-    priceUSD: numToField(book?.priceUSD),
     isActive: book?.isActive ?? true,
     isFeatured: book?.isFeatured ?? false,
     isHomeDisplay: book?.isHomeDisplay ?? false,
   })
+  const [slugTouched, setSlugTouched] = useState(Boolean(book?.slug))
+  const [formats, setFormats] = useState<FormatDraft[]>(() =>
+    book?.formats?.length
+      ? [...book.formats]
+          .sort((a, b) => FORMAT_TYPES.indexOf(a.formatType) - FORMAT_TYPES.indexOf(b.formatType))
+          .map(toDraft)
+      : [newDraft('Physical')],
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [step, setStep] = useState<string | null>(null)
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }))
+  const setFormat = (key: string, patch: Partial<FormatDraft>) =>
+    setFormats((list) => list.map((d) => (d.key === key ? { ...d, ...patch } : d)))
+  const unused = FORMAT_TYPES.filter((t) => !formats.some((d) => d.formatType === t))
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: BOOKS_KEY })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'book'] })
+  }
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      // The book's own price is the cheapest copy, so lists and filters stay right.
+      const lowest = (k: 'priceEGP' | 'priceUSD') => Math.min(...formats.map((d) => Number(d[k])))
       const fields = {
         categoryId: f.categoryId,
         titleAr: f.titleAr.trim(),
         titleEn: f.titleEn.trim(),
         slug: f.slug.trim() || slugify(f.titleEn),
-        descriptionAr: f.descriptionAr.trim(),
-        descriptionEn: book?.descriptionEn || f.descriptionAr.trim(),
-        priceEGP: numOrUndef(f.priceEGP),
-        discountPriceEGP: numOrUndef(f.discountPriceEGP),
-        priceUSD: numOrUndef(f.priceUSD),
+        descriptionAr: f.descriptionAr.trim() || f.titleAr.trim(),
+        descriptionEn: book?.descriptionEn || f.descriptionAr.trim() || f.titleEn.trim(),
+        priceEGP: lowest('priceEGP'),
+        priceUSD: lowest('priceUSD'),
         isActive: f.isActive,
         isFeatured: f.isFeatured,
         isHomeDisplay: f.isHomeDisplay,
         coverImage: cover,
       }
-      return book ? catalogApi.updateBook(book.id, fields) : catalogApi.createBook(fields)
+      setStep('بيحفظ بيانات الكتاب…')
+      const saved = book ? await catalogApi.updateBook(book.id, fields) : await catalogApi.createBook(fields)
+      const bookId = book?.id ?? ((saved as unknown as { book?: AdminBook }).book ?? saved).id
+      try {
+        for (const d of formats) {
+          setStep(`بيحفظ النسخة ال${FORMAT_TYPE_LABEL[d.formatType]}…`)
+          const body = await formatFields(d, !d.id)
+          if (d.id) await catalogApi.updateFormat(d.id, body)
+          else await catalogApi.addFormat(bookId, body)
+        }
+      } catch (e) {
+        // The book exists now; reopen it so the remaining copies can be fixed.
+        if (!book) {
+          refresh()
+          onCreated(bookId)
+        }
+        throw e
+      }
+      return bookId
     },
-    onSuccess: (saved) => {
-      queryClient.invalidateQueries({ queryKey: BOOKS_KEY })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'book'] })
-      if (!book) {
-        const created = (saved as unknown as { book?: AdminBook }).book ?? saved
-        onCreated(created.id)
-      } else onClose()
+    onSettled: () => setStep(null),
+    onSuccess: () => {
+      refresh()
+      onClose()
+    },
+  })
+
+  const removeExisting = useMutation({
+    mutationFn: (id: string) => catalogApi.removeFormat(id),
+    onSuccess: (_r, id) => {
+      setFormats((list) => list.filter((d) => d.id !== id))
+      refresh()
     },
   })
 
   function submit(e?: FormEvent) {
     e?.preventDefault()
     const er: Record<string, string> = {}
-    if (!f.categoryId) er.categoryId = 'اختار القسم.'
     if (f.titleAr.trim().length < 2) er.titleAr = 'اكتب اسم الكتاب.'
-    if (!f.titleEn.trim()) er.titleEn = 'اكتب الاسم بالإنجليزي.'
-    if (!f.descriptionAr.trim()) er.descriptionAr = 'اكتب وصف الكتاب.'
-    if (f.priceEGP === '') er.priceEGP = 'اكتب السعر.'
-    if (f.priceUSD === '') er.priceUSD = 'اكتب السعر بالدولار.'
+    if (!f.titleEn.trim()) er.titleEn = 'اكتب اسم الكتاب بالإنجليزي.'
+    if (!f.categoryId) er.categoryId = 'اختار القسم.'
     if (!book && !cover) er.cover = 'اختار صورة الغلاف.'
+    if (f.slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(f.slug.trim()))
+      er.slug = 'حروف إنجليزي صغيرة وأرقام وشَرطة (-) بس.'
+    if (!formats.length) er.formats = 'ضيف نسخة واحدة على الأقل.'
+    for (const d of formats) {
+      const k = (n: string) => `${d.key}.${n}`
+      if (d.priceEGP === '' || Number(d.priceEGP) < 0) er[k('priceEGP')] = 'اكتب السعر.'
+      if (d.priceUSD === '' || Number(d.priceUSD) < 0) er[k('priceUSD')] = 'اكتب السعر.'
+      if (d.discountPriceEGP && Number(d.discountPriceEGP) >= Number(d.priceEGP))
+        er[k('discountPriceEGP')] = 'لازم يكون أقل من السعر.'
+      if (d.discountPriceUSD && Number(d.discountPriceUSD) >= Number(d.priceUSD))
+        er[k('discountPriceUSD')] = 'لازم يكون أقل من السعر.'
+      if (d.formatType === 'Physical' && (d.stock === '' || Number(d.stock) < 0))
+        er[k('stock')] = 'اكتب المخزون.'
+    }
     setErrors(er)
     warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
@@ -269,367 +410,264 @@ function BookForm({
   return (
     <Modal
       title={book ? 'تعديل الكتاب' : 'كتاب جديد'}
-      sub={book ? book.titleAr : 'بعد الحفظ هتقدر تضيف النسخ (ورقي، رقمي، صوتي).'}
+      sub={book ? book.titleAr : 'بيانات الكتاب ونسخه في خطوة واحدة.'}
       icon="book"
       onClose={onClose}
-      width={860}
+      width={920}
       footer={
         <>
-          <button type="button" className={buttonClass({ variant: 'outline' })} onClick={onClose}>
-            إلغاء
-          </button>
-          <button
-            type="button"
-            className={buttonClass({ variant: 'gold' })}
-            disabled={save.isPending}
-            onClick={() => submit()}
-          >
-            {save.isPending ? <Spinner /> : book ? 'حفظ' : 'اعمل الكتاب'}
-          </button>
+          <span className="text-sm text-muted" aria-live="polite">
+            {step ?? 'سعر الكتاب في الموقع = أرخص نسخة.'}
+          </span>
+          <span className="flex gap-2.5">
+            <button type="button" className={buttonClass({ variant: 'outline' })} onClick={onClose}>
+              إلغاء
+            </button>
+            <button
+              type="button"
+              className={buttonClass({ variant: 'gold' })}
+              disabled={save.isPending}
+              onClick={() => submit()}
+            >
+              {save.isPending ? <Spinner /> : book ? 'حفظ' : 'اعمل الكتاب'}
+            </button>
+          </span>
         </>
       }
     >
-      <form onSubmit={submit} noValidate className="grid grid-cols-[1fr_220px] gap-5 max-md:grid-cols-1">
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
-            <TextField
-              label="اسم الكتاب"
-              value={f.titleAr}
-              onChange={(e) => set('titleAr', e.target.value)}
-              error={errors.titleAr}
+      <form onSubmit={submit} noValidate className="flex flex-col gap-6">
+        <div className="grid grid-cols-[1fr_200px] gap-5 max-md:grid-cols-1">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
+              <TextField
+                label="اسم الكتاب (عربي)"
+                value={f.titleAr}
+                onChange={(e) => set('titleAr', e.target.value)}
+                error={errors.titleAr}
+              />
+              <TextField
+                label="اسم الكتاب (إنجليزي)"
+                ltr
+                value={f.titleEn}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setF((x) => ({ ...x, titleEn: v, slug: slugTouched ? x.slug : slugify(v) }))
+                }}
+                error={errors.titleEn}
+              />
+              <SelectField
+                label="القسم"
+                placeholder="اختار القسم"
+                value={f.categoryId}
+                onChange={(e) => set('categoryId', e.target.value)}
+                options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.nameAr }))}
+                error={errors.categoryId}
+              />
+              <TextField
+                label="اسم الرابط (Slug)"
+                ltr
+                placeholder="book-name"
+                value={f.slug}
+                onChange={(e) => {
+                  setSlugTouched(true)
+                  set('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))
+                }}
+                error={errors.slug}
+              />
+            </div>
+            <TextAreaField
+              label="عن الكتاب (اختياري)"
+              rows={3}
+              value={f.descriptionAr}
+              onChange={(e) => set('descriptionAr', e.target.value)}
             />
-            <TextField
-              label="الاسم بالإنجليزي"
-              ltr
-              value={f.titleEn}
-              onChange={(e) => set('titleEn', e.target.value)}
-              error={errors.titleEn}
-            />
-            <SelectField
-              label="القسم"
-              placeholder="اختار القسم"
-              value={f.categoryId}
-              onChange={(e) => set('categoryId', e.target.value)}
-              options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.nameAr }))}
-              error={errors.categoryId}
-            />
-            <TextField
-              label="الرابط (slug)"
-              ltr
-              placeholder={slugify(f.titleEn) || 'book-name'}
-              value={f.slug}
-              onChange={(e) => set('slug', e.target.value)}
-            />
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <CheckField
+                label="منشور"
+                checked={f.isActive}
+                onChange={(e) => set('isActive', e.target.checked)}
+              />
+              <CheckField
+                label="في الرئيسية"
+                checked={f.isHomeDisplay}
+                onChange={(e) => set('isHomeDisplay', e.target.checked)}
+              />
+              <CheckField
+                label="مميز"
+                checked={f.isFeatured}
+                onChange={(e) => set('isFeatured', e.target.checked)}
+              />
+            </div>
           </div>
-          <TextAreaField
-            label="عن الكتاب"
-            rows={4}
-            value={f.descriptionAr}
-            onChange={(e) => set('descriptionAr', e.target.value)}
-            error={errors.descriptionAr}
+          <CoverInput
+            label="الغلاف"
+            current={book?.coverImage}
+            file={cover}
+            onChange={setCover}
+            required={!book}
+            error={errors.cover}
           />
-          <div className="grid grid-cols-3 gap-4">
-            <TextField
-              label="السعر (ج.م)"
-              type="number"
-              min={0}
-              ltr
-              value={f.priceEGP}
-              onChange={(e) => set('priceEGP', e.target.value)}
-              error={errors.priceEGP}
-            />
-            <TextField
-              label="بعد الخصم"
-              type="number"
-              min={0}
-              ltr
-              value={f.discountPriceEGP}
-              onChange={(e) => set('discountPriceEGP', e.target.value)}
-            />
-            <TextField
-              label="السعر ($)"
-              type="number"
-              min={0}
-              step="0.01"
-              ltr
-              value={f.priceUSD}
-              onChange={(e) => set('priceUSD', e.target.value)}
-              error={errors.priceUSD}
-            />
-          </div>
-          <p className="-mt-2 text-xs text-muted">ده السعر الأساسي؛ كل نسخة ممكن يكون ليها سعرها.</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <CheckField
-              label="منشور"
-              checked={f.isActive}
-              onChange={(e) => set('isActive', e.target.checked)}
-            />
-            <CheckField
-              label="في الرئيسية"
-              checked={f.isHomeDisplay}
-              onChange={(e) => set('isHomeDisplay', e.target.checked)}
-            />
-            <CheckField
-              label="مميز"
-              checked={f.isFeatured}
-              onChange={(e) => set('isFeatured', e.target.checked)}
-            />
-          </div>
-          {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}
         </div>
-        <CoverInput
-          label="الغلاف"
-          current={book?.coverImage}
-          file={cover}
-          onChange={setCover}
-          required={!book}
-          error={errors.cover}
-        />
+
+        <div className="flex flex-col gap-3 border-t border-divider pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg">النسخ</h3>
+              <p className="text-sm text-muted">كل نسخة بسعرها؛ الكارت في الموقع بيعرض أرخص نسخة.</p>
+            </div>
+            {unused.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {unused.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={buttonClass({ variant: 'outline', size: 'sm' })}
+                    onClick={() => setFormats((list) => [...list, newDraft(t)])}
+                  >
+                    <Icon name="plus" size={14} /> نسخة {FORMAT_TYPE_LABEL[t]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {errors.formats && <Alert tone="error">{errors.formats}</Alert>}
+          {formats.map((d) => (
+            <FormatCard
+              key={d.key}
+              draft={d}
+              errors={errors}
+              onChange={(patch) => setFormat(d.key, patch)}
+              removing={removeExisting.isPending && removeExisting.variables === d.id}
+              onRemove={async () => {
+                if (!d.id) {
+                  setFormats((list) => list.filter((x) => x.key !== d.key))
+                  return
+                }
+                if (
+                  await confirmAction({
+                    title: `تحذف النسخة ال${FORMAT_TYPE_LABEL[d.formatType]}؟`,
+                    body: 'النسخة هتتشال من الموقع فورًا.',
+                    confirmLabel: 'أيوه، احذف',
+                    icon: 'trash',
+                  })
+                )
+                  removeExisting.mutate(d.id)
+              }}
+            />
+          ))}
+          {removeExisting.isError && <Alert tone="error">{(removeExisting.error as Error).message}</Alert>}
+        </div>
+        {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}
       </form>
-      {book && <Formats book={book} />}
     </Modal>
   )
 }
 
-function Formats({ book }: { book: AdminBook }) {
-  const [adding, setAdding] = useState(false)
-  const existing = new Set((book.formats ?? []).map((f) => f.formatType))
-  const missing = (['Physical', 'Digital', 'Audio'] as const).filter((t) => !existing.has(t))
-  return (
-    <div className="mt-6 flex flex-col gap-3 border-t border-divider pt-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg">النسخ</h3>
-        {missing.length > 0 && !adding && (
-          <button
-            type="button"
-            className={buttonClass({ variant: 'outline', size: 'sm' })}
-            onClick={() => setAdding(true)}
-          >
-            <Icon name="plus" size={14} /> نسخة جديدة
-          </button>
-        )}
-      </div>
-      {(book.formats ?? []).map((fm) => (
-        <FormatRow key={fm.id} book={book} format={fm} />
-      ))}
-      {adding && <FormatForm book={book} types={missing} onDone={() => setAdding(false)} />}
-      {!book.formats?.length && !adding && (
-        <p className="text-sm text-muted">مفيش نسخ؛ الكتاب مش هيتباع غير لما تضيف نسخة.</p>
-      )}
-    </div>
-  )
-}
-
-function FormatRow({ book, format }: { book: AdminBook; format: AdminBookFormat }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const remove = useMutation({
-    mutationFn: () => catalogApi.removeFormat(format.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'book', book.id] })
-      queryClient.invalidateQueries({ queryKey: BOOKS_KEY })
-    },
-  })
-  if (editing)
-    return (
-      <FormatForm book={book} format={format} types={[format.formatType]} onDone={() => setEditing(false)} />
-    )
-  return (
-    <div className="flex flex-wrap items-center gap-3 rounded-tile border border-line p-3.5">
-      <span className="rounded-full bg-surface-blue px-3 py-1 text-xs font-bold text-blue-600">
-        {FORMAT_TYPE_LABEL[format.formatType]}
-      </span>
-      <span className="flex-1 text-sm text-text-2">
-        {formatEGP(format.discountPriceEGP ?? format.priceEGP ?? book.priceEGP)}
-        {format.formatType === 'Physical' && ` · المخزون ${format.stock ?? 0}`}
-        {format.formatType === 'Digital' && (format.hasReaderFile ? ' · الملف مرفوع' : ' · من غير ملف')}
-        {format.formatType === 'Audio' &&
-          (format.hasAudioFile
-            ? ` · ${format.audioDuration ? durationLabel(format.audioDuration) : 'الملف مرفوع'}`
-            : ' · من غير ملف')}
-      </span>
-      <button
-        type="button"
-        className={buttonClass({ variant: 'ghost', size: 'sm' })}
-        onClick={() => setEditing(true)}
-      >
-        تعديل
-      </button>
-      <button
-        type="button"
-        className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
-        disabled={remove.isPending}
-        onClick={async () => {
-          if (
-            await confirmAction({
-              title: `تحذف النسخة ال${FORMAT_TYPE_LABEL[format.formatType]}؟`,
-              confirmLabel: 'أيوه، احذف',
-              icon: 'trash',
-            })
-          )
-            remove.mutate()
-        }}
-      >
-        حذف
-      </button>
-      {remove.isError && (
-        <div className="w-full">
-          <Alert tone="error">{(remove.error as Error).message}</Alert>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function FormatForm({
-  book,
-  format,
-  types,
-  onDone,
+function FormatCard({
+  draft: d,
+  errors,
+  onChange,
+  onRemove,
+  removing,
 }: {
-  book: AdminBook
-  format?: AdminBookFormat
-  types: AdminBookFormat['formatType'][]
-  onDone: () => void
+  draft: FormatDraft
+  errors: Record<string, string>
+  onChange: (patch: Partial<FormatDraft>) => void
+  onRemove: () => void
+  removing: boolean
 }) {
-  const queryClient = useQueryClient()
-  const [type, setType] = useState(format?.formatType ?? types[0])
-  const [f, setF] = useState({
-    priceEGP: numToField(format?.priceEGP),
-    discountPriceEGP: numToField(format?.discountPriceEGP),
-    priceUSD: numToField(format?.priceUSD),
-    stock: numToField(format?.stock),
-    weight: numToField(format?.weight),
-    sku: format?.sku ?? '',
-  })
-  const [file, setFile] = useState<File | null>(null)
-  const save = useMutation({
-    mutationFn: async () => {
-      let audioDuration: number | undefined
-      if (type === 'Audio' && file) {
-        audioDuration = await new Promise<number | undefined>((resolve) => {
-          const url = URL.createObjectURL(file)
-          const a = new Audio()
-          a.onloadedmetadata = () => {
-            URL.revokeObjectURL(url)
-            resolve(Number.isFinite(a.duration) ? Math.round(a.duration) : undefined)
-          }
-          a.onerror = () => resolve(undefined)
-          a.src = url
-        })
-      }
-      const fields = {
-        ...(format ? {} : { formatType: type }),
-        priceEGP: numOrUndef(f.priceEGP),
-        discountPriceEGP: numOrUndef(f.discountPriceEGP),
-        priceUSD: numOrUndef(f.priceUSD),
-        ...(type === 'Physical'
-          ? { stock: numOrUndef(f.stock), weight: numOrUndef(f.weight), sku: f.sku.trim() || undefined }
-          : {}),
-        ...(type === 'Digital' ? { readerFile: file } : {}),
-        ...(type === 'Audio' ? { audioFile: file, audioDuration } : {}),
-      }
-      return format ? catalogApi.updateFormat(format.id, fields) : catalogApi.addFormat(book.id, fields)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'book', book.id] })
-      queryClient.invalidateQueries({ queryKey: BOOKS_KEY })
-      onDone()
-    },
-  })
-
+  const err = (n: string) => errors[`${d.key}.${n}`]
+  const money = (
+    k: 'priceEGP' | 'priceUSD' | 'discountPriceEGP' | 'discountPriceUSD',
+    label: string,
+    usd = false,
+  ) => (
+    <TextField
+      label={label}
+      type="number"
+      min={0}
+      step={usd ? '0.01' : '1'}
+      ltr
+      value={d[k]}
+      onChange={(e) => onChange({ [k]: e.target.value })}
+      error={err(k)}
+    />
+  )
   return (
-    <div className="flex flex-col gap-3 rounded-tile border border-blue-300/60 bg-surface-blue/40 p-4">
-      {!format && (
-        <SelectField
-          label="نوع النسخة"
-          value={type}
-          onChange={(e) => setType(e.target.value as typeof type)}
-          options={types.map((t) => ({ value: t, label: FORMAT_TYPE_LABEL[t] }))}
-        />
-      )}
-      <div className="grid grid-cols-3 gap-3">
-        <TextField
-          label="السعر (ج.م)"
-          type="number"
-          min={0}
-          ltr
-          placeholder={String(book.priceEGP)}
-          value={f.priceEGP}
-          onChange={(e) => setF({ ...f, priceEGP: e.target.value })}
-        />
-        <TextField
-          label="بعد الخصم"
-          type="number"
-          min={0}
-          ltr
-          value={f.discountPriceEGP}
-          onChange={(e) => setF({ ...f, discountPriceEGP: e.target.value })}
-        />
-        <TextField
-          label="السعر ($)"
-          type="number"
-          min={0}
-          step="0.01"
-          ltr
-          placeholder={String(book.priceUSD)}
-          value={f.priceUSD}
-          onChange={(e) => setF({ ...f, priceUSD: e.target.value })}
-        />
-      </div>
-      {type === 'Physical' && (
-        <div className="grid grid-cols-3 gap-3">
-          <TextField
-            label="المخزون"
-            type="number"
-            min={0}
-            ltr
-            value={f.stock}
-            onChange={(e) => setF({ ...f, stock: e.target.value })}
+    <div className="flex flex-col gap-4 rounded-tile border border-line bg-surface/60 p-4">
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 bg-navy items-center justify-center rounded-xl text-white">
+          <Icon
+            name={d.formatType === 'Audio' ? 'headphones' : d.formatType === 'Digital' ? 'file' : 'book'}
+            size={16}
           />
-          <TextField
-            label="الوزن (كجم)"
-            type="number"
-            min={0}
-            step="0.01"
-            ltr
-            value={f.weight}
-            onChange={(e) => setF({ ...f, weight: e.target.value })}
-          />
-          <TextField label="SKU" ltr value={f.sku} onChange={(e) => setF({ ...f, sku: e.target.value })} />
-        </div>
-      )}
-      {type !== 'Physical' && (
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-ink">
-          {type === 'Digital' ? 'ملف الكتاب (PDF)' : 'الملف الصوتي (mp3, m4a, wav)'}
-          {format && (type === 'Digital' ? format.hasReaderFile : format.hasAudioFile) && (
-            <span className="text-xs font-normal text-muted">
-              فيه ملف مرفوع؛ اختار ملف جديد لو عايز تستبدله.
-            </span>
-          )}
-          <input
-            type="file"
-            accept={type === 'Digital' ? 'application/pdf' : 'audio/mpeg,audio/mp4,audio/x-m4a,audio/wav'}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="text-sm font-normal"
-          />
-        </label>
-      )}
-
-      {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}
-      <div className="flex gap-2.5">
+        </span>
+        <b className="flex-1 text-ink">نسخة {FORMAT_TYPE_LABEL[d.formatType]}</b>
         <button
           type="button"
-          className={buttonClass({ variant: 'navy', size: 'sm' })}
-          disabled={save.isPending}
-          onClick={() => save.mutate()}
+          className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
+          onClick={onRemove}
+          disabled={removing}
         >
-          {save.isPending ? <Spinner /> : 'حفظ النسخة'}
-        </button>
-        <button type="button" className={buttonClass({ variant: 'ghost', size: 'sm' })} onClick={onDone}>
-          إلغاء
+          {removing ? <Spinner /> : <Icon name="trash" size={15} />} شيل النسخة
         </button>
       </div>
+      <div className="grid grid-cols-4 gap-3 max-md:grid-cols-2">
+        {money('priceEGP', 'السعر بالجنيه')}
+        {money('priceUSD', 'السعر بالدولار', true)}
+        {money('discountPriceEGP', 'بعد الخصم بالجنيه')}
+        {money('discountPriceUSD', 'بعد الخصم بالدولار', true)}
+      </div>
+      <div className="grid grid-cols-3 gap-3 max-md:grid-cols-1">
+        <TextField
+          label="SKU (اختياري)"
+          ltr
+          value={d.sku}
+          onChange={(e) => onChange({ sku: e.target.value })}
+        />
+        {d.formatType === 'Physical' && (
+          <>
+            <TextField
+              label="المخزون"
+              type="number"
+              min={0}
+              ltr
+              value={d.stock}
+              onChange={(e) => onChange({ stock: e.target.value })}
+              error={err('stock')}
+            />
+            <TextField
+              label="الوزن بالكيلو (اختياري)"
+              type="number"
+              min={0}
+              step="0.01"
+              ltr
+              value={d.weight}
+              onChange={(e) => onChange({ weight: e.target.value })}
+            />
+          </>
+        )}
+      </div>
+      {d.formatType !== 'Physical' && (
+        <FileDrop
+          label={d.formatType === 'Digital' ? 'ملف الكتاب (PDF)' : 'الملف الصوتي'}
+          hint={d.formatType === 'Digital' ? 'PDF' : 'MP3 · M4A · WAV'}
+          accept={
+            d.formatType === 'Digital' ? 'application/pdf' : 'audio/mpeg,audio/mp4,audio/x-m4a,audio/wav'
+          }
+          icon={d.formatType === 'Digital' ? 'file' : 'headphones'}
+          file={d.file}
+          onFile={(file) => onChange({ file })}
+          current={
+            d.hasFile ? (
+              <>
+                <b className="text-sm text-ink">ملف مرفوع</b>
+                <span className="text-xs text-muted">اختار ملف جديد لو عايز تستبدله</span>
+              </>
+            ) : null
+          }
+        />
+      )}
     </div>
   )
 }

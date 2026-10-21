@@ -40,6 +40,7 @@ const adminPages = {
   AdminBlogPage: () => import('@/pages/admin/AdminBlogPage'),
   AdminReviewsPage: () => import('@/pages/admin/AdminReviewsPage'),
   AdminSettingsPage: () => import('@/pages/admin/AdminSettingsPage'),
+  AdminStaffPage: () => import('@/pages/admin/AdminStaffPage'),
 }
 const admin = (name: keyof typeof adminPages) => page(adminPages[name], name)
 
@@ -142,6 +143,7 @@ export const router = createBrowserRouter([
       { path: 'blog', lazy: admin('AdminBlogPage') },
       { path: 'reviews', lazy: admin('AdminReviewsPage') },
       { path: 'settings', lazy: admin('AdminSettingsPage') },
+      { path: 'staff', lazy: admin('AdminStaffPage') },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

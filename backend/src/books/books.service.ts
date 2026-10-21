@@ -501,10 +501,8 @@ export class BooksService {
         data: {
           bookId,
           formatType: createBookFormatDto.formatType,
-          sku:
-            createBookFormatDto.formatType === BookFormatType.Physical
-              ? createBookFormatDto.sku
-              : null,
+          // Every copy type can carry a SKU (shop/accounting reference).
+          sku: createBookFormatDto.sku ?? null,
           stock:
             createBookFormatDto.formatType === BookFormatType.Physical
               ? createBookFormatDto.stock
@@ -605,14 +603,14 @@ export class BooksService {
         formatType: updateBookFormatDto.formatType,
       };
 
+      if (updateBookFormatDto.sku !== undefined) {
+        data.sku = updateBookFormatDto.sku;
+      }
+
       if (nextFormatType === BookFormatType.Physical) {
         data.readerFile = null;
         data.audioFile = null;
         data.audioDuration = null;
-
-        if (updateBookFormatDto.sku !== undefined) {
-          data.sku = updateBookFormatDto.sku;
-        }
 
         if (updateBookFormatDto.stock !== undefined) {
           data.stock = updateBookFormatDto.stock;
@@ -624,7 +622,6 @@ export class BooksService {
       }
 
       if (nextFormatType === BookFormatType.Digital) {
-        data.sku = null;
         data.stock = null;
         data.weight = null;
         data.audioFile = null;
@@ -636,7 +633,6 @@ export class BooksService {
       }
 
       if (nextFormatType === BookFormatType.Audio) {
-        data.sku = null;
         data.stock = null;
         data.weight = null;
         data.readerFile = null;
@@ -882,12 +878,6 @@ export class BooksService {
     if (formatDto.stock !== undefined) {
       throw new BadRequestException(
         'Digital and audio formats must not have stock.',
-      );
-    }
-
-    if (formatDto.sku !== undefined) {
-      throw new BadRequestException(
-        'Digital and audio formats must not have sku.',
       );
     }
 

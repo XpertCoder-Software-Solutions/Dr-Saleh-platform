@@ -1,12 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
+  IsIn,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
   ValidateIf,
 } from 'class-validator';
+import {
+  ADMIN_PERMISSIONS,
+  type AdminPermission,
+} from '../../auth/admin-permissions';
 import { IsStrongPassword } from '../../common/decorators/strong-password.decorator';
 import { toOptionalBoolean, trimString } from './dto-transformers';
 
@@ -38,4 +46,26 @@ export class UpdateAdminDto {
   @IsNotEmpty()
   @IsStrongPassword()
   password?: string;
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'Full access, including managing staff accounts. Defaults to false (staff).',
+  })
+  @Transform(toOptionalBoolean)
+  @IsOptional()
+  @IsBoolean()
+  isSuperAdmin?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ADMIN_PERMISSIONS,
+    isArray: true,
+    example: ['courses', 'blog'],
+    description: 'Dashboard sections a staff admin can use.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(ADMIN_PERMISSIONS, { each: true })
+  adminPermissions?: AdminPermission[];
 }

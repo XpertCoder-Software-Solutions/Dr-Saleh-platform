@@ -30,7 +30,7 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
   return (
     <article className="glow-card relative flex flex-col overflow-hidden rounded-card border border-line bg-white text-text">
       {/* Whole-card link sits under the wishlist button (no buttons nested inside <a>). */}
-      <Link to={routes.course(course.id)} className="absolute inset-0 z-1 rounded-[inherit]">
+      <Link to={routes.course(course.slug || course.id)} className="absolute inset-0 z-1 rounded-[inherit]">
         <span className="sr-only">{course.titleAr}</span>
       </Link>
       <div className="relative overflow-hidden rounded-t-card">
@@ -93,7 +93,9 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
             <span className={cn('text-ink-grad font-bold', catalog ? 'text-xl' : 'text-[23px]')}>
               {price.isFree ? 'مجانًا' : formatMoney(price.current, currency)}
             </span>
-            {price.old !== null && <s className="text-[15px] text-muted-2">{formatMoney(price.old, currency)}</s>}
+            {price.old !== null && (
+              <s className="text-[15px] text-muted-2">{formatMoney(price.old, currency)}</s>
+            )}
           </span>
           {course.ratingAverage != null && (
             <span

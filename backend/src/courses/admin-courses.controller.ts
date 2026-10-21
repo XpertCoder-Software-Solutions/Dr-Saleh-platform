@@ -35,10 +35,12 @@ import { CoursesService } from './courses.service';
 import { AdminCourseQueryDto } from './dto/course-query.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Courses')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('courses')
 @Controller('admin/courses')
 export class AdminCoursesController {
   constructor(private readonly coursesService: CoursesService) {}
@@ -60,6 +62,8 @@ export class AdminCoursesController {
     return this.coursesService.adminCreateCourse(createDto);
   }
 
+  // Also used to pick courses when granting them to a student or filtering reviews.
+  @RequireAdminPermission('courses', 'students', 'reviews')
   @Get()
   @ApiOperation({
     summary: 'Admin: list courses.',
