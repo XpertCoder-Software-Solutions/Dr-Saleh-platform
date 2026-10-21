@@ -15,9 +15,9 @@ import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
-import { useRegion, type Currency } from '@/lib/region'
-import { RangeSlider } from '@/components/ui/RangeSlider'
-import { formatMoney } from '@/lib/format'
+import { useRegion } from '@/lib/region'
+import { PriceFilter } from '@/components/catalog/PriceFilter'
+import { priceParam } from '@/lib/priceParam'
 import { keepScroll, scrollToResults } from '@/lib/scroll'
 
 const PAGE_SIZE = 9
@@ -300,132 +300,5 @@ export function CoursesPage() {
 
       <CTABand />
     </>
-  )
-}
-
-function priceParam(v: string | null): number | undefined {
-  if (v === null || v === '') return undefined
-  const n = Number(v)
-  return Number.isFinite(n) && n >= 0 ? n : undefined
-}
-
-const STEP: Record<Currency, number> = { EGP: 1, USD: 0.5 }
-
-/** Price range slider ("من" / "إلى") over the prices that actually exist, plus typed boxes. */
-function PriceFilter({
-  currency,
-  maxPrice,
-  min,
-  max,
-  onChange,
-}: {
-  currency: Currency
-  /** Highest course price; the slider runs from 0 to this. */
-  maxPrice: number
-  min?: number
-  max?: number
-  onChange: (min?: number, max?: number) => void
-}) {
-  const step = STEP[currency]
-  const floor = 0
-  const ceil = Math.max(step, Math.ceil(maxPrice / step) * step)
-  const applied: [number, number] = [min ?? floor, max ?? ceil]
-  const [draft, setDraft] = useState<[number, number]>(applied)
-  const [boxes, setBoxes] = useState(['', ''])
-  const key = `${applied[0]}|${applied[1]}|${floor}|${ceil}`
-  const [last, setLast] = useState(key)
-  if (last !== key) {
-    setLast(key)
-    setDraft(applied)
-    setBoxes(['', ''])
-  }
-  const active = min !== undefined || max !== undefined
-  const fmt = (n: number) => formatMoney(n, currency)
-
-  function commit([a, b]: [number, number]) {
-    const lo = Math.max(floor, Math.min(a, b))
-    const hi = Math.min(ceil, Math.max(a, b))
-    // The full range means "no price filter".
-    onChange(lo <= floor ? undefined : lo, hi >= ceil ? undefined : hi)
-  }
-
-  function boxValue(i: 0 | 1) {
-    return boxes[i] !== '' ? boxes[i] : String(draft[i])
-  }
-
-  function applyBoxes() {
-    const parse = (i: 0 | 1) => {
-      const n = Number(boxValue(i).replace(/[^\d.]/g, ''))
-      return Number.isFinite(n) ? n : draft[i]
-    }
-    commit([parse(0), parse(1)])
-  }
-
-  return (
-    <div className="mt-2 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-ink">السعر</span>
-        {active && (
-          <button
-            type="button"
-            className="border-0 bg-transparent p-0 text-sm font-bold text-blue-500"
-            onClick={() => onChange(undefined, undefined)}
-          >
-            كل الأسعار
-          </button>
-        )}
-      </div>
-      {maxPrice <= 0 ? (
-        <div className="h-24 skeleton" aria-label="جاري تحميل الأسعار" />
-      ) : (
-        <>
-          <p className="-mt-1 text-sm text-text-2" aria-live="polite">
-            من <b className="text-ink">{fmt(draft[0])}</b> إلى <b className="text-ink">{fmt(draft[1])}</b>
-          </p>
-          <RangeSlider
-            min={floor}
-            max={ceil}
-            step={step}
-            value={draft}
-            onChange={setDraft}
-            onCommit={commit}
-            formatValue={fmt}
-            labels={['أقل سعر', 'أعلى سعر']}
-          />
-          <form
-            className="grid grid-cols-[1fr_auto_1fr] items-end gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              applyBoxes()
-            }}
-            aria-label="اكتب السعر"
-          >
-            {([0, 1] as const).map((i) => (
-              <label key={i} className={cn('flex flex-col gap-1', i === 1 && 'col-start-3')}>
-                <span className="text-xs font-semibold text-muted">{i === 0 ? 'من' : 'إلى'}</span>
-                <span className="flex h-11 items-center gap-1 rounded-xl border-[1.5px] border-line-2 bg-white px-2.5 focus-within:border-blue-400">
-                  <input
-                    inputMode="decimal"
-                    value={boxValue(i)}
-                    onChange={(e) =>
-                      setBoxes((b) => (i === 0 ? [e.target.value, b[1]] : [b[0], e.target.value]))
-                    }
-                    onBlur={applyBoxes}
-                    className="w-full min-w-0 border-0 bg-transparent text-center text-[15px] font-semibold text-ink outline-none"
-                  />
-                  <span className="flex-none text-xs text-muted">{currency === 'USD' ? '$' : 'ج.م'}</span>
-                </span>
-              </label>
-            ))}
-            <span className="col-start-2 row-start-1 pb-3 text-muted" aria-hidden="true">
-              –
-            </span>
-            <button type="submit" className="sr-only">
-              تطبيق
-            </button>
-          </form>
-        </>
-      )}
-    </div>
   )
 }
