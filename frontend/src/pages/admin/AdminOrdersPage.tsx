@@ -17,6 +17,7 @@ import { formatDate, formatEGP } from '@/lib/format'
 import { SHIPPING_LABEL, orderKinds, orderStatus } from '@/lib/order-status'
 import { downloadCsv } from '@/lib/csv'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { confirmAction } from '@/lib/confirm'
 
 type Tab = 'all' | 'pending' | 'paid' | 'toShip' | 'shipped' | 'failed' | 'cancelled' | 'refunded'
 
@@ -330,7 +331,16 @@ function OrderPanel({ order }: { order: AdminOrder }) {
             type="button"
             className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
             disabled={save.isPending}
-            onClick={() => window.confirm('إلغاء الطلب؟') && save.mutate('CANCELLED')}
+            onClick={async () => {
+              if (
+                await confirmAction({
+                  title: 'تلغي الطلب ده؟',
+                  body: 'الطلب هيتقفل ومش هيقدر العميل يدفعه.',
+                  confirmLabel: 'أيوه، الغيه',
+                })
+              )
+                save.mutate('CANCELLED')
+            }}
           >
             إلغاء الطلب
           </button>
@@ -340,11 +350,17 @@ function OrderPanel({ order }: { order: AdminOrder }) {
             type="button"
             className={buttonClass({ variant: 'ghost', size: 'sm', className: 'text-danger' })}
             disabled={save.isPending}
-            onClick={() =>
-              window.confirm(
-                'تسجيل إن المبلغ اترد للعميل؟ (ده بيسجّل الحالة بس، الرد نفسه بيتعمل من بوابة الدفع)',
-              ) && save.mutate('REFUNDED')
-            }
+            onClick={async () => {
+              if (
+                await confirmAction({
+                  title: 'تسجّل إن المبلغ اترد؟',
+                  body: 'ده بيسجّل الحالة بس، الرد نفسه بيتعمل من بوابة الدفع.',
+                  confirmLabel: 'سجّل الاسترداد',
+                  tone: 'warning',
+                })
+              )
+                save.mutate('REFUNDED')
+            }}
           >
             تسجيل استرداد
           </button>

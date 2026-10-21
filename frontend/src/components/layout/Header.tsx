@@ -9,6 +9,7 @@ import { routes } from '@/app/routes'
 import { cn } from '@/lib/cn'
 import { useActivity, useReadState } from '@/lib/activity'
 import { NotificationItem } from '@/components/account/NotificationItem'
+import { confirmAction } from '@/lib/confirm'
 
 const NAV = [
   { to: routes.home, label: 'الرئيسية', end: true },
@@ -94,6 +95,17 @@ export function Header() {
 
   async function handleLogout() {
     setPanel(null)
+    if (
+      !(await confirmAction({
+        title: 'تسجّل خروج؟',
+        body: 'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
+        confirmLabel: 'تسجيل الخروج',
+        cancelLabel: 'خليني',
+        tone: 'warning',
+        icon: 'logout',
+      }))
+    )
+      return
     await logout()
     navigate(routes.home)
   }

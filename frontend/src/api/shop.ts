@@ -137,6 +137,9 @@ export const ordersApi = {
   list: (query: { page?: number; limit?: number } = {}) =>
     api.get<{ items: Order[]; pagination: import('@/types/api').Pagination }>('/orders', { params: query }),
   cancel: (id: string) => api.patch(`/orders/${id}/cancel`),
+  /** Re-prices a pending order: EGP for Paymob (cards, Apple Pay, wallets), USD for PayPal. */
+  setCurrency: (id: string, currency: Currency) =>
+    api.patch<{ order: Order }>(`/orders/${id}/currency`, { currency }),
 }
 
 // ---------- coupons ----------

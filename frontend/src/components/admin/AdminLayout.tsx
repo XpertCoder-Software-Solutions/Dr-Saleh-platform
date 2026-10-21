@@ -6,6 +6,7 @@ import { routes } from '@/app/routes'
 import { useAuth } from '@/auth/hooks'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
+import { confirmAction } from '@/lib/confirm'
 
 const NAV: {
   to: string
@@ -130,6 +131,17 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             aria-label="تسجيل الخروج"
             className="flex size-9 items-center justify-center rounded-lg border-0 bg-transparent text-on-dark hover:bg-white/10 hover:text-white"
             onClick={async () => {
+              if (
+                !(await confirmAction({
+                  title: 'تسجّل خروج؟',
+                  body: 'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
+                  confirmLabel: 'تسجيل الخروج',
+                  cancelLabel: 'خليني',
+                  tone: 'warning',
+                  icon: 'logout',
+                }))
+              )
+                return
               await logout()
               navigate(routes.home)
             }}

@@ -425,6 +425,95 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Re-prices a pending, unpaid order in the other currency. The buyer picks the payment
+   * method on the pay step, and Paymob settles in EGP while PayPal settles in USD.
+   */
+  async changeMyOrderCurrency(
+    userId: string,
+    orderId: string,
+    currency: Currency,
+  ): Promise<{ message: string; data: { order: OrderResponse } }> {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      select: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        currency: true,
+        couponId: true,
+        hasPhysicalItems: true,
+        items: { select: { itemType: true, itemId: true, quantity: true } },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (
+      order.status !== OrderStatus.PENDING ||
+      order.paymentStatus === PaymentStatus.PAID
+    ) {
+      throw new ConflictException('Only pending unpaid orders can be changed.');
+    }
+
+    if (order.currency !== currency) {
+      if (order.hasPhysicalItems && currency !== Currency.EGP) {
+        throw new BadRequestException(
+          'Orders with products or physical books are paid in EGP.',
+        );
+      }
+
+      if (order.couponId) {
+        throw new ConflictException(
+          'Remove the coupon before changing the order currency.',
+        );
+      }
+
+      const preparedItems = await this.prepareOrderItems(
+        userId,
+        order.items.map((item, index) => ({
+          id: `order-item-${index}`,
+          cartId: order.id,
+          itemType: item.itemType,
+          itemId: item.itemId,
+          quantity: item.quantity,
+        })),
+        currency,
+      );
+      const totals = this.calculateTotals(preparedItems, 0);
+
+      await this.prisma.$transaction([
+        this.prisma.orderItem.deleteMany({ where: { orderId: order.id } }),
+        this.prisma.order.update({
+          where: { id: order.id },
+          data: {
+            currency,
+            subtotal: totals.subtotal,
+            discountAmount: totals.discountAmount,
+            shippingCost: totals.shippingCost,
+            totalAmount: totals.totalAmount,
+            items: {
+              create: preparedItems.map((item) => ({
+                itemType: item.itemType,
+                itemId: item.itemId,
+                titleAr: item.titleAr,
+                titleEn: item.titleEn,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discountPrice: item.discountPrice,
+                totalPrice: item.totalPrice,
+              })),
+            },
+          },
+        }),
+      ]);
+    }
+
+    return this.findMyOrder(userId, order.id);
+  }
+
   async cancelMyOrder(
     userId: string,
     orderId: string,

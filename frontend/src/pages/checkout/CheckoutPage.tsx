@@ -34,15 +34,13 @@ export function CheckoutPage() {
   const [addressId, setAddressId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const region = useRegion()
-  // Outside Egypt digital orders default to PayPal (USD); cards/Apple Pay/wallets settle in EGP.
-  const [chosenCurrency, setCurrency] = useState<Currency | null>(null)
   const [notes, setNotes] = useState('')
 
   const lines = cart.data?.cart.items ?? []
   const needsShipping = lines.some(lineNeedsShipping)
-  const currency: Currency = needsShipping
-    ? 'EGP'
-    : (chosenCurrency ?? (region.isEgypt ? 'EGP' : 'USD'))
+  // Prices follow the visitor's region (physical orders ship in Egypt, so EGP). The payment
+  // method is picked on the next step, which re-prices the order if it settles in the other currency.
+  const currency: Currency = needsShipping || region.isEgypt ? 'EGP' : 'USD'
   const list = (addresses.data?.addresses ?? []).filter((a) => a.isActive)
   const selected = list.find((a) => a.id === (addressId ?? list[0]?.id))
   const shipping = needsShipping ? (selected?.governorate?.shippingCost ?? 0) : 0
@@ -52,7 +50,7 @@ export function CheckoutPage() {
   const usd = useQuery({
     queryKey: ['me', 'cart', 'USD'],
     queryFn: () => cartApi.get('USD'),
-    enabled: !needsShipping && lines.length > 0,
+    enabled: currency === 'USD' && lines.length > 0,
   })
 
   const create = useMutation({
@@ -128,7 +126,11 @@ export function CheckoutPage() {
                         <b className="truncate text-ink">{l.item?.nameAr}</b>
                       </span>
                       {l.quantity > 1 && <span className="text-sm text-muted">× {l.quantity}</span>}
-                      <b className="text-ink">{formatEGP(l.lineTotal)}</b>
+                      <b className="text-ink">
+                        {currency === 'USD' && usd.data
+                          ? `$${usd.data.cart.items.find((u) => u.id === l.id)?.lineTotal ?? '…'}`
+                          : formatEGP(l.lineTotal)}
+                      </b>
                     </li>
                   ))}
                 </ul>
@@ -200,42 +202,6 @@ export function CheckoutPage() {
                       )}
                     </div>
                   )}
-                </div>
-              )}
-
-              {!needsShipping && (
-                <div className={card}>
-                  <h2 className="mb-1 text-2xl">طريقة الدفع</h2>
-                  <p className="mb-4 text-sm text-muted">
-                    {region.isEgypt
-                      ? 'اختار هتدفع منين. هتأكد الدفع في الخطوة الجاية.'
-                      : 'PayPal بالدولار، أو كارت / Apple Pay بيتخصم بالجنيه المصري.'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1" role="radiogroup" aria-label="طريقة الدفع">
-                    {(['EGP', 'USD'] as const).map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        role="radio"
-                        aria-checked={currency === c}
-                        onClick={() => setCurrency(c)}
-                        className="flex flex-col items-start gap-1 rounded-tile border-2 border-line bg-white p-4 text-start aria-checked:border-navy aria-checked:bg-surface-blue"
-                      >
-                        <b className="text-ink">
-                          {c === 'EGP'
-                            ? region.isEgypt
-                              ? 'Apple Pay · كارت · محفظة'
-                              : 'Apple Pay · كارت'
-                            : 'PayPal'}
-                        </b>
-                        <span className="text-sm text-muted">
-                          {c === 'EGP'
-                            ? `بالجنيه المصري · ${formatEGP(subtotal)}`
-                            : `بالدولار${usd.data ? ` · $${usd.data.summary.total}` : ''}`}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
 
