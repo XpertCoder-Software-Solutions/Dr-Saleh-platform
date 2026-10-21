@@ -19,6 +19,8 @@ import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormatType } from '@/types/api'
 import { useRegion } from '@/lib/region'
 import { keepScroll } from '@/lib/scroll'
+import { PriceFilter } from '@/components/catalog/PriceFilter'
+import { priceParam } from '@/lib/priceParam'
 
 const FORMAT_TABS: { id: '' | BookFormatType; label: string }[] = [
   { id: '', label: 'الكل' },
@@ -32,6 +34,10 @@ export function LibraryPage() {
   const [params, setParams] = useSearchParams()
   const cat = params.get('cat') ?? ''
   const format = (params.get('format') ?? '') as '' | BookFormatType
+  const minPrice = priceParam(params.get('min'))
+  const maxPrice = priceParam(params.get('max'))
+  const hasPrice = minPrice !== undefined || maxPrice !== undefined
+  const { currency } = useRegion()
   const [search, setSearch] = useState(params.get('q') ?? '')
 
   const books = useQuery({ queryKey: ['books'], queryFn: booksApi.list })
@@ -44,21 +50,51 @@ export function LibraryPage() {
   // The endpoint returns every book, so the library filters on the client.
   const active = useMemo(() => (books.data ?? []).filter((b) => b.isActive), [books.data])
   const featured = active.find((b) => b.isFeatured) ?? active[0]
+  // Highest list price of any copy, so the slider covers every book.
+  const maxBookPrice = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...active.flatMap((b) =>
+          activeFormats(b).map((f) => {
+            const p = formatPrice(f, b, currency)
+            return p.old ?? p.current ?? 0
+          }),
+        ),
+      ),
+    [active, currency],
+  )
   const shown = useMemo(() => {
     const q = search.trim()
+    // A book matches the price range when one of its copies (of the chosen type) costs that much.
+    const inRange = (b: Book) =>
+      activeFormats(b).some((f) => {
+        if (format && f.formatType !== format) return false
+        const p = formatPrice(f, b, currency).current
+        return (
+          p != null && (minPrice === undefined || p >= minPrice) && (maxPrice === undefined || p <= maxPrice)
+        )
+      })
     return active.filter(
       (b) =>
         (!cat || b.categoryId === cat) &&
         (!format || b.formats.some((f) => f.isActive && f.formatType === format)) &&
+        (!hasPrice || inRange(b)) &&
         (!q || b.titleAr.includes(q) || b.descriptionAr.includes(q)),
     )
-  }, [active, cat, format, search])
+  }, [active, cat, format, search, hasPrice, minPrice, maxPrice, currency])
   const usedCategories = (categories.data ?? []).filter((c) => active.some((b) => b.categoryId === c.id))
 
   function setParam(key: string, value: string) {
+    setParamsMap({ [key]: value })
+  }
+
+  function setParamsMap(next: Record<string, string>) {
     const p = new URLSearchParams(params)
-    if (value) p.set(key, value)
-    else p.delete(key)
+    for (const [key, value] of Object.entries(next)) {
+      if (value) p.set(key, value)
+      else p.delete(key)
+    }
     setParams(p, { replace: true, ...keepScroll })
   }
 
@@ -146,6 +182,27 @@ export function LibraryPage() {
             </div>
           )}
 
+          {active.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-2 rounded-card border border-line bg-white px-5 pt-3 pb-4">
+              <p className="pb-3 text-muted" aria-live="polite">
+                <b className="text-ink">{shown.length}</b> {shown.length === 1 ? 'كتاب' : 'كتب'}
+              </p>
+              <PriceFilter
+                className="w-full max-w-sm"
+                currency={currency}
+                maxPrice={maxBookPrice}
+                min={minPrice}
+                max={maxPrice}
+                onChange={(min, max) =>
+                  setParamsMap({
+                    min: min === undefined ? '' : String(min),
+                    max: max === undefined ? '' : String(max),
+                  })
+                }
+              />
+            </div>
+          )}
+
           {books.isError ? (
             <ErrorState onRetry={() => books.refetch()} />
           ) : books.isLoading ? (
@@ -158,7 +215,13 @@ export function LibraryPage() {
             <EmptyState
               icon="book"
               title={active.length ? 'مفيش كتب بالمواصفات دي' : 'المكتبة بتتجهّز'}
-              body={active.length ? 'جرّب كلمة تانية أو نوع نسخة مختلف.' : 'أول الكتب هتنزل هنا قريب.'}
+              body={
+                active.length
+                  ? hasPrice
+                    ? 'وسّع نطاق السعر، أو جرّب كلمة تانية أو نوع نسخة مختلف.'
+                    : 'جرّب كلمة تانية أو نوع نسخة مختلف.'
+                  : 'أول الكتب هتنزل هنا قريب.'
+              }
             />
           ) : (
             <div className={cn(booksGridClass, 'stagger')}>
@@ -198,7 +261,9 @@ function FeaturedBook({ book }: { book: Book }) {
                 className="flex flex-col rounded-xl border border-line bg-white px-3.5 py-2 text-center"
               >
                 <b className="text-ink">{FORMAT_LABEL[f.formatType]}</b>
-                {p != null && <span className="text-[13px] font-bold text-gold-ink">{formatMoney(p, currency)}</span>}
+                {p != null && (
+                  <span className="text-[13px] font-bold text-gold-ink">{formatMoney(p, currency)}</span>
+                )}
               </span>
             )
           })}

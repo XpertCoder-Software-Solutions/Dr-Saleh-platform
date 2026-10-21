@@ -10,6 +10,8 @@ import type {
   LoginData,
   Pagination,
   RegisterData,
+  Currency,
+  PriceBounds,
 } from '@/types/api'
 import { api } from './client'
 import { toast } from '@/lib/toast'
@@ -43,8 +45,7 @@ export const authApi = {
     api.post<Record<string, never>>('/auth/verify-email', input),
   resendVerification: (email: string) =>
     api.post<DevOtp>('/auth/resend-email-verification', { email }).then(showDevOtp),
-  forgotPassword: (email: string) =>
-    api.post<DevOtp>('/auth/forgot-password', { email }).then(showDevOtp),
+  forgotPassword: (email: string) => api.post<DevOtp>('/auth/forgot-password', { email }).then(showDevOtp),
   /** Step 2 of forgot-password: checks the emailed code, returns a token for step 3. */
   verifyResetOtp: (input: { email: string; otp: string }) =>
     api.post<{ resetToken: string; expiresInSeconds: number }>('/auth/verify-reset-otp', input),
@@ -147,11 +148,19 @@ export interface ProductQuery {
   search?: string
   isHomeDisplay?: boolean
   isFeatured?: boolean
+  minPrice?: number
+  maxPrice?: number
+  priceCurrency?: Currency
 }
 
 export const productsApi = {
   list: (query: ProductQuery) =>
-    api.get<{ products: StoreProduct[]; pagination: Pagination }>('/products', {
+    api.get<{
+      products: StoreProduct[]
+      pagination: Pagination
+      /** Lowest/highest price on offer (newer APIs only). */
+      priceBounds?: Record<Currency, PriceBounds>
+    }>('/products', {
       params: { lang: 'ar', ...query },
     }),
   bySlug: (slug: string) =>

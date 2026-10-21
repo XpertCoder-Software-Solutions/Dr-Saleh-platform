@@ -195,6 +195,36 @@ export class ProductsService {
           this.toPublicProduct(product, query.lang),
         ),
         pagination: buildPaginationMeta(page, limit, total),
+        priceBounds: await this.getPublicPriceBounds(),
+      },
+    };
+  }
+
+  /** Lowest and highest price a buyer can pay across active products, for the price slider. */
+  private async getPublicPriceBounds() {
+    const agg = await this.prisma.product.aggregate({
+      where: { isActive: true },
+      _min: {
+        priceEgp: true,
+        discountPriceEgp: true,
+        priceUsd: true,
+        discountPriceUsd: true,
+      },
+      _max: { priceEgp: true, priceUsd: true },
+    });
+    const num = (v: Prisma.Decimal | null | undefined) =>
+      v === null || v === undefined ? null : Number(v);
+    const low = (a: number | null, b: number | null) =>
+      a === null ? (b ?? 0) : b === null ? a : Math.min(a, b);
+
+    return {
+      EGP: {
+        min: low(num(agg._min.priceEgp), num(agg._min.discountPriceEgp)),
+        max: num(agg._max.priceEgp) ?? 0,
+      },
+      USD: {
+        min: low(num(agg._min.priceUsd), num(agg._min.discountPriceUsd)),
+        max: num(agg._max.priceUsd) ?? 0,
       },
     };
   }
@@ -666,7 +696,41 @@ export class ProductsService {
       ];
     }
 
+    const priceRange = this.buildPriceRangeWhere(query);
+    if (priceRange) {
+      where.AND = [priceRange];
+    }
+
     return where;
+  }
+
+  /** Filters on the price the buyer pays: the discount price when set, otherwise the list price. */
+  private buildPriceRangeWhere(
+    query: ProductQueryDto,
+  ): Prisma.ProductWhereInput | null {
+    if (query.minPrice === undefined && query.maxPrice === undefined) {
+      return null;
+    }
+
+    const range: Prisma.DecimalFilter<'Product'> = {};
+    if (query.minPrice !== undefined) range.gte = query.minPrice;
+    if (query.maxPrice !== undefined) range.lte = query.maxPrice;
+
+    if (query.priceCurrency === 'USD') {
+      return {
+        OR: [
+          { discountPriceUsd: range },
+          { discountPriceUsd: null, priceUsd: range },
+        ],
+      };
+    }
+
+    return {
+      OR: [
+        { discountPriceEgp: range },
+        { discountPriceEgp: null, priceEgp: range },
+      ],
+    };
   }
 
   private validateDiscountPrices({
