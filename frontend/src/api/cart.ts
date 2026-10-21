@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/hooks'
 import { routes } from '@/app/routes'
@@ -11,6 +11,15 @@ export interface AddToCartInput {
   /** Course id, book *format* id, or product id. */
   itemId: string
   quantity?: number
+}
+
+/**
+ * After the cart changes elsewhere: drop the cached cart so the cart page loads it fresh
+ * (showing a spinner, not the old, possibly empty, cart) and refresh the header count.
+ */
+export function resetCartCache(queryClient: QueryClient) {
+  queryClient.removeQueries({ queryKey: ['me', 'cart'] })
+  return queryClient.invalidateQueries({ queryKey: ['me', 'cart-summary'] })
 }
 
 /**
@@ -27,15 +36,16 @@ export function useAddToCart() {
       try {
         await api.post('/cart/items', { quantity: 1, ...input })
       } catch (e) {
-        if (e instanceof ApiClientError && e.statusCode === 409 && /already exists in cart/i.test(e.rawMessage))
+        if (
+          e instanceof ApiClientError &&
+          e.statusCode === 409 &&
+          /already exists in cart/i.test(e.rawMessage)
+        )
           return
         throw e
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me', 'cart-summary'] })
-      queryClient.invalidateQueries({ queryKey: ['me', 'cart'] })
-    },
+    onSuccess: () => resetCartCache(queryClient),
   })
 
   return {

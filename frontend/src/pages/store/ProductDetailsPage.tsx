@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ApiClientError, resolveAssetUrl } from '@/api/client'
 import { productsApi, type StoreProduct } from '@/api/endpoints'
@@ -65,7 +65,9 @@ function ProductDetails({ product }: { product: StoreProduct }) {
   const { currency } = useRegion()
   const t = useCopy()
   const [qty, setQty] = useState(1)
+  const navigate = useNavigate()
   const [added, setAdded] = useState(false)
+  const [buying, setBuying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cart = useAddToCart()
   const wishlist = useWishlist('PRODUCT')
@@ -99,10 +101,13 @@ function ProductDetails({ product }: { product: StoreProduct }) {
     }))
   }, [product])
 
-  async function add() {
+  async function add(goToCart: boolean) {
     setError(null)
+    setBuying(goToCart)
     try {
-      if (await cart.add({ itemType: 'PRODUCT', itemId: product.id, quantity: qty })) setAdded(true)
+      if (!(await cart.add({ itemType: 'PRODUCT', itemId: product.id, quantity: qty }))) return
+      setAdded(true)
+      if (goToCart) navigate(routes.cart)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'حصلت مشكلة، حاول تاني.')
     }
@@ -155,7 +160,9 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-baseline gap-2">
                       <span className="text-sm text-muted">الإجمالي</span>
-                      <b className="font-head text-2xl text-ink">{formatMoney(price.current * qty, currency)}</b>
+                      <b className="font-head text-2xl text-ink">
+                        {formatMoney(price.current * qty, currency)}
+                      </b>
                       {price.old != null && (
                         <s className="text-sm text-muted-2">{formatMoney(price.old * qty, currency)}</s>
                       )}
@@ -164,25 +171,19 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                   </div>
                 )}
                 {error && <Alert tone="error">{error}</Alert>}
+                <button
+                  type="button"
+                  className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
+                  disabled={outOfStock || cart.isPending}
+                  onClick={() => add(true)}
+                >
+                  {cart.isPending && buying ? (
+                    <Spinner />
+                  ) : (
+                    <>اشتري الآن · {formatMoney(price.current * qty, currency)}</>
+                  )}
+                </button>
                 <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    className={buttonClass({ variant: 'gold', size: 'lg', className: 'flex-1' })}
-                    disabled={outOfStock || cart.isPending}
-                    onClick={add}
-                  >
-                    {cart.isPending ? (
-                      <Spinner />
-                    ) : added ? (
-                      <>
-                        <Icon name="check" /> اتضاف للسلة
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="bag" /> {t('cta.addToCart')}
-                      </>
-                    )}
-                  </button>
                   <button
                     type="button"
                     className={buttonClass({
@@ -198,6 +199,24 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                     onClick={() => wishlist.toggle(product.id)}
                   >
                     <Icon name="heart" filled={wishlist.has(product.id)} />
+                  </button>
+                  <button
+                    type="button"
+                    className={buttonClass({ variant: 'outline', size: 'lg', className: 'flex-1' })}
+                    disabled={outOfStock || cart.isPending}
+                    onClick={() => add(false)}
+                  >
+                    {cart.isPending && !buying ? (
+                      <Spinner />
+                    ) : added ? (
+                      <>
+                        <Icon name="check" /> اتضاف للسلة
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="bag" /> {t('cta.addToCart')}
+                      </>
+                    )}
                   </button>
                 </div>
                 {added && (

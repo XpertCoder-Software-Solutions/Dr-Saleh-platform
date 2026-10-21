@@ -19,7 +19,7 @@ import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormatType } from '@/types/api'
 import { useRegion } from '@/lib/region'
 import { keepScroll } from '@/lib/scroll'
-import { PriceFilter } from '@/components/catalog/PriceFilter'
+import { PricePill } from '@/components/catalog/PricePill'
 import { priceParam } from '@/lib/priceParam'
 
 const FORMAT_TABS: { id: '' | BookFormatType; label: string }[] = [
@@ -136,23 +136,40 @@ export function LibraryPage() {
                 className="min-w-0 flex-1 border-0 bg-transparent text-base text-text outline-none"
               />
             </label>
-            <div
-              role="tablist"
-              aria-label="نوع النسخة"
-              className="flex gap-1 rounded-field border border-line bg-white p-1"
-            >
-              {FORMAT_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={format === t.id}
-                  onClick={() => setParam('format', t.id)}
-                  className="min-h-10 rounded-[10px] px-4 font-semibold text-text-2 aria-selected:bg-navy aria-selected:text-white"
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                role="tablist"
+                aria-label="نوع النسخة"
+                className="flex gap-1 rounded-field border border-line bg-white p-1"
+              >
+                {FORMAT_TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={format === t.id}
+                    onClick={() => setParam('format', t.id)}
+                    className="min-h-10 rounded-[10px] px-4 font-semibold text-text-2 aria-selected:bg-navy aria-selected:text-white"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {active.length > 0 && (
+                <PricePill
+                  currency={currency}
+                  maxPrice={maxBookPrice}
+                  min={minPrice}
+                  max={maxPrice}
+                  resultCount={shown.length}
+                  onChange={(min, max) =>
+                    setParamsMap({
+                      min: min === undefined ? '' : String(min),
+                      max: max === undefined ? '' : String(max),
+                    })
+                  }
+                />
+              )}
             </div>
           </div>
 
@@ -179,27 +196,6 @@ export function LibraryPage() {
                   {c.nameAr}
                 </button>
               ))}
-            </div>
-          )}
-
-          {active.length > 0 && (
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-2 rounded-card border border-line bg-white px-5 pt-3 pb-4">
-              <p className="pb-3 text-muted" aria-live="polite">
-                <b className="text-ink">{shown.length}</b> {shown.length === 1 ? 'كتاب' : 'كتب'}
-              </p>
-              <PriceFilter
-                className="w-full max-w-sm"
-                currency={currency}
-                maxPrice={maxBookPrice}
-                min={minPrice}
-                max={maxPrice}
-                onChange={(min, max) =>
-                  setParamsMap({
-                    min: min === undefined ? '' : String(min),
-                    max: max === undefined ? '' : String(max),
-                  })
-                }
-              />
             </div>
           )}
 

@@ -12,7 +12,7 @@ import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { keepScroll, scrollToResults } from '@/lib/scroll'
 import { useRegion } from '@/lib/region'
-import { PriceFilter } from '@/components/catalog/PriceFilter'
+import { PricePill } from '@/components/catalog/PricePill'
 import { priceParam } from '@/lib/priceParam'
 
 const PAGE_SIZE = 12
@@ -125,20 +125,20 @@ export function StorePage() {
 
       <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={innerClass}>
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-2 rounded-card border border-line bg-white px-5 pt-3 pb-4">
-            <p className="pb-3 text-muted" aria-live="polite">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted" aria-live="polite">
               {pagination && (
                 <>
                   <b className="text-ink">{pagination.total}</b> منتج
                 </>
               )}
             </p>
-            <PriceFilter
-              className="w-full max-w-sm"
+            <PricePill
               currency={currency}
               maxPrice={maxProductPrice}
               min={minPrice}
               max={maxPrice}
+              resultCount={list.isPlaceholderData ? undefined : pagination?.total}
               onChange={(min, max) =>
                 update({
                   min: min === undefined ? null : String(min),
