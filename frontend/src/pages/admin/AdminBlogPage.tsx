@@ -10,7 +10,9 @@ import { FilterTabs, StatusPill } from '@/components/account/AccountShell'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { buttonClass } from '@/components/ui/button'
-import { CheckField, SelectField, TextAreaField, TextField } from '@/components/ui/fields'
+import { CheckField, SelectField, TextField } from '@/components/ui/fields'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
+import { isRichEmpty, richToPlain } from '@/lib/richText'
 import { Alert, EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
@@ -175,8 +177,8 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
     if (!f.categoryId) er.categoryId = 'اختار القسم.'
     if (f.titleAr.trim().length < 3) er.titleAr = 'اكتب العنوان.'
     if (!f.titleEn.trim()) er.titleEn = 'اكتب عنوان بالإنجليزي (بيطلع منه الرابط).'
-    if (!f.shortContentAr.trim()) er.shortContentAr = 'اكتب مقدمة قصيرة.'
-    if (f.contentAr.trim().length < 20) er.contentAr = 'اكتب المقال.'
+    if (isRichEmpty(f.shortContentAr)) er.shortContentAr = 'اكتب مقدمة قصيرة.'
+    if (richToPlain(f.contentAr).length < 20) er.contentAr = 'اكتب المقال.'
     if (!article && !cover) er.cover = 'اختار صورة.'
     setErrors(er)
     warnFormErrors(er)
@@ -254,19 +256,21 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
               error={errors.categoryId}
             />
           </div>
-          <TextAreaField
-            label="مقدمة قصيرة (بتظهر في الكارت)"
-            rows={2}
+          <RichTextEditor
+            label="مقدمة المقال"
+            hint="بتظهر في أول المقال، ونصها بيظهر في كارت المقال."
+            compact
+            minHeight={110}
             value={f.shortContentAr}
-            onChange={(e) => set('shortContentAr', e.target.value)}
+            onChange={(v) => set('shortContentAr', v)}
             error={errors.shortContentAr}
           />
-          <TextAreaField
+          <RichTextEditor
             label="المقال"
-            hint="سطر يبدأ بـ «## » عنوان فرعي، «> » اقتباس، «- » نقطة في قايمة."
-            rows={14}
+            hint="العناوين الرئيسية (H2) بتظهر في فهرس المقال."
+            minHeight={360}
             value={f.contentAr}
-            onChange={(e) => set('contentAr', e.target.value)}
+            onChange={(v) => set('contentAr', v)}
             error={errors.contentAr}
           />
           {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}

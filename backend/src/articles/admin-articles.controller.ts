@@ -44,6 +44,7 @@ import { ArticlesService } from './articles.service';
 import { AdminArticleQueryDto } from './dto/article-query.dto';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 const articleCoversUploadDirectory = join(
   process.cwd(),
@@ -61,6 +62,7 @@ const allowedImageMimeTypes = new Set([
 @ApiTags('Admin Articles')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('blog')
 @Controller('admin/articles')
 export class AdminArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}

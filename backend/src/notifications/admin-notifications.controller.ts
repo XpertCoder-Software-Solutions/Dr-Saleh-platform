@@ -19,10 +19,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminNotificationLogsQueryDto } from './dto/admin-notification-logs-query.dto';
 import { NotificationLogsApiResponseDto } from './dto/notification-log-response.dto';
 import { NotificationsService } from './notifications.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Notifications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('students')
 @Controller('admin/notifications')
 export class AdminNotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

@@ -34,12 +34,14 @@ import { AdminStudentQueryDto } from './dto/admin-student-query.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { GrantCoursesDto } from './dto/grant-courses.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Students')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
 @ApiForbiddenResponse({ description: 'Admin access is required.' })
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('students')
 @Controller('admin/students')
 export class AdminStudentsController {
   constructor(private readonly studentsService: AdminStudentsService) {}

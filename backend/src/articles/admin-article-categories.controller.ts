@@ -28,10 +28,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ArticlesService } from './articles.service';
 import { CreateArticleCategoryDto } from './dto/create-article-category.dto';
 import { UpdateArticleCategoryDto } from './dto/update-article-category.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Article Categories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('blog', 'settings')
 @Controller('admin/article-categories')
 export class AdminArticleCategoriesController {
   constructor(private readonly articlesService: ArticlesService) {}

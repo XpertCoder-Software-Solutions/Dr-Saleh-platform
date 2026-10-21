@@ -28,10 +28,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConsultationsService } from './consultations.service';
 import { CreateConsultationCategoryDto } from './dto/create-consultation-category.dto';
 import { UpdateConsultationCategoryDto } from './dto/update-consultation-category.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Consultations')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('consultations', 'settings')
 @Controller('admin/consultation-categories')
 export class AdminConsultationCategoriesController {
   constructor(private readonly consultationsService: ConsultationsService) {}

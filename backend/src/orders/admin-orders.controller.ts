@@ -33,10 +33,12 @@ import {
 import { UpdateOrderShippingDto } from './dto/update-order-shipping.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrdersService } from './orders.service';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Orders')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('orders')
 @Controller('admin/orders')
 export class AdminOrdersController {
   constructor(private readonly ordersService: OrdersService) {}

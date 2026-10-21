@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiClientError } from '@/api/client'
+import { api, ApiClientError, resolveAssetUrl } from '@/api/client'
+import { RichText } from '@/components/ui/RichText'
+import { richToPlain } from '@/lib/richText'
 import { resetCartCache } from '@/api/cart'
 import { useMyCourses } from '@/api/account'
 import { coursesApi } from '@/api/endpoints'
@@ -26,8 +28,10 @@ type Tab = 'info' | 'content' | 'reviews'
 const stateWrap = 'flex min-h-[70vh] items-center justify-center px-6 pt-34.5 pb-15 text-blue-600'
 
 export function CourseDetailsPage() {
+  // The URL holds the course slug (or its id, for older links).
   const { id = '' } = useParams()
-  const isUuid = /^[0-9a-f-]{36}$/i.test(id)
+  const navigate = useNavigate()
+  const location = useLocation()
   const {
     data: course,
     isLoading,
@@ -37,12 +41,19 @@ export function CourseDetailsPage() {
   } = useQuery({
     queryKey: ['courses', 'detail', id],
     queryFn: () => coursesApi.byId(id),
-    enabled: isUuid,
+    enabled: Boolean(id),
     retry: (count, err) => !(err instanceof ApiClientError && err.statusCode === 404) && count < 2,
   })
   usePageTitle(course?.titleAr ?? 'الدورة')
 
-  if (!isUuid || (error instanceof ApiClientError && error.statusCode === 404)) return <NotFoundPage />
+  // Old id links move to the readable slug URL.
+  useEffect(() => {
+    if (course?.slug && id !== course.slug) {
+      navigate(`${routes.course(course.slug)}${location.search}${location.hash}`, { replace: true })
+    }
+  }, [course?.slug, id, navigate, location.search, location.hash])
+
+  if (!id || (error instanceof ApiClientError && error.statusCode === 404)) return <NotFoundPage />
 
   if (isError) {
     return (
@@ -137,7 +148,7 @@ function CourseDetails({ course }: { course: Course }) {
             {titleHead} <span className="text-sheen">{titleTail.join(' ')}</span>
           </h1>
           <p className="max-w-180 animate-rise text-lg leading-[1.85] text-on-dark [animation-delay:.1s]">
-            {course.shortDescriptionAr}
+            {richToPlain(course.shortDescriptionAr)}
           </p>
           <div className="flex animate-rise flex-wrap gap-x-5.5 gap-y-2.5 text-[15px] text-on-dark-muted [animation-delay:.2s] *:inline-flex *:items-center *:gap-1.5">
             {course.ratingAverage != null && (
@@ -161,9 +172,6 @@ function CourseDetails({ course }: { course: Course }) {
                 <Icon name="clock" size={16} /> {durationLabel(seconds)}
               </span>
             )}
-            <span>
-              <Icon name="calendar" size={16} /> آخر تحديث: {formatDate(course.updatedAt)}
-            </span>
           </div>
           <div className="flex animate-rise items-center gap-3 [animation-delay:.3s]">
             <span className="size-13 flex-none bg-gold overflow-hidden rounded-full border-2 border-white/60">
@@ -206,14 +214,7 @@ function CourseDetails({ course }: { course: Course }) {
 
             <Card id="cd-info">
               <h2 className="text-[26px]">عن الدورة</h2>
-              <div className="flex flex-col gap-3 leading-[1.95] text-text-2">
-                {(course.descriptionAr || course.shortDescriptionAr)
-                  .split(/\n+/)
-                  .filter(Boolean)
-                  .map((p, i) => (
-                    <p key={i}>{p}</p>
-                  ))}
-              </div>
+              <RichText value={course.descriptionAr || course.shortDescriptionAr} />
               {course.certificateEnabled && (
                 <>
                   <h3 className="mt-1.5 text-[19px]">نتائج الدورة</h3>
@@ -794,7 +795,7 @@ function PromoModal({ url, title, onClose }: { url: string; title: string; onClo
             className="size-full border-0"
           />
         ) : (
-          <video src={url} controls autoPlay playsInline className="size-full" />
+          <video src={resolveAssetUrl(url) ?? url} controls autoPlay playsInline className="size-full" />
         )}
       </div>
     </div>

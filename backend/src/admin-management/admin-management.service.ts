@@ -30,6 +30,9 @@ const adminSelect = {
   isEmailVerified: true,
   emailVerifiedAt: true,
   isActive: true,
+  isSuperAdmin: true,
+  adminPermissions: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
   role: {
@@ -118,6 +121,10 @@ export class AdminManagementService {
           isEmailVerified: true,
           emailVerifiedAt: new Date(),
           isActive: true,
+          isSuperAdmin: createAdminDto.isSuperAdmin ?? false,
+          adminPermissions: createAdminDto.isSuperAdmin
+            ? []
+            : (createAdminDto.adminPermissions ?? []),
         },
         select: adminSelect,
       });
@@ -153,6 +160,12 @@ export class AdminManagementService {
       }
     }
 
+    if (updateAdminDto.isSuperAdmin === false && actingAdminId === adminId) {
+      throw new ConflictException(
+        'Admins cannot remove their own full access.',
+      );
+    }
+
     if (
       updateAdminDto.phoneNumber !== undefined &&
       updateAdminDto.phoneNumber !== existingAdmin.phoneNumber
@@ -176,6 +189,26 @@ export class AdminManagementService {
             if (activeAdminsCount <= 1) {
               throw new ConflictException(
                 'Cannot deactivate the last active admin.',
+              );
+            }
+          }
+
+          const losesFullAccess =
+            existingAdmin.isSuperAdmin &&
+            (updateAdminDto.isSuperAdmin === false ||
+              updateAdminDto.isActive === false);
+          if (losesFullAccess) {
+            const superAdmins = await tx.user.count({
+              where: {
+                isActive: true,
+                isSuperAdmin: true,
+                role: { name: RoleName.Admin },
+              },
+            });
+
+            if (superAdmins <= 1) {
+              throw new ConflictException(
+                'Keep at least one active admin with full access.',
               );
             }
           }
@@ -258,6 +291,14 @@ export class AdminManagementService {
       data.isActive = updateAdminDto.isActive;
     }
 
+    if (updateAdminDto.isSuperAdmin !== undefined) {
+      data.isSuperAdmin = updateAdminDto.isSuperAdmin;
+    }
+
+    if (updateAdminDto.adminPermissions !== undefined) {
+      data.adminPermissions = updateAdminDto.adminPermissions;
+    }
+
     if (updateAdminDto.password !== undefined) {
       const adminCredentials = await this.prisma.user.findUnique({
         where: { id: existingAdmin.id },
@@ -330,6 +371,9 @@ export class AdminManagementService {
       isEmailVerified: admin.isEmailVerified,
       emailVerifiedAt: admin.emailVerifiedAt,
       isActive: admin.isActive,
+      isSuperAdmin: admin.isSuperAdmin,
+      adminPermissions: admin.isSuperAdmin ? [] : admin.adminPermissions,
+      lastLoginAt: admin.lastLoginAt,
       createdAt: admin.createdAt,
       updatedAt: admin.updatedAt,
     };

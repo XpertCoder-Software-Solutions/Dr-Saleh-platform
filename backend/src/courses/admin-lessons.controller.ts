@@ -28,10 +28,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CoursesService } from './courses.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Lessons')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('courses')
 @Controller()
 export class AdminLessonsController {
   constructor(private readonly coursesService: CoursesService) {}

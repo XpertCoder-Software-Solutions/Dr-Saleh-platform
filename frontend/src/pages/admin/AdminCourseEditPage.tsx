@@ -7,7 +7,12 @@ import { AdminCard, AdminHeader } from '@/components/admin/AdminLayout'
 import { CourseCover } from '@/components/course/CourseCover'
 import { Icon } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
-import { CheckField, SelectField, TextAreaField, TextField } from '@/components/ui/fields'
+import { CheckField, SelectField, TextField } from '@/components/ui/fields'
+import { RichTextEditor } from '@/components/ui/RichTextEditor'
+import { FileDrop, UploadBar } from '@/components/admin/FileDrop'
+import { isRichEmpty } from '@/lib/richText'
+import { toast } from '@/lib/toast'
+import { resolveAssetUrl } from '@/api/client'
 import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { durationLabel } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
@@ -15,7 +20,8 @@ import type { Course, CourseSection, Lesson } from '@/types/api'
 import { warnFormErrors } from '@/lib/formErrors'
 import { confirmAction } from '@/lib/confirm'
 
-type Form = Omit<CourseInput, 'priceEGP' | 'priceUSD' | 'discountPriceEGP' | 'discountPriceUSD'> & {
+type Form = Omit<CourseInput, 'priceEGP' | 'priceUSD' | 'discountPriceEGP' | 'discountPriceUSD' | 'slug'> & {
+  slug: string
   priceEGP: string
   priceUSD: string
   discountPriceEGP: string
@@ -27,11 +33,11 @@ function toForm(c?: Course): Form {
     categoryId: c?.categoryId ?? '',
     titleAr: c?.titleAr ?? '',
     titleEn: c?.titleEn ?? '',
+    slug: c?.slug ?? '',
     shortDescriptionAr: c?.shortDescriptionAr ?? '',
     shortDescriptionEn: c?.shortDescriptionEn ?? '',
     descriptionAr: c?.descriptionAr ?? '',
     descriptionEn: c?.descriptionEn ?? '',
-    promoVideoUrl: c?.promoVideoUrl ?? '',
     priceEGP: c ? String(c.priceEGP) : '',
     priceUSD: c ? String(c.priceUSD) : '',
     discountPriceEGP: c?.discountPriceEGP != null ? String(c.discountPriceEGP) : '',
@@ -42,6 +48,18 @@ function toForm(c?: Course): Form {
     isActive: c?.isActive ?? false,
   }
 }
+
+/** "Positive Parenting 101" → "positive-parenting-101" */
+function slugify(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120)
+}
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 const num = (v: string) => (v.trim() === '' ? null : Number(v))
 
@@ -90,6 +108,12 @@ function Editor({ course }: { course?: Course }) {
   const [f, setF] = useState<Form>(() => toForm(course))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  // A new course's slug follows the English name until it's edited by hand.
+  const [slugTouched, setSlugTouched] = useState(Boolean(course?.slug))
+  // Files picked before the course exists are uploaded right after it's created.
+  const [thumbFile, setThumbFile] = useState<File | null>(null)
+  const [promoFile, setPromoFile] = useState<File | null>(null)
+  const [promoPct, setPromoPct] = useState<number | null>(null)
   const categories = useQuery({
     queryKey: ['admin', 'course-categories'],
     queryFn: adminCoursesApi.categories,
@@ -97,24 +121,37 @@ function Editor({ course }: { course?: Course }) {
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((x) => ({ ...x, [k]: v }))
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body: CourseInput = {
         ...f,
+        slug: f.slug.trim() || undefined,
         // English fields are required by the API; fall back to the Arabic text.
         shortDescriptionEn: f.shortDescriptionEn.trim() || f.shortDescriptionAr,
         descriptionEn: f.descriptionEn.trim() || f.descriptionAr,
-        promoVideoUrl: f.promoVideoUrl?.trim() || undefined,
         priceEGP: Number(f.priceEGP),
         priceUSD: Number(f.priceUSD),
         discountPriceEGP: num(f.discountPriceEGP),
         discountPriceUSD: num(f.discountPriceUSD),
       }
-      return course ? adminCoursesApi.update(course.id, body) : adminCoursesApi.create(body)
+      const result = course
+        ? await adminCoursesApi.update(course.id, body)
+        : await adminCoursesApi.create(body)
+      if (!course) {
+        const id = result.course.id
+        if (thumbFile) await adminCoursesApi.uploadThumbnail(id, thumbFile)
+        if (promoFile) await adminCoursesApi.uploadPromoVideo(id, promoFile, setPromoPct)
+      }
+      return result
     },
+    onSettled: () => setPromoPct(null),
     onSuccess: ({ course: saved }) => {
       queryClient.invalidateQueries({ queryKey: adminKeys.courses })
-      if (!course) navigate(routes.adminCourse(saved.id), { replace: true })
-      else {
+      if (!course) {
+        toast.success('الدورة اتعملت. ضيف الأقسام والدروس تحت.')
+        navigate(routes.adminCourse(saved.id), { replace: true })
+      } else {
+        setF((x) => ({ ...x, slug: saved.slug ?? x.slug }))
+        queryClient.invalidateQueries({ queryKey: adminKeys.course(course.id) })
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
       }
@@ -124,20 +161,31 @@ function Editor({ course }: { course?: Course }) {
   function submit(e: FormEvent) {
     e.preventDefault()
     const er: Record<string, string> = {}
-    if (!f.categoryId) er.categoryId = 'اختار القسم.'
     if (f.titleAr.trim().length < 3) er.titleAr = 'اكتب اسم الدورة.'
-    if (!f.titleEn.trim()) er.titleEn = 'اكتب الاسم بالإنجليزي (بيستخدم في الروابط).'
-    if (!f.shortDescriptionAr.trim()) er.shortDescriptionAr = 'اكتب وصف قصير.'
-    if (!f.descriptionAr.trim()) er.descriptionAr = 'اكتب وصف الدورة.'
-    if (f.priceEGP === '' || Number(f.priceEGP) < 0) er.priceEGP = 'اكتب السعر.'
+    if (!f.titleEn.trim()) er.titleEn = 'اكتب اسم الدورة بالإنجليزي.'
+    if (!f.categoryId) er.categoryId = 'اختار القسم.'
+    if (f.slug.trim() && !SLUG_RE.test(f.slug.trim()))
+      er.slug = 'حروف إنجليزي صغيرة وأرقام وشَرطة (-) بس، من غير مسافات.'
+    if (f.priceEGP === '' || Number(f.priceEGP) < 0) er.priceEGP = 'اكتب السعر بالجنيه.'
     if (f.priceUSD === '' || Number(f.priceUSD) < 0) er.priceUSD = 'اكتب السعر بالدولار.'
     if (f.discountPriceEGP && Number(f.discountPriceEGP) >= Number(f.priceEGP))
-      er.discountPriceEGP = 'سعر الخصم لازم يكون أقل من السعر.'
+      er.discountPriceEGP = 'لازم يكون أقل من السعر بالجنيه.'
+    if (f.discountPriceUSD && Number(f.discountPriceUSD) >= Number(f.priceUSD))
+      er.discountPriceUSD = 'لازم يكون أقل من السعر بالدولار.'
+    if (isRichEmpty(f.shortDescriptionAr)) er.shortDescriptionAr = 'اكتب معلومات عن الدورة.'
+    if (isRichEmpty(f.descriptionAr)) er.descriptionAr = 'اكتب وصف الدورة.'
     setErrors(er)
     warnFormErrors(er)
     if (Object.keys(er).length) return
     save.mutate()
   }
+
+  const section = (title: string, sub?: string) => (
+    <div className="mt-2 flex flex-col gap-0.5 border-t border-divider pt-5 first:mt-0 first:border-t-0 first:pt-0">
+      <h2 className="text-lg">{title}</h2>
+      {sub && <p className="text-sm text-muted">{sub}</p>}
+    </div>
+  )
 
   return (
     <>
@@ -151,7 +199,7 @@ function Editor({ course }: { course?: Course }) {
             </Link>
             {course && (
               <Link
-                to={routes.course(course.id)}
+                to={routes.course(course.slug || course.id)}
                 target="_blank"
                 className={buttonClass({ variant: 'outline' })}
               >
@@ -167,18 +215,22 @@ function Editor({ course }: { course?: Course }) {
         className="grid grid-cols-[1fr_320px] items-start gap-6 max-xl:grid-cols-1"
       >
         <AdminCard className="flex flex-col gap-4 p-6 max-sm:p-4">
+          {section('البيانات الأساسية')}
           <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
             <TextField
-              label="اسم الدورة"
+              label="اسم الدورة (عربي)"
               value={f.titleAr}
               onChange={(e) => set('titleAr', e.target.value)}
               error={errors.titleAr}
             />
             <TextField
-              label="الاسم بالإنجليزي"
+              label="اسم الدورة (إنجليزي)"
               ltr
               value={f.titleEn}
-              onChange={(e) => set('titleEn', e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setF((x) => ({ ...x, titleEn: v, slug: slugTouched ? x.slug : slugify(v) }))
+              }}
               error={errors.titleEn}
             />
             <SelectField
@@ -190,47 +242,27 @@ function Editor({ course }: { course?: Course }) {
               error={errors.categoryId}
             />
             <TextField
-              label="فيديو تعريفي (يوتيوب، اختياري)"
+              label="اسم الرابط (Slug)"
               ltr
-              placeholder="https://youtube.com/watch?v=…"
-              value={f.promoVideoUrl ?? ''}
-              onChange={(e) => set('promoVideoUrl', e.target.value)}
+              placeholder="positive-parenting"
+              value={f.slug}
+              onChange={(e) => {
+                setSlugTouched(true)
+                set('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))
+              }}
+              error={errors.slug}
+              hint={
+                <span dir="ltr" className="block truncate text-start">
+                  /courses/{f.slug.trim() || slugify(f.titleEn) || '…'}
+                </span>
+              }
             />
           </div>
-          <TextAreaField
-            label="وصف قصير (بيظهر في كارت الدورة)"
-            rows={2}
-            value={f.shortDescriptionAr}
-            onChange={(e) => set('shortDescriptionAr', e.target.value)}
-            error={errors.shortDescriptionAr}
-          />
-          <TextAreaField
-            label="عن الدورة"
-            rows={6}
-            value={f.descriptionAr}
-            onChange={(e) => set('descriptionAr', e.target.value)}
-            error={errors.descriptionAr}
-          />
-          <details className="rounded-tile border border-line p-4">
-            <summary className="cursor-pointer font-bold text-ink">النسخة الإنجليزية (اختياري)</summary>
-            <div className="mt-4 flex flex-col gap-4" dir="ltr">
-              <TextAreaField
-                label="Short description"
-                rows={2}
-                value={f.shortDescriptionEn}
-                onChange={(e) => set('shortDescriptionEn', e.target.value)}
-              />
-              <TextAreaField
-                label="Description"
-                rows={4}
-                value={f.descriptionEn}
-                onChange={(e) => set('descriptionEn', e.target.value)}
-              />
-            </div>
-          </details>
-          <div className="grid grid-cols-4 gap-4 max-md:grid-cols-2">
+
+          {section('الأسعار', 'سيب سعر الخصم فاضي لو مفيش خصم.')}
+          <div className="grid grid-cols-4 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
             <TextField
-              label="السعر (ج.م)"
+              label="السعر بالجنيه"
               type="number"
               min={0}
               ltr
@@ -239,16 +271,7 @@ function Editor({ course }: { course?: Course }) {
               error={errors.priceEGP}
             />
             <TextField
-              label="بعد الخصم (ج.م)"
-              type="number"
-              min={0}
-              ltr
-              value={f.discountPriceEGP}
-              onChange={(e) => set('discountPriceEGP', e.target.value)}
-              error={errors.discountPriceEGP}
-            />
-            <TextField
-              label="السعر ($)"
+              label="السعر بالدولار"
               type="number"
               min={0}
               step="0.01"
@@ -258,19 +281,111 @@ function Editor({ course }: { course?: Course }) {
               error={errors.priceUSD}
             />
             <TextField
-              label="بعد الخصم ($)"
+              label="بعد الخصم بالجنيه"
+              type="number"
+              min={0}
+              ltr
+              value={f.discountPriceEGP}
+              onChange={(e) => set('discountPriceEGP', e.target.value)}
+              error={errors.discountPriceEGP}
+            />
+            <TextField
+              label="بعد الخصم بالدولار"
               type="number"
               min={0}
               step="0.01"
               ltr
               value={f.discountPriceUSD}
               onChange={(e) => set('discountPriceUSD', e.target.value)}
+              error={errors.discountPriceUSD}
             />
+          </div>
+
+          {section('معلومات عن الدورة', 'نبذة قصيرة بتظهر تحت اسم الدورة.')}
+          <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
+            <RichTextEditor
+              label="بالعربي"
+              compact
+              minHeight={110}
+              value={f.shortDescriptionAr}
+              onChange={(v) => set('shortDescriptionAr', v)}
+              error={errors.shortDescriptionAr}
+              placeholder="الدورة دي هتساعدك…"
+            />
+            <RichTextEditor
+              label="English"
+              dir="ltr"
+              compact
+              minHeight={110}
+              value={f.shortDescriptionEn}
+              onChange={(v) => set('shortDescriptionEn', v)}
+              hint="اختياري؛ لو فاضي هيتاخد العربي."
+            />
+          </div>
+
+          {section(
+            'وصف الدورة',
+            'الشرح الكامل في قسم «عن الدورة»: استخدم العناوين والقوائم علشان يبقى سهل القراءة.',
+          )}
+          <RichTextEditor
+            label="بالعربي"
+            minHeight={220}
+            value={f.descriptionAr}
+            onChange={(v) => set('descriptionAr', v)}
+            error={errors.descriptionAr}
+          />
+          <RichTextEditor
+            label="English"
+            dir="ltr"
+            minHeight={160}
+            value={f.descriptionEn}
+            onChange={(v) => set('descriptionEn', v)}
+            hint="اختياري؛ لو فاضي هيتاخد العربي."
+          />
+
+          {section('الفيديو التعريفي والصورة')}
+          <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
+            {course ? (
+              <PromoVideoField course={course} />
+            ) : (
+              <FileDrop
+                label="الفيديو التعريفي (اختياري)"
+                hint="MP4 · WebM · MOV — لحد 500 ميجا"
+                accept="video/mp4,video/webm,video/quicktime"
+                icon="play"
+                file={promoFile}
+                onFile={setPromoFile}
+                progress={promoPct}
+                disabled={save.isPending}
+              />
+            )}
+            {course ? (
+              <ThumbnailField course={course} />
+            ) : (
+              <FileDrop
+                label="صورة الدورة"
+                hint="JPG · PNG · WebP — لحد 5 ميجا"
+                accept="image/png,image/jpeg,image/webp"
+                icon="image"
+                file={thumbFile}
+                onFile={setThumbFile}
+                disabled={save.isPending}
+              />
+            )}
           </div>
         </AdminCard>
 
         <div className="sticky top-6 flex flex-col gap-4 max-xl:static">
-          {course && <ThumbnailCard course={course} />}
+          {course && (
+            <AdminCard className="overflow-hidden">
+              <CourseCover
+                seed={course.categoryId || course.id}
+                word={course.category?.nameAr ?? ''}
+                image={course.thumbnailImage}
+                height={170}
+              />
+            </AdminCard>
+          )}
           <AdminCard className="flex flex-col gap-3 p-5">
             <CheckField
               label="منشورة على الموقع"
@@ -299,7 +414,11 @@ function Editor({ course }: { course?: Course }) {
               disabled={save.isPending}
             >
               {save.isPending ? (
-                <Spinner />
+                promoPct !== null ? (
+                  `بيرفع الفيديو ${promoPct}%`
+                ) : (
+                  <Spinner />
+                )
               ) : (
                 <>
                   <Icon name="check" size={16} /> {course ? 'حفظ التعديلات' : 'اعمل الدورة'}
@@ -307,7 +426,7 @@ function Editor({ course }: { course?: Course }) {
               )}
             </button>
             {saved && <p className="text-center text-sm font-bold text-success">اتحفظت</p>}
-            {!course && <p className="text-xs text-muted">بعد ما تتعمل، تقدر ترفع الصورة وتضيف الدروس.</p>}
+            {!course && <p className="text-xs text-muted">بعد ما تتعمل، تقدر تضيف الأقسام والدروس.</p>}
           </AdminCard>
         </div>
       </form>
@@ -316,54 +435,106 @@ function Editor({ course }: { course?: Course }) {
   )
 }
 
-function ThumbnailCard({ course }: { course: Course }) {
+function ThumbnailField({ course }: { course: Course }) {
   const queryClient = useQueryClient()
-  const input = useRef<HTMLInputElement>(null)
+  const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.course(course.id) })
   const upload = useMutation({
     mutationFn: (file: File) => adminCoursesApi.uploadThumbnail(course.id, file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.course(course.id) }),
+    onSuccess: refresh,
   })
+  const remove = useMutation({
+    mutationFn: () => adminCoursesApi.removeThumbnail(course.id),
+    onSuccess: refresh,
+  })
+  const busy = upload.isPending || remove.isPending
   return (
-    <AdminCard className="overflow-hidden">
-      <div className="relative">
-        <CourseCover
-          seed={course.categoryId || course.id}
-          word={course.category?.nameAr ?? ''}
-          image={course.thumbnailImage}
-          height={170}
-        />
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          className={buttonClass({ variant: 'glass', size: 'sm', className: 'absolute right-3 bottom-3' })}
-          disabled={upload.isPending}
-        >
-          {upload.isPending ? (
-            <Spinner />
-          ) : (
-            <>
-              <Icon name="pen" size={14} /> غيّر الصورة
-            </>
-          )}
-        </button>
-        <input
-          ref={input}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            e.target.value = ''
-            if (file) upload.mutate(file)
-          }}
-        />
-      </div>
-      {upload.isError && (
-        <div className="p-3">
-          <Alert tone="error">{(upload.error as Error).message}</Alert>
-        </div>
-      )}
-    </AdminCard>
+    <FileDrop
+      label="صورة الدورة"
+      hint="JPG · PNG · WebP — لحد 5 ميجا"
+      accept="image/png,image/jpeg,image/webp"
+      icon="image"
+      onFile={(file) => file && upload.mutate(file)}
+      current={
+        course.thumbnailImage ? (
+          <>
+            <b className="text-sm text-ink">{busy ? 'بيتحدّث…' : 'صورة مرفوعة'}</b>
+            <span className="text-xs text-muted">بتظهر في كارت الدورة وصفحتها</span>
+          </>
+        ) : busy ? (
+          <b className="text-sm text-ink">بيترفع…</b>
+        ) : null
+      }
+      onRemoveCurrent={async () => {
+        if (
+          await confirmAction({
+            title: 'تشيل صورة الدورة؟',
+            body: 'هيظهر مكانها الغلاف الافتراضي لحد ما ترفع صورة تانية.',
+            confirmLabel: 'أيوه، شيلها',
+            icon: 'trash',
+          })
+        )
+          remove.mutate()
+      }}
+      disabled={busy}
+      error={((upload.error ?? remove.error) as Error | null)?.message}
+    />
+  )
+}
+
+function PromoVideoField({ course }: { course: Course }) {
+  const queryClient = useQueryClient()
+  const [pct, setPct] = useState<number | null>(null)
+  const [picked, setPicked] = useState<File | null>(null)
+  const refresh = () => queryClient.invalidateQueries({ queryKey: adminKeys.course(course.id) })
+  const upload = useMutation({
+    mutationFn: (file: File) => adminCoursesApi.uploadPromoVideo(course.id, file, setPct),
+    onSettled: () => {
+      setPct(null)
+      setPicked(null)
+    },
+    onSuccess: refresh,
+  })
+  const remove = useMutation({
+    mutationFn: () => adminCoursesApi.removePromoVideo(course.id),
+    onSuccess: refresh,
+  })
+  const url = course.promoVideoUrl
+  const isUpload = url?.startsWith('/uploads/')
+  return (
+    <FileDrop
+      label="الفيديو التعريفي (اختياري)"
+      hint="MP4 · WebM · MOV — لحد 500 ميجا"
+      accept="video/mp4,video/webm,video/quicktime"
+      icon="play"
+      file={picked}
+      progress={pct}
+      onFile={(file) => {
+        setPicked(file)
+        if (file) upload.mutate(file)
+      }}
+      current={
+        url ? (
+          <>
+            <b className="text-sm text-ink">{isUpload ? 'فيديو مرفوع' : 'رابط فيديو قديم'}</b>
+            <a href={resolveAssetUrl(url) ?? url} target="_blank" rel="noreferrer" className="text-xs">
+              اتفرج عليه
+            </a>
+          </>
+        ) : null
+      }
+      onRemoveCurrent={async () => {
+        if (
+          await confirmAction({
+            title: 'تشيل الفيديو التعريفي؟',
+            confirmLabel: 'أيوه، شيله',
+            icon: 'trash',
+          })
+        )
+          remove.mutate()
+      }}
+      disabled={remove.isPending}
+      error={((upload.error ?? remove.error) as Error | null)?.message}
+    />
   )
 }
 
@@ -555,7 +726,7 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
         </span>
       </span>
       {pct !== null ? (
-        <span className="text-sm font-bold text-blue-600">بيترفع {pct}%</span>
+        <UploadBar pct={pct} label="بيرفع الملف…" />
       ) : (
         <span className="flex flex-wrap gap-1">
           <button
@@ -667,25 +838,28 @@ function NewLessonForm({
     <div className="flex flex-col gap-3 border-t border-divider bg-surface-blue/40 p-4">
       <TextField label="اسم الدرس" value={title} onChange={(e) => setTitle(e.target.value)} />
       <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-ink">
-          فيديو الدرس (mp4)
-          <input
-            type="file"
-            accept="video/mp4,video/webm,video/quicktime"
-            onChange={(e) => setVideo(e.target.files?.[0] ?? null)}
-            className="text-sm font-normal"
-          />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-bold text-ink">
-          ملف PDF {video ? '(مرفق، اختياري)' : ''}
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
-            className="text-sm font-normal"
-          />
-        </label>
+        <FileDrop
+          label="فيديو الدرس"
+          hint="MP4 · WebM · MOV — لحد 2 جيجا"
+          accept="video/mp4,video/webm,video/quicktime"
+          icon="play"
+          file={video}
+          onFile={setVideo}
+          progress={video ? pct : null}
+          disabled={create.isPending}
+        />
+        <FileDrop
+          label={video ? 'ملف PDF مرفق (اختياري)' : 'ملف PDF'}
+          hint="PDF — لحد 2 جيجا"
+          accept="application/pdf"
+          icon="file"
+          file={pdf}
+          onFile={setPdf}
+          progress={pdf && !video ? pct : null}
+          disabled={create.isPending}
+        />
       </div>
+      <p className="text-xs text-muted">ارفع فيديو، أو ملف PDF، أو الاتنين مع بعض.</p>
       <CheckField
         label="معاينة مجانية (يتفرج عليه أي حد)"
         checked={preview}

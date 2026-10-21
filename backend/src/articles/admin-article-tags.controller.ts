@@ -28,10 +28,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ArticlesService } from './articles.service';
 import { CreateArticleTagDto } from './dto/create-article-tag.dto';
 import { UpdateArticleTagDto } from './dto/update-article-tag.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Article Tags')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('blog', 'settings')
 @Controller('admin/article-tags')
 export class AdminArticleTagsController {
   constructor(private readonly articlesService: ArticlesService) {}

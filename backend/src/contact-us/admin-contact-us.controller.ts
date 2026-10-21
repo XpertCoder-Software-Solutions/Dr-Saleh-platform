@@ -22,10 +22,12 @@ import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ContactUsService } from './contact-us.service';
 import { AdminContactQueryDto } from './dto/admin-contact-query.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Contact Us')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('settings')
 @Controller('admin/contact-us')
 export class AdminContactUsController {
   constructor(private readonly contactUsService: ContactUsService) {}

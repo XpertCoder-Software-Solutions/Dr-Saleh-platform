@@ -1,3 +1,4 @@
+import { RichText } from '@/components/ui/RichText'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -225,7 +226,7 @@ export function PlayerPage() {
           )}
           <div className="rounded-card border border-line bg-white p-6 max-sm:p-4">
             <h2 className="mb-2 text-lg">عن الدورة</h2>
-            <p className="leading-loose text-text-2">{course.data!.shortDescriptionAr}</p>
+            <RichText value={course.data!.shortDescriptionAr} />
           </div>
         </div>
 

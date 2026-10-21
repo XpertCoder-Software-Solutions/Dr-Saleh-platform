@@ -25,6 +25,12 @@ import {
 } from '@nestjs/swagger';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  ADMIN_PERMISSIONS,
+  ANY_ADMIN,
+  RequireAdminPermission,
+} from '../auth/admin-permissions';
+import type { AuthenticatedUser } from '../auth/jwt.strategy';
 import { AuditAction } from '../audit-logs/audit-action.decorator';
 import {
   AuditActions,
@@ -64,6 +70,24 @@ export class AdminManagementController {
   @ApiForbiddenResponse({ description: 'Admin access is required.' })
   findAll(@Query() query: AdminQueryDto) {
     return this.adminManagementService.findAll(query);
+  }
+
+  @Get('me/access')
+  @RequireAdminPermission(ANY_ADMIN)
+  @ApiOperation({
+    summary: 'Admin: which dashboard sections the signed-in admin can use.',
+  })
+  @ApiOkResponse({ description: 'Access returned.' })
+  myAccess(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      message: 'Access returned successfully',
+      data: {
+        isSuperAdmin: Boolean(user.isSuperAdmin),
+        permissions: user.isSuperAdmin
+          ? [...ADMIN_PERMISSIONS]
+          : (user.adminPermissions ?? []),
+      },
+    };
   }
 
   @Get(':id')

@@ -40,10 +40,12 @@ import {
 } from './dto/coupon-response.dto';
 import { CreateCouponDto } from './dto/create-coupon.dto';
 import { UpdateCouponDto } from './dto/update-coupon.dto';
+import { RequireAdminPermission } from '../auth/admin-permissions';
 
 @ApiTags('Admin Coupons')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, AdminGuard)
+@RequireAdminPermission('settings', 'orders')
 @Controller('admin/coupons')
 export class AdminCouponsController {
   constructor(private readonly couponsService: CouponsService) {}
