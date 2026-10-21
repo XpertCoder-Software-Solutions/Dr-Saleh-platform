@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -26,6 +27,14 @@ import {
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CoursesService } from './courses.service';
+import { CloudFrontService } from '../common/cloudfront/cloudfront.service';
+import { IsIn, IsOptional } from 'class-validator';
+
+class LessonMediaQuery {
+  @IsOptional()
+  @IsIn(['video', 'pdf'])
+  kind?: 'video' | 'pdf';
+}
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { RequireAdminPermission } from '../auth/admin-permissions';
@@ -36,7 +45,26 @@ import { RequireAdminPermission } from '../auth/admin-permissions';
 @RequireAdminPermission('courses')
 @Controller()
 export class AdminLessonsController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly cloudFrontService: CloudFrontService,
+  ) {}
+
+  @Get('admin/lessons/:id/media-url')
+  @ApiOperation({
+    summary: 'Admin: short-lived link to watch a lesson video or open its PDF.',
+  })
+  @ApiOkResponse({ description: 'Signed URL generated.' })
+  @ApiNotFoundResponse({ description: 'Lesson or file not found.' })
+  mediaUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: LessonMediaQuery,
+  ) {
+    return this.cloudFrontService.generateSignedLessonMediaUrlForAdmin(
+      id,
+      query.kind ?? 'video',
+    );
+  }
 
   @Post('admin/sections/:sectionId/lessons')
   @HttpCode(HttpStatus.CREATED)

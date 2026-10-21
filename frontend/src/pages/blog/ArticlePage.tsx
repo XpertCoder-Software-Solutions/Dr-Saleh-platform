@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { ApiClientError, resolveAssetUrl } from '@/api/client'
 import { articlesApi, coursesApi, type ArticleSummary } from '@/api/endpoints'
 import { routes } from '@/app/routes'
@@ -152,7 +152,7 @@ function Article({ article }: { article: ArticleSummary }) {
         </div>
       </section>
 
-      <RelatedCourses />
+      <RelatedCourses ids={article.relatedCourseIds ?? []} />
       <MoreArticles current={article} />
     </>
   )
@@ -210,9 +210,23 @@ function Share({ title }: { title: string }) {
   )
 }
 
-function RelatedCourses() {
-  const { data } = useQuery({ queryKey: ['courses', 'home'], queryFn: coursesApi.home })
-  const courses = (data ?? []).slice(0, 2)
+function RelatedCourses({ ids }: { ids: string[] }) {
+  // Courses the admin picked for this article; hidden or deleted ones are skipped.
+  const picked = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['courses', 'detail', id],
+      queryFn: () => coursesApi.byId(id),
+      retry: false,
+    })),
+  })
+  const chosen = picked.flatMap((q) => (q.data ? [q.data] : []))
+  const pickedDone = picked.every((q) => !q.isLoading)
+  const fallback = useQuery({
+    queryKey: ['courses', 'home'],
+    queryFn: coursesApi.home,
+    enabled: ids.length === 0 || (pickedDone && chosen.length === 0),
+  })
+  const courses = chosen.length ? chosen : (fallback.data ?? []).slice(0, 2)
   if (!courses.length) return null
   return (
     <section className={sectionClass}>
@@ -223,7 +237,7 @@ function RelatedCourses() {
           title="دورات ذات صلة بالمقال"
           more={{ to: routes.courses, label: 'كل الدورات' }}
         />
-        <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
           {courses.map((c) => (
             <CourseCard key={c.id} course={c} />
           ))}

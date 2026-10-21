@@ -182,6 +182,8 @@ export interface ArticleSummary {
   createdAt: string
   category?: { id: string; name: string } | null
   tags?: { id: string; name: string }[]
+  /** Courses the admin linked to the article (in order); empty = pick automatically. */
+  relatedCourseIds?: string[]
 }
 
 export interface ArticleQuery {

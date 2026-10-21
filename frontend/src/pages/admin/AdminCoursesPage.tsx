@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { adminCoursesApi, adminKeys } from '@/api/admin'
 import { routes } from '@/app/routes'
 import { AdminCard, AdminHeader } from '@/components/admin/AdminLayout'
-import { FilterTabs, StatusPill } from '@/components/account/AccountShell'
+import { FilterTabs } from '@/components/account/AccountShell'
 import { CourseCover } from '@/components/course/CourseCover'
 import { Icon } from '@/components/ui/Icon'
 import { buttonClass, inputClass } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { coursePrice, durationLabel, formatEGP } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { VisibilitySwitch } from '@/components/admin/VisibilitySwitch'
 
 type Tab = 'all' | 'live' | 'draft'
 
@@ -127,11 +128,13 @@ export function AdminCoursesPage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        {c.isActive ? (
-                          <StatusPill tone="success">منشورة</StatusPill>
-                        ) : (
-                          <StatusPill tone="muted">مخفية</StatusPill>
-                        )}
+                        <VisibilitySwitch
+                          visible={c.isActive}
+                          name={c.titleAr}
+                          labels={['منشورة', 'مخفية']}
+                          save={(isActive) => adminCoursesApi.update(c.id, { isActive })}
+                          invalidate={[adminKeys.courses]}
+                        />
                       </td>
                       <td className="px-5 py-3 text-left">
                         <Link

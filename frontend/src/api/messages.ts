@@ -17,8 +17,7 @@ const MESSAGES: Record<string, string> = {
   'Password reset OTP has expired.': 'الكود انتهت صلاحيته. اطلب كود جديد.',
   'Password reset OTP is missing.': 'مفيش كود متبعت للبريد ده. اطلب كود جديد.',
   'Password reset OTP expiry is missing.': 'مفيش كود متبعت للبريد ده. اطلب كود جديد.',
-  'Maximum password reset OTP attempts exceeded.':
-    'جرّبت الكود مرات كتير. اطلب كود جديد.',
+  'Maximum password reset OTP attempts exceeded.': 'جرّبت الكود مرات كتير. اطلب كود جديد.',
   'Password reset session is invalid or expired.':
     'انتهت مهلة تغيير كلمة المرور. ابدأ من الأول واطلب كود جديد.',
   'Current password is incorrect.': 'كلمة المرور الحالية غلط.',

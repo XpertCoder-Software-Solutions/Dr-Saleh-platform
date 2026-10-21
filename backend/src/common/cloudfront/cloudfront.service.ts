@@ -133,6 +133,30 @@ export class CloudFrontService {
     return this.generateSignedPdfUrl(lesson.pdfKey);
   }
 
+  /** Dashboard preview of any lesson's video or PDF (no purchase needed, hidden lessons too). */
+  async generateSignedLessonMediaUrlForAdmin(
+    lessonId: string,
+    kind: 'video' | 'pdf',
+  ): Promise<CloudFrontSignedUrlResult> {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      select: { videoKey: true, pdfKey: true },
+    });
+
+    if (!lesson) {
+      throw new NotFoundException('Lesson not found.');
+    }
+
+    const key = kind === 'video' ? lesson.videoKey : lesson.pdfKey;
+    if (!key) {
+      throw new NotFoundException(`Lesson has no ${kind} file.`);
+    }
+
+    return kind === 'video'
+      ? this.generateSignedVideoUrl(key)
+      : this.generateSignedPdfUrl(key);
+  }
+
   async generateSignedDigitalBookUrl(
     userId: string,
     bookFormatId: string,

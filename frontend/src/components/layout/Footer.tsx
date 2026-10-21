@@ -141,6 +141,12 @@ export function Footer() {
           </Link>
         </nav>
       </div>
+      <p className="relative mx-auto mt-4 max-w-site px-6 text-center text-[13px] text-on-dark-muted max-sm:px-4">
+        صُمّم وطُوّر بواسطة شركة{' '}
+        <b className="font-semibold text-white" dir="ltr">
+          XpertCoder Software Solutions
+        </b>
+      </p>
     </footer>
   )
 }

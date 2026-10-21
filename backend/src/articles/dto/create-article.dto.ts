@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsNotEmpty,
@@ -80,6 +81,37 @@ export class CreateArticleDto {
   @IsArray()
   @IsUUID('4', { each: true })
   tagIds?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['7cb9f85b-420f-4f4e-9330-85ab0675df90'],
+    description:
+      'Courses shown under the article, in order (up to 6). Send "[]" to clear; empty = picked automatically.',
+  })
+  @Transform(({ value }: { value: unknown }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (Array.isArray(value)) return value as unknown[];
+    if (typeof value === 'string') {
+      const text = value.trim();
+      if (text.startsWith('[')) {
+        try {
+          return JSON.parse(text) as unknown;
+        } catch {
+          return value;
+        }
+      }
+      return text
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+    }
+    return value;
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsUUID('4', { each: true })
+  relatedCourseIds?: string[];
 
   @ApiPropertyOptional({ example: false, default: false })
   @Transform(toOptionalBoolean)

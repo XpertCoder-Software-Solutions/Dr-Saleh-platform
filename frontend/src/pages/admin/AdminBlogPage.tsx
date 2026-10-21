@@ -6,7 +6,7 @@ import { resolveAssetUrl } from '@/api/client'
 import { routes } from '@/app/routes'
 import { AdminCard, AdminHeader } from '@/components/admin/AdminLayout'
 import { CoverInput } from '@/components/admin/AdminForm'
-import { FilterTabs, StatusPill } from '@/components/account/AccountShell'
+import { FilterTabs } from '@/components/account/AccountShell'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { buttonClass } from '@/components/ui/button'
@@ -19,6 +19,8 @@ import { formatDate } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { warnFormErrors } from '@/lib/formErrors'
 import { confirmAction } from '@/lib/confirm'
+import { VisibilitySwitch } from '@/components/admin/VisibilitySwitch'
+import { CoursePicker } from '@/components/admin/CoursePicker'
 
 const KEY = ['admin', 'articles'] as const
 type Tab = 'all' | 'live' | 'hidden'
@@ -84,11 +86,13 @@ export function AdminBlogPage() {
                       {a.category?.nameAr} · {formatDate(a.publishedAt ?? a.createdAt)}
                     </span>
                   </span>
-                  {a.isActive ? (
-                    <StatusPill tone="success">منشور</StatusPill>
-                  ) : (
-                    <StatusPill tone="muted">مخفي</StatusPill>
-                  )}
+                  <VisibilitySwitch
+                    visible={a.isActive}
+                    name={a.titleAr}
+                    labels={['منشور', 'مخفي']}
+                    save={(isActive) => catalogApi.updateArticle(a.id, { isActive })}
+                    invalidate={[KEY]}
+                  />
                   <Link
                     to={routes.article(a.slug)}
                     target="_blank"
@@ -133,6 +137,7 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
     shortContentAr: article?.shortContentAr ?? '',
     contentAr: article?.contentAr ?? '',
     tagIds: (article?.tags ?? []).map((t) => t.id),
+    relatedCourseIds: article?.relatedCourseIds ?? [],
     isActive: article?.isActive ?? true,
     isFeatured: article?.isFeatured ?? false,
     isHomeDisplay: article?.isHomeDisplay ?? false,
@@ -151,6 +156,7 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
         contentAr: f.contentAr.trim(),
         contentEn: article?.contentEn || f.contentAr.trim(),
         tagIds: article || f.tagIds.length ? JSON.stringify(f.tagIds) : undefined,
+        relatedCourseIds: JSON.stringify(f.relatedCourseIds),
         isActive: f.isActive,
         isFeatured: f.isFeatured,
         isHomeDisplay: f.isHomeDisplay,
@@ -273,6 +279,22 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
             onChange={(v) => set('contentAr', v)}
             error={errors.contentAr}
           />
+          <div className="flex flex-col gap-2 rounded-tile border border-line p-4">
+            <span className="text-[15px] font-semibold text-ink">
+              دورات ذات صلة{' '}
+              <span className="text-sm font-normal text-muted">
+                ({f.relatedCourseIds.length ? `${f.relatedCourseIds.length} مختارة` : 'اختياري'})
+              </span>
+            </span>
+            <p className="text-sm text-muted">
+              بتظهر تحت المقال. لو مختارتش، الموقع هيعرض الدورات المميزة زي دلوقتي.
+            </p>
+            <CoursePicker
+              value={f.relatedCourseIds}
+              onChange={(ids) => set('relatedCourseIds', ids)}
+              max={6}
+            />
+          </div>
           {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}
           {remove.isError && <Alert tone="error">{(remove.error as Error).message}</Alert>}
         </div>
