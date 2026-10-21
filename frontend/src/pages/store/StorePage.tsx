@@ -11,6 +11,9 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { keepScroll, scrollToResults } from '@/lib/scroll'
+import { useRegion } from '@/lib/region'
+import { PriceFilter } from '@/components/catalog/PriceFilter'
+import { priceParam } from '@/lib/priceParam'
 
 const PAGE_SIZE = 12
 
@@ -23,22 +26,56 @@ export function StorePage() {
   const [params, setParams] = useSearchParams()
   const categoryId = params.get('cat') ?? ''
   const page = Math.max(1, Number(params.get('page')) || 1)
+  const { currency } = useRegion()
+  const minPrice = priceParam(params.get('min'))
+  const maxPrice = priceParam(params.get('max'))
+  const hasPrice = minPrice !== undefined || maxPrice !== undefined
 
-  const query = { page, limit: PAGE_SIZE, categoryId: categoryId || undefined }
+  const query = {
+    page,
+    limit: PAGE_SIZE,
+    categoryId: categoryId || undefined,
+    minPrice,
+    maxPrice,
+    priceCurrency: hasPrice ? currency : undefined,
+  }
   const list = useQuery({
     queryKey: ['products', 'list', query],
     queryFn: () => productsApi.list(query),
     placeholderData: keepPreviousData,
   })
   const categories = useQuery({ queryKey: ['products', 'categories'], queryFn: productsApi.categories })
+  const total = useQuery({
+    queryKey: ['products', 'list', { limit: 1 }],
+    queryFn: () => productsApi.list({ limit: 1 }),
+  })
+  // Highest product price for the slider. Older APIs don't send priceBounds, so fall back to
+  // reading the product list once.
+  const allPrices = useQuery({
+    queryKey: ['products', 'list', { limit: 100 }],
+    queryFn: () => productsApi.list({ limit: 100 }),
+    enabled: total.isSuccess && !total.data?.priceBounds,
+    staleTime: 10 * 60_000,
+  })
+  const maxProductPrice =
+    total.data?.priceBounds?.[currency].max ??
+    Math.max(
+      0,
+      ...(allPrices.data?.products ?? []).map((p) => (currency === 'USD' ? p.priceUSD : p.priceEGP)),
+    )
   const products = list.data?.products ?? []
   const pagination = list.data?.pagination
 
-  function pick(cat: string) {
-    const p = new URLSearchParams()
-    if (cat) p.set('cat', cat)
+  function update(next: Record<string, string | null>) {
+    const p = new URLSearchParams(params)
+    for (const [k, v] of Object.entries(next)) {
+      if (v) p.set(k, v)
+      else p.delete(k)
+    }
     setParams(p, keepScroll)
   }
+
+  const pick = (cat: string) => update({ cat: cat || null, page: null })
 
   return (
     <>
@@ -88,11 +125,29 @@ export function StorePage() {
 
       <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={innerClass}>
-          {pagination && (
-            <p className="mb-4 text-muted" aria-live="polite">
-              <b className="text-ink">{pagination.total}</b> منتج
+          <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-2 rounded-card border border-line bg-white px-5 pt-3 pb-4">
+            <p className="pb-3 text-muted" aria-live="polite">
+              {pagination && (
+                <>
+                  <b className="text-ink">{pagination.total}</b> منتج
+                </>
+              )}
             </p>
-          )}
+            <PriceFilter
+              className="w-full max-w-sm"
+              currency={currency}
+              maxPrice={maxProductPrice}
+              min={minPrice}
+              max={maxPrice}
+              onChange={(min, max) =>
+                update({
+                  min: min === undefined ? null : String(min),
+                  max: max === undefined ? null : String(max),
+                  page: null,
+                })
+              }
+            />
+          </div>
           {list.isError ? (
             <ErrorState onRetry={() => list.refetch()} />
           ) : list.isLoading ? (
@@ -104,8 +159,10 @@ export function StorePage() {
           ) : products.length === 0 ? (
             <EmptyState
               icon="box"
-              title="مفيش منتجات هنا لسه"
-              body="المنتجات الجديدة هتظهر هنا أول ما تنزل."
+              title={hasPrice ? 'مفيش منتجات في حدود السعر ده' : 'مفيش منتجات هنا لسه'}
+              body={
+                hasPrice ? 'وسّع نطاق السعر أو اختار قسم تاني.' : 'المنتجات الجديدة هتظهر هنا أول ما تنزل.'
+              }
             />
           ) : (
             <div
@@ -125,10 +182,7 @@ export function StorePage() {
               pagination={pagination}
               noun="منتج"
               onChange={(p) => {
-                const next = new URLSearchParams(params)
-                if (p > 1) next.set('page', String(p))
-                else next.delete('page')
-                setParams(next, keepScroll)
+                update({ page: p > 1 ? String(p) : null })
                 scrollToResults()
               }}
             />
