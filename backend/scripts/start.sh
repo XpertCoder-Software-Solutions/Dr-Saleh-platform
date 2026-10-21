@@ -16,6 +16,21 @@ if [ "$DEMO_SEED" = "true" ]; then
   fi
   # Apply migrations newer than the dump (the runner image has psql but no prisma CLI).
   # Each one is recorded in _prisma_migrations exactly like `prisma migrate deploy` does.
+  # Databases restored from an older dump have no _prisma_migrations table: create it and
+  # record every migration up to the demo baseline (already in their schema) as applied.
+  BASELINE=20261014000200_order_shipping_tracking
+  if [ "$(psql "$DB_URL" -Atc "select to_regclass('public._prisma_migrations') is not null")" != "t" ]; then
+    echo "[start] no migration history: recording the demo baseline"
+    psql "$DB_URL" -q -c 'create table "_prisma_migrations" ("id" varchar(36) primary key, "checksum" varchar(64) not null, "finished_at" timestamptz, "migration_name" varchar(255) not null, "logs" text, "rolled_back_at" timestamptz, "started_at" timestamptz not null default now(), "applied_steps_count" integer not null default 0)'
+    for dir in prisma/migrations/*/; do
+      name=$(basename "$dir")
+      [ -f "$dir/migration.sql" ] || continue
+      if [ "$(printf '%s\n%s\n' "$name" "$BASELINE" | sort | head -n1)" = "$name" ]; then
+        checksum=$(sha256sum "$dir/migration.sql" | cut -d' ' -f1)
+        psql "$DB_URL" -q -c "insert into _prisma_migrations (id, checksum, finished_at, migration_name, started_at, applied_steps_count) values (gen_random_uuid()::text, '$checksum', now(), '$name', now(), 1)"
+      fi
+    done
+  fi
   for dir in prisma/migrations/*/; do
     name=$(basename "$dir")
     file="$dir/migration.sql"
