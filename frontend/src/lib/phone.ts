@@ -15,7 +15,28 @@ export interface Country {
 
 export const DEFAULT_COUNTRY: CountryCode = 'EG'
 // Shown first: Egypt, then the Gulf and nearby countries most visitors come from.
-const PINNED: CountryCode[] = ['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM', 'JO', 'LB', 'IQ', 'LY', 'SD', 'MA', 'DZ', 'TN', 'PS', 'SY', 'YE', 'US', 'GB']
+const PINNED: CountryCode[] = [
+  'EG',
+  'SA',
+  'AE',
+  'KW',
+  'QA',
+  'BH',
+  'OM',
+  'JO',
+  'LB',
+  'IQ',
+  'LY',
+  'SD',
+  'MA',
+  'DZ',
+  'TN',
+  'PS',
+  'SY',
+  'YE',
+  'US',
+  'GB',
+]
 
 // Not listed anywhere on the site.
 const EXCLUDED: CountryCode[] = ['IL']
@@ -54,9 +75,19 @@ export function isValidPhone(value: string): boolean {
 export function splitPhone(value: string): { iso: CountryCode; national: string } {
   const v = value.trim()
   if (!v) return { iso: DEFAULT_COUNTRY, national: '' }
-  const parsed = v.startsWith('+') || v.startsWith('00')
-    ? parsePhoneNumberFromString(v.replace(/^00/, '+'))
-    : parsePhoneNumberFromString(v, DEFAULT_COUNTRY)
+  // Only a dial code ("+20"): that country, nothing typed yet.
+  if (/^\+\d{1,4}$/.test(v)) {
+    const dial = v.slice(1)
+    const match =
+      dial === listCountries().find((c) => c.iso === DEFAULT_COUNTRY)?.dial
+        ? DEFAULT_COUNTRY
+        : listCountries().find((c) => c.dial === dial)?.iso
+    return { iso: match ?? DEFAULT_COUNTRY, national: '' }
+  }
+  const parsed =
+    v.startsWith('+') || v.startsWith('00')
+      ? parsePhoneNumberFromString(v.replace(/^00/, '+'))
+      : parsePhoneNumberFromString(v, DEFAULT_COUNTRY)
   if (parsed?.country) return { iso: parsed.country, national: parsed.nationalNumber }
   if (parsed) {
     const match = listCountries().find((c) => c.dial === parsed.countryCallingCode)
@@ -73,4 +104,3 @@ export function joinPhone(iso: CountryCode, national: string): string {
   if (parsed) return parsed.number
   return `+${getCountryCallingCode(iso)}${digits.replace(/^0+/, '')}`
 }
-
