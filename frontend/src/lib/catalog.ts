@@ -1,4 +1,5 @@
-import type { Book, BookFormat, BookFormatType } from '@/types/api'
+import type { Book, BookFormat, BookFormatType, Currency } from '@/types/api'
+import { pricesIn, type Priced } from './format'
 
 export const FORMAT_LABEL: Record<BookFormatType, string> = {
   Physical: 'ورقي',
@@ -8,9 +9,10 @@ export const FORMAT_LABEL: Record<BookFormatType, string> = {
 export const FORMAT_ORDER: BookFormatType[] = ['Physical', 'Digital', 'Audio']
 
 /** Price a buyer pays for a format (discount if any, else list price, else the book's price). */
-export function formatPrice(format: BookFormat, book?: Pick<Book, 'priceEGP' | 'discountPriceEGP'>) {
-  const list = format.priceEGP ?? book?.priceEGP ?? null
-  const discounted = format.discountPriceEGP ?? null
+export function formatPrice(format: BookFormat, book?: Priced, currency: Currency = 'EGP') {
+  const own = pricesIn(format, currency)
+  const list = own.list ?? (book ? pricesIn(book, currency).list : null)
+  const discounted = own.discount
   const current = discounted != null && list != null && discounted < list ? discounted : list
   return { current, old: current !== list ? list : null }
 }
@@ -22,12 +24,13 @@ export function activeFormats(book: Book) {
 }
 
 /** Cheapest active format, for "يبدأ من". */
-export function bookStartPrice(book: Book): number | null {
+export function bookStartPrice(book: Book, currency: Currency = 'EGP'): number | null {
   const prices = activeFormats(book)
-    .map((f) => formatPrice(f, book).current)
+    .map((f) => formatPrice(f, book, currency).current)
     .filter((p): p is number => typeof p === 'number')
   if (prices.length) return Math.min(...prices)
-  return book.discountPriceEGP ?? book.priceEGP ?? null
+  const own = pricesIn(book, currency)
+  return own.discount ?? own.list ?? null
 }
 
 /** "6 س" for audio badges. */
@@ -36,9 +39,11 @@ export function audioHours(book: Book): number | null {
   return audio?.audioDuration ? Math.max(1, Math.round(audio.audioDuration / 3600)) : null
 }
 
-export function productPrice(p: { priceEGP: number; discountPriceEGP?: number | null }) {
-  const discounted = p.discountPriceEGP != null && p.discountPriceEGP < p.priceEGP
-  return { current: discounted ? p.discountPriceEGP! : p.priceEGP, old: discounted ? p.priceEGP : null }
+export function productPrice(p: Priced, currency: Currency = 'EGP') {
+  const { list, discount } = pricesIn(p, currency)
+  const base = list ?? 0
+  const discounted = discount != null && discount < base
+  return { current: discounted ? discount! : base, old: discounted ? base : null }
 }
 
 /** Stable pick from a list by id, so a card keeps its colors between renders. */

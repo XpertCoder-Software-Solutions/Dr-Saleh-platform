@@ -13,6 +13,7 @@ import { buttonClass, inputClass, innerClass, sectionClass } from '@/components/
 import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { formatEGP } from '@/lib/format'
+import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
@@ -125,7 +126,11 @@ function Pay({ order }: { order: Order }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const usd = order.currency === 'USD'
-  const methods = METHODS.filter((m) => m.currency === order.currency)
+  const region = useRegion()
+  // Egyptian mobile wallets are only offered to visitors in Egypt.
+  const methods = METHODS.filter(
+    (m) => m.currency === order.currency && (m.id !== 'WALLET' || region.isEgypt),
+  )
   const [method, setMethod] = useState<Method>(methods[0].id)
   const [code, setCode] = useState('')
   const money = (n: number) => (usd ? `$${n}` : formatEGP(n))

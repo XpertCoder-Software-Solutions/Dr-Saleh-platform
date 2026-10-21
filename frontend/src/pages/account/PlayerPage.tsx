@@ -11,9 +11,18 @@ import { Alert, EmptyState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Lesson } from '@/types/api'
+import {
+  addRange,
+  coveragePercent,
+  isPlaybackStep,
+  loadRanges,
+  saveRanges,
+} from '@/lib/watchCoverage'
 
 /** Saves watch progress at most this often while a video plays. */
 const SAVE_EVERY_MS = 15_000
+/** Share of a video that has to be watched (not skipped) for the lesson to count as done. Same as the API. */
+const COMPLETE_AT = 95
 
 function minutes(seconds?: number | null) {
   return seconds ? `${Math.max(1, Math.round(seconds / 60))} د` : ''
@@ -92,12 +101,15 @@ export function PlayerPage() {
     mutationFn: (body: { completionPercentage: number; watchedSeconds?: number; isCompleted?: boolean }) =>
       myCoursesApi.saveProgress(lessonId!, body),
     onSuccess: (_d, body) => {
-      if (body.isCompleted) refresh()
+      if (body.isCompleted || body.completionPercentage >= COMPLETE_AT) refresh()
     },
   })
 
+  const [watchedPct, setWatchedPct] = useState(0)
+
   const go = (id: string) => {
     setParams({ lesson: id })
+    setWatchedPct(0)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -152,13 +164,11 @@ export function PlayerPage() {
             key={lesson.id}
             courseId={courseId}
             lesson={lesson}
-            onProgress={(watchedSeconds, pct) =>
-              save.mutate({
-                watchedSeconds,
-                completionPercentage: pct,
-                isCompleted: pct >= 90 ? true : undefined,
-              })
-            }
+            onProgress={(position, watchedPct) => {
+              setWatchedPct(watchedPct)
+              save.mutate({ watchedSeconds: position, completionPercentage: watchedPct })
+            }}
+            onCoverage={setWatchedPct}
           />
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
@@ -168,20 +178,28 @@ export function PlayerPage() {
               <h1 className="text-[clamp(22px,3vw,30px)]">{lesson.titleAr}</h1>
             </div>
             <div className="flex gap-2.5">
-              <button
-                type="button"
-                className={buttonClass({ variant: 'outline', className: isDone ? 'text-success' : '' })}
-                disabled={isDone || save.isPending}
-                onClick={() => save.mutate({ completionPercentage: 100, isCompleted: true })}
-              >
-                {isDone ? (
-                  <>
-                    <Icon name="check" size={16} /> مكتمل
-                  </>
-                ) : (
-                  'تحديد كمكتمل'
-                )}
-              </button>
+              {isDone ? (
+                <span className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-green-50 px-4 font-bold text-success">
+                  <Icon name="check" size={16} /> مكتمل
+                </span>
+              ) : lesson.lessonType === 'PDF' ? (
+                // A file can't report "watched", so PDF lessons are finished by hand.
+                <button
+                  type="button"
+                  className={buttonClass({ variant: 'outline' })}
+                  disabled={save.isPending}
+                  onClick={() => save.mutate({ completionPercentage: 100, isCompleted: true })}
+                >
+                  خلصت الملف
+                </button>
+              ) : (
+                <span
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-text-2"
+                  title="الدرس بيتحسب مكتمل لما تتفرج عليه للآخر"
+                >
+                  <Icon name="play" size={14} /> اتفرجت على {watchedPct}% · كمّله للآخر عشان يتحسب
+                </span>
+              )}
               {next && (
                 <button
                   type="button"
@@ -286,10 +304,13 @@ function LessonMedia({
   courseId,
   lesson,
   onProgress,
+  onCoverage,
 }: {
   courseId: string
   lesson: Lesson
-  onProgress: (watchedSeconds: number, pct: number) => void
+  /** Saves: playhead position (for resuming) and the share actually watched. */
+  onProgress: (position: number, watchedPct: number) => void
+  onCoverage: (watchedPct: number) => void
 }) {
   const isVideo = lesson.lessonType === 'VIDEO' && lesson.hasVideo !== false
   const media = useQuery({
@@ -309,9 +330,26 @@ function LessonMedia({
   const [failed, setFailed] = useState(false)
   const startAt = lesson.progress?.isCompleted ? 0 : (lesson.progress?.watchedSeconds ?? 0)
 
+  const ranges = useRef(loadRanges(lesson.id))
+  const lastTime = useRef<number | null>(null)
+
   useEffect(() => {
     lastSave.current = Date.now()
+    ranges.current = loadRanges(lesson.id)
+    lastTime.current = null
   }, [lesson.id])
+
+  /** Adds the bit played since the last update (ignores seeks) and returns the watched %. */
+  function track(v: HTMLVideoElement): number {
+    const now = v.currentTime
+    const prev = lastTime.current
+    lastTime.current = now
+    if (prev !== null && !v.seeking && isPlaybackStep(prev, now)) {
+      ranges.current = addRange(ranges.current, prev, now)
+      saveRanges(lesson.id, ranges.current)
+    }
+    return coveragePercent(ranges.current, v.duration)
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -348,15 +386,28 @@ function LessonMedia({
             onContextMenu={(e) => e.preventDefault()}
             onLoadedMetadata={(e) => {
               if (startAt > 5 && startAt < e.currentTarget.duration - 5) e.currentTarget.currentTime = startAt
+              onCoverage(coveragePercent(ranges.current, e.currentTarget.duration))
+            }}
+            onSeeked={(e) => {
+              lastTime.current = e.currentTarget.currentTime
             }}
             onError={() => setFailed(true)}
             onTimeUpdate={(e) => {
               const v = e.currentTarget
-              if (!v.duration || Date.now() - lastSave.current < SAVE_EVERY_MS) return
-              lastSave.current = Date.now()
-              onProgress(Math.floor(v.currentTime), Math.round((v.currentTime / v.duration) * 100))
+              if (!v.duration) return
+              const watched = track(v)
+              onCoverage(watched)
+              // Save on the interval, and right away when the lesson just became complete.
+              const justCompleted = watched >= COMPLETE_AT && !lesson.progress?.isCompleted
+              if (!justCompleted && Date.now() - lastSave.current < SAVE_EVERY_MS) return
+              if (justCompleted && lastSave.current === -1) return
+              lastSave.current = justCompleted ? -1 : Date.now()
+              onProgress(Math.floor(v.currentTime), watched)
             }}
-            onEnded={(e) => onProgress(Math.floor(e.currentTarget.duration), 100)}
+            onEnded={(e) => {
+              const v = e.currentTarget
+              onProgress(Math.floor(v.duration), track(v))
+            }}
           />
         ) : (
           <iframe title={lesson.titleAr} src={media.data!.url} className="size-full bg-white" />

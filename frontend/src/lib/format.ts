@@ -1,6 +1,7 @@
-import type { CourseSummary } from '@/types/api'
+import type { Currency, Money } from '@/types/api'
 
 const egp = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 0, numberingSystem: 'latn' })
+const usd = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
 
 /** "450 ج.م" */
 export function formatEGP(value: number | null | undefined): string {
@@ -8,16 +9,36 @@ export function formatEGP(value: number | null | undefined): string {
   return `${egp.format(value)} ج.م`
 }
 
-export function coursePrice(course: Pick<CourseSummary, 'priceEGP' | 'discountPriceEGP'>) {
-  const hasDiscount =
-    course.discountPriceEGP !== null &&
-    course.discountPriceEGP !== undefined &&
-    course.discountPriceEGP < course.priceEGP
-  const current = hasDiscount ? (course.discountPriceEGP as number) : course.priceEGP
+/** "450 ج.م" or "$9.99" */
+export function formatMoney(value: number | null | undefined, currency: Currency = 'EGP'): string {
+  if (value === null || value === undefined) return ''
+  return currency === 'USD' ? `$${usd.format(value)}` : formatEGP(value)
+}
+
+/** Anything priced in both currencies (courses, books, products, cart items). */
+export interface Priced {
+  priceEGP?: Money | null
+  discountPriceEGP?: Money | null
+  priceUSD?: Money | null
+  discountPriceUSD?: Money | null
+}
+
+/** List and discount price in one currency. */
+export function pricesIn(item: Priced, currency: Currency = 'EGP') {
+  return currency === 'USD'
+    ? { list: item.priceUSD ?? null, discount: item.discountPriceUSD ?? null }
+    : { list: item.priceEGP ?? null, discount: item.discountPriceEGP ?? null }
+}
+
+export function coursePrice(course: Priced, currency: Currency = 'EGP') {
+  const { list, discount } = pricesIn(course, currency)
+  const base = list ?? 0
+  const hasDiscount = discount !== null && discount < base
+  const current = hasDiscount ? (discount as number) : base
   return {
     current,
-    old: hasDiscount ? course.priceEGP : null,
-    discountPercent: hasDiscount ? Math.round((1 - current / course.priceEGP) * 100) : 0,
+    old: hasDiscount ? base : null,
+    discountPercent: hasDiscount && base > 0 ? Math.round((1 - current / base) * 100) : 0,
     isFree: current === 0,
   }
 }
