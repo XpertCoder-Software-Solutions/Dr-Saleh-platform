@@ -10,6 +10,7 @@ import { innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { keepScroll, scrollToResults } from '@/lib/scroll'
 
 const PAGE_SIZE = 12
 
@@ -36,7 +37,7 @@ export function StorePage() {
   function pick(cat: string) {
     const p = new URLSearchParams()
     if (cat) p.set('cat', cat)
-    setParams(p)
+    setParams(p, keepScroll)
   }
 
   return (
@@ -85,7 +86,7 @@ export function StorePage() {
         </div>
       </PageHero>
 
-      <section className={cn(sectionClass, 'pt-8')}>
+      <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={innerClass}>
           {pagination && (
             <p className="mb-4 text-muted" aria-live="polite">
@@ -127,8 +128,8 @@ export function StorePage() {
                 const next = new URLSearchParams(params)
                 if (p > 1) next.set('page', String(p))
                 else next.delete('page')
-                setParams(next)
-                window.scrollTo({ top: 0, behavior: 'smooth' })
+                setParams(next, keepScroll)
+                scrollToResults()
               }}
             />
           )}

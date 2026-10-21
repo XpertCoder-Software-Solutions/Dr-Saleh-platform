@@ -14,6 +14,7 @@ import { cn } from '@/lib/cn'
 import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
 import { formatDate, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { keepScroll, scrollToResults } from '@/lib/scroll'
 
 const PAGE_SIZE = 9
 
@@ -49,7 +50,7 @@ export function BlogPage() {
   function set(next: Record<string, string>) {
     const p = new URLSearchParams()
     for (const [k, v] of Object.entries(next)) if (v) p.set(k, v)
-    setParams(p)
+    setParams(p, keepScroll)
   }
 
   return (
@@ -70,7 +71,7 @@ export function BlogPage() {
         body="نصائح عملية قصيرة تقدر تطبقها النهارده، من غير مصطلحات معقدة."
       />
 
-      <section className={cn(sectionClass, 'pt-8')}>
+      <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={cn(innerClass, 'grid grid-cols-[1fr_260px] items-start gap-7 max-lg:grid-cols-1')}>
           <div className="flex min-w-0 flex-col gap-6">
             {spotlight && <Spotlight article={spotlight} />}
@@ -102,7 +103,7 @@ export function BlogPage() {
                 noun="مقال"
                 onChange={(p) => {
                   set({ cat: categoryId, tag: tagId, page: p > 1 ? String(p) : '' })
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  scrollToResults()
                 }}
               />
             )}
