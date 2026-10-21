@@ -76,12 +76,15 @@ function BookDetails({ book }: { book: Book }) {
   const [formatId, setFormatId] = useState(formats[0]?.id ?? '')
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
+  const [buying, setBuying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cart = useAddToCart()
   const wishlist = useWishlist('BOOK')
 
   const format = formats.find((f) => f.id === formatId)
-  const price = format ? formatPrice(format, book, currency) : { current: bookStartPrice(book, currency), old: null }
+  const price = format
+    ? formatPrice(format, book, currency)
+    : { current: bookStartPrice(book, currency), old: null }
   const physical = format?.formatType === 'Physical'
   const outOfStock = physical && (format?.stock ?? 0) <= 0
   const [head, ...tail] = book.titleAr.split(' ')
@@ -110,6 +113,7 @@ function BookDetails({ book }: { book: Book }) {
   async function add(goToCart: boolean) {
     if (!format) return
     setError(null)
+    setBuying(goToCart)
     try {
       const ok = await cart.add({ itemType: 'BOOK', itemId: format.id, quantity: physical ? qty : 1 })
       if (!ok) return
@@ -186,26 +190,23 @@ function BookDetails({ book }: { book: Book }) {
                   </div>
                 )}
                 {error && <Alert tone="error">{error}</Alert>}
+                <button
+                  type="button"
+                  className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
+                  disabled={!format || outOfStock || cart.isPending}
+                  onClick={() => add(true)}
+                >
+                  {cart.isPending && buying ? (
+                    <Spinner />
+                  ) : (
+                    <>
+                      اشتري الآن
+                      {price.current != null &&
+                        ` · ${formatMoney(price.current * (physical ? qty : 1), currency)}`}
+                    </>
+                  )}
+                </button>
                 <div className="flex gap-2.5">
-                  <button
-                    type="button"
-                    className={buttonClass({ variant: 'gold', size: 'lg', className: 'flex-1' })}
-                    disabled={!format || outOfStock || cart.isPending}
-                    onClick={() => add(false)}
-                  >
-                    {cart.isPending ? (
-                      <Spinner />
-                    ) : added ? (
-                      <>
-                        <Icon name="check" /> اتضاف للسلة
-                      </>
-                    ) : (
-                      <>
-                        {t('cta.addToCart')}
-                        {price.current != null && ` · ${formatMoney(price.current * (physical ? qty : 1), currency)}`}
-                      </>
-                    )}
-                  </button>
                   <button
                     type="button"
                     className={buttonClass({
@@ -221,6 +222,24 @@ function BookDetails({ book }: { book: Book }) {
                     onClick={() => wishlist.toggle(book.id)}
                   >
                     <Icon name="heart" filled={wishlist.has(book.id)} />
+                  </button>
+                  <button
+                    type="button"
+                    className={buttonClass({ variant: 'outline', size: 'lg', className: 'flex-1' })}
+                    disabled={!format || outOfStock || cart.isPending}
+                    onClick={() => add(false)}
+                  >
+                    {cart.isPending && !buying ? (
+                      <Spinner />
+                    ) : added ? (
+                      <>
+                        <Icon name="check" /> اتضاف للسلة
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="bag" /> {t('cta.addToCart')}
+                      </>
+                    )}
                   </button>
                 </div>
                 {added && (

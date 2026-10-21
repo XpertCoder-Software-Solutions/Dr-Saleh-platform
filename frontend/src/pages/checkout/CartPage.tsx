@@ -24,7 +24,13 @@ export function CartPage() {
   const t = useCopy()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const cart = useQuery({ queryKey: [...CART_KEY, currency], queryFn: () => cartApi.get(currency) })
+  // Always read the cart fresh when the page opens, so items added a moment ago show up.
+  const cart = useQuery({
+    queryKey: [...CART_KEY, currency],
+    queryFn: () => cartApi.get(currency),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: CART_KEY })
@@ -59,7 +65,7 @@ export function CartPage() {
         <div className={innerClass}>
           {cart.isError ? (
             <ErrorState onRetry={() => cart.refetch()} />
-          ) : cart.isLoading ? (
+          ) : cart.isLoading || (cart.isFetching && lines.length === 0) ? (
             <div className="flex justify-center rounded-card bg-white py-20 text-blue-600">
               <Spinner />
             </div>
@@ -136,7 +142,9 @@ export function CartPage() {
                   <Row label="الشحن" value={needsShipping ? 'بيتحسب حسب المحافظة' : 'مفيش'} />
                   <div className="mt-1 flex items-baseline justify-between border-t border-divider pt-3">
                     <b className="text-ink">الإجمالي</b>
-                    <b className="font-head text-[28px] text-ink">{formatMoney(summary?.total ?? 0, currency)}</b>
+                    <b className="font-head text-[28px] text-ink">
+                      {formatMoney(summary?.total ?? 0, currency)}
+                    </b>
                   </div>
                   <p className="text-xs text-muted">عندك كوبون خصم؟ هتكتبه في خطوة الدفع.</p>
                   <button
@@ -245,7 +253,9 @@ function CartRow({
       {canChangeQty && <QuantityStepper value={line.quantity} max={item?.stock ?? 99} onChange={onQty} />}
       <span className="flex w-24 flex-col items-end">
         <b className="text-lg text-ink">{formatMoney(line.lineTotal, currency)}</b>
-        {line.lineDiscount > 0 && <s className="text-xs text-muted-2">{formatMoney(line.lineSubtotal, currency)}</s>}
+        {line.lineDiscount > 0 && (
+          <s className="text-xs text-muted-2">{formatMoney(line.lineSubtotal, currency)}</s>
+        )}
       </span>
       <button
         type="button"
