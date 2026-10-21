@@ -17,7 +17,6 @@ import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion, type Currency } from '@/lib/region'
 import { RangeSlider } from '@/components/ui/RangeSlider'
-import type { PriceBounds } from '@/types/api'
 import { formatMoney } from '@/lib/format'
 
 const PAGE_SIZE = 9
@@ -71,7 +70,17 @@ export function CoursesPage() {
     queryFn: () => coursesApi.list({ limit: 1 }),
   })
   const wishlist = useWishlist('COURSE')
-  const priceBounds = total.data?.priceBounds?.[currency]
+  // Highest course price for the slider. Older APIs don't send priceBounds, so fall back to
+  // reading the (small) course list once.
+  const allPrices = useQuery({
+    queryKey: ['courses', 'list', { limit: 100 }],
+    queryFn: () => coursesApi.list({ limit: 100 }),
+    enabled: total.isSuccess && !total.data?.priceBounds,
+    staleTime: 10 * 60_000,
+  })
+  const maxCoursePrice =
+    total.data?.priceBounds?.[currency].max ??
+    Math.max(0, ...(allPrices.data?.courses ?? []).map((c) => (currency === 'USD' ? c.priceUSD : c.priceEGP)))
 
   function update(next: Record<string, string | null>) {
     const p = new URLSearchParams(params)
@@ -189,7 +198,7 @@ export function CoursesPage() {
               </div>
               <PriceFilter
                 currency={currency}
-                bounds={list.data?.priceBounds?.[currency] ?? priceBounds}
+                maxPrice={maxCoursePrice}
                 min={minPrice}
                 max={maxPrice}
                 onChange={(min, max) =>
@@ -299,25 +308,26 @@ function priceParam(v: string | null): number | undefined {
   return Number.isFinite(n) && n >= 0 ? n : undefined
 }
 
-const STEP: Record<Currency, number> = { EGP: 10, USD: 1 }
+const STEP: Record<Currency, number> = { EGP: 1, USD: 0.5 }
 
 /** Price range slider ("من" / "إلى") over the prices that actually exist, plus typed boxes. */
 function PriceFilter({
   currency,
-  bounds,
+  maxPrice,
   min,
   max,
   onChange,
 }: {
   currency: Currency
-  bounds?: PriceBounds
+  /** Highest course price; the slider runs from 0 to this. */
+  maxPrice: number
   min?: number
   max?: number
   onChange: (min?: number, max?: number) => void
 }) {
   const step = STEP[currency]
-  const floor = bounds ? Math.floor(bounds.min / step) * step : 0
-  const ceil = Math.max(floor + step, bounds ? Math.ceil(bounds.max / step) * step : step)
+  const floor = 0
+  const ceil = Math.max(step, Math.ceil(maxPrice / step) * step)
   const applied: [number, number] = [min ?? floor, max ?? ceil]
   const [draft, setDraft] = useState<[number, number]>(applied)
   const [boxes, setBoxes] = useState(['', ''])
@@ -364,49 +374,57 @@ function PriceFilter({
           </button>
         )}
       </div>
-      <p className="-mt-1 text-sm text-text-2" aria-live="polite">
-        من <b className="text-ink">{fmt(draft[0])}</b> إلى <b className="text-ink">{fmt(draft[1])}</b>
-      </p>
-      <RangeSlider
-        min={floor}
-        max={ceil}
-        step={step}
-        value={draft}
-        onChange={setDraft}
-        onCommit={commit}
-        formatValue={fmt}
-        labels={['أقل سعر', 'أعلى سعر']}
-      />
-      <form
-        className="grid grid-cols-[1fr_auto_1fr] items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          applyBoxes()
-        }}
-        aria-label="اكتب السعر"
-      >
-        {([0, 1] as const).map((i) => (
-          <label key={i} className={cn('flex flex-col gap-1', i === 1 && 'col-start-3')}>
-            <span className="text-xs font-semibold text-muted">{i === 0 ? 'من' : 'إلى'}</span>
-            <span className="flex h-11 items-center gap-1 rounded-xl border-[1.5px] border-line-2 bg-white px-2.5 focus-within:border-blue-400">
-              <input
-                inputMode="decimal"
-                value={boxValue(i)}
-                onChange={(e) => setBoxes((b) => (i === 0 ? [e.target.value, b[1]] : [b[0], e.target.value]))}
-                onBlur={applyBoxes}
-                className="w-full min-w-0 border-0 bg-transparent text-center text-[15px] font-semibold text-ink outline-none"
-              />
-              <span className="flex-none text-xs text-muted">{currency === 'USD' ? '$' : 'ج.م'}</span>
+      {maxPrice <= 0 ? (
+        <div className="h-24 skeleton" aria-label="جاري تحميل الأسعار" />
+      ) : (
+        <>
+          <p className="-mt-1 text-sm text-text-2" aria-live="polite">
+            من <b className="text-ink">{fmt(draft[0])}</b> إلى <b className="text-ink">{fmt(draft[1])}</b>
+          </p>
+          <RangeSlider
+            min={floor}
+            max={ceil}
+            step={step}
+            value={draft}
+            onChange={setDraft}
+            onCommit={commit}
+            formatValue={fmt}
+            labels={['أقل سعر', 'أعلى سعر']}
+          />
+          <form
+            className="grid grid-cols-[1fr_auto_1fr] items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault()
+              applyBoxes()
+            }}
+            aria-label="اكتب السعر"
+          >
+            {([0, 1] as const).map((i) => (
+              <label key={i} className={cn('flex flex-col gap-1', i === 1 && 'col-start-3')}>
+                <span className="text-xs font-semibold text-muted">{i === 0 ? 'من' : 'إلى'}</span>
+                <span className="flex h-11 items-center gap-1 rounded-xl border-[1.5px] border-line-2 bg-white px-2.5 focus-within:border-blue-400">
+                  <input
+                    inputMode="decimal"
+                    value={boxValue(i)}
+                    onChange={(e) =>
+                      setBoxes((b) => (i === 0 ? [e.target.value, b[1]] : [b[0], e.target.value]))
+                    }
+                    onBlur={applyBoxes}
+                    className="w-full min-w-0 border-0 bg-transparent text-center text-[15px] font-semibold text-ink outline-none"
+                  />
+                  <span className="flex-none text-xs text-muted">{currency === 'USD' ? '$' : 'ج.م'}</span>
+                </span>
+              </label>
+            ))}
+            <span className="col-start-2 row-start-1 pb-3 text-muted" aria-hidden="true">
+              –
             </span>
-          </label>
-        ))}
-        <span className="col-start-2 row-start-1 pb-3 text-muted" aria-hidden="true">
-          –
-        </span>
-        <button type="submit" className="sr-only">
-          تطبيق
-        </button>
-      </form>
+            <button type="submit" className="sr-only">
+              تطبيق
+            </button>
+          </form>
+        </>
+      )}
     </div>
   )
 }
