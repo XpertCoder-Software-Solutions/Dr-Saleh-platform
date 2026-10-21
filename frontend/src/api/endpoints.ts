@@ -12,6 +12,7 @@ import type {
   RegisterData,
 } from '@/types/api'
 import { api } from './client'
+import { toast } from '@/lib/toast'
 
 // ---------- auth ----------
 
@@ -24,14 +25,26 @@ export interface RegisterInput {
   referralCode?: string
 }
 
+/** Local testing only: the API returns the emailed code when EXPOSE_DEV_OTP is on. */
+type DevOtp = { devOtp?: string }
+
+function showDevOtp<T extends DevOtp>(data: T): T {
+  if (data?.devOtp) {
+    toast.info(`الكود: ${data.devOtp}`, { title: 'وضع التجربة المحلية', durationMs: 0 })
+  }
+  return data
+}
+
 export const authApi = {
   login: (input: { email: string; password: string }) => api.post<LoginData>('/auth/login', input),
-  register: (input: RegisterInput) => api.post<RegisterData>('/auth/register', input),
+  register: (input: RegisterInput) =>
+    api.post<RegisterData & DevOtp>('/auth/register', input).then(showDevOtp),
   verifyEmail: (input: { email: string; otp: string }) =>
     api.post<Record<string, never>>('/auth/verify-email', input),
   resendVerification: (email: string) =>
-    api.post<Record<string, never>>('/auth/resend-email-verification', { email }),
-  forgotPassword: (email: string) => api.post<Record<string, never>>('/auth/forgot-password', { email }),
+    api.post<DevOtp>('/auth/resend-email-verification', { email }).then(showDevOtp),
+  forgotPassword: (email: string) =>
+    api.post<DevOtp>('/auth/forgot-password', { email }).then(showDevOtp),
   /** Step 2 of forgot-password: checks the emailed code, returns a token for step 3. */
   verifyResetOtp: (input: { email: string; otp: string }) =>
     api.post<{ resetToken: string; expiresInSeconds: number }>('/auth/verify-reset-otp', input),
@@ -68,6 +81,10 @@ export interface CourseQuery {
   search?: string
   categoryId?: string
   isFeatured?: boolean
+  /** Price the buyer pays (discount when set), in `priceCurrency`. */
+  minPrice?: number
+  maxPrice?: number
+  priceCurrency?: 'EGP' | 'USD'
 }
 
 export const coursesApi = {

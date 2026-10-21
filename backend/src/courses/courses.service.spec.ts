@@ -122,16 +122,16 @@ describe('CoursesService progress', () => {
     });
   });
 
-  it('marks a VIDEO lesson complete at 90 percent and preserves watched seconds', async () => {
+  it('marks a VIDEO lesson complete once 95 percent was watched and preserves watched seconds', async () => {
     prepareSuccessfulProgressUpdate({
       completedLessons: 1,
       lessonType: LessonType.VIDEO,
-      progressPercentage: 90,
+      progressPercentage: 95,
       totalLessons: 2,
     });
 
     await service.updateLessonProgress(userId, lessonId, {
-      completionPercentage: 90,
+      completionPercentage: 95,
       watchedSeconds: 120,
     });
 
@@ -140,14 +140,60 @@ describe('CoursesService progress', () => {
     );
 
     expect(upsertArgs.create).toMatchObject({
-      completionPercentage: 90,
+      completionPercentage: 95,
       isCompleted: true,
       watchedSeconds: 120,
     });
     expect(upsertArgs.update).toMatchObject({
-      completionPercentage: 90,
+      completionPercentage: 95,
       isCompleted: true,
       watchedSeconds: 120,
+    });
+  });
+
+  it('does not complete a VIDEO lesson that was only partly watched', async () => {
+    prepareSuccessfulProgressUpdate({
+      completedLessons: 0,
+      lessonType: LessonType.VIDEO,
+      progressPercentage: 90,
+      totalLessons: 2,
+    });
+
+    await service.updateLessonProgress(userId, lessonId, {
+      completionPercentage: 90,
+      watchedSeconds: 600,
+    });
+
+    const upsertArgs = getFirstMockArg<ProgressUpsertArgs>(
+      prisma.userLessonProgress.upsert,
+    );
+    expect(upsertArgs.create).toMatchObject({ isCompleted: false });
+  });
+
+  it('keeps a finished lesson complete when it is watched again', async () => {
+    prepareSuccessfulProgressUpdate({
+      completedLessons: 1,
+      lessonType: LessonType.VIDEO,
+      progressPercentage: 100,
+      totalLessons: 2,
+    });
+    prisma.userLessonProgress.findUnique.mockResolvedValue({
+      isCompleted: true,
+      completionPercentage: 100,
+    });
+
+    await service.updateLessonProgress(userId, lessonId, {
+      completionPercentage: 10,
+      watchedSeconds: 30,
+    });
+
+    const upsertArgs = getFirstMockArg<ProgressUpsertArgs>(
+      prisma.userLessonProgress.upsert,
+    );
+    expect(upsertArgs.update).toMatchObject({
+      completionPercentage: 100,
+      isCompleted: true,
+      watchedSeconds: 30,
     });
   });
 
@@ -235,7 +281,7 @@ describe('CoursesService progress', () => {
     prisma.userLessonProgress.upsert.mockResolvedValue(
       createProgressRecord({
         completionPercentage: progressPercentage,
-        isCompleted: progressPercentage >= 90,
+        isCompleted: progressPercentage >= 95,
       }),
     );
     prisma.lesson.count.mockResolvedValue(totalLessons);

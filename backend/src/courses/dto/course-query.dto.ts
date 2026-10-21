@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -51,6 +52,34 @@ export class CourseQueryDto {
   @IsOptional()
   @IsBoolean()
   isFeatured?: boolean;
+
+  @ApiPropertyOptional({
+    example: 100,
+    description:
+      'Lowest price (inclusive) the buyer pays — the discount price when there is one.',
+  })
+  @Transform(toOptionalNumber)
+  @IsOptional()
+  @Min(0)
+  minPrice?: number;
+
+  @ApiPropertyOptional({
+    example: 500,
+    description: 'Highest price (inclusive).',
+  })
+  @Transform(toOptionalNumber)
+  @IsOptional()
+  @Min(0)
+  maxPrice?: number;
+
+  @ApiPropertyOptional({
+    enum: ['EGP', 'USD'],
+    default: 'EGP',
+    description: 'Currency of minPrice/maxPrice.',
+  })
+  @IsOptional()
+  @IsIn(['EGP', 'USD'])
+  priceCurrency?: 'EGP' | 'USD';
 }
 
 export class AdminCourseQueryDto extends CourseQueryDto {

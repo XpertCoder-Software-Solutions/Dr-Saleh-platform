@@ -12,17 +12,19 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { useRegion } from '@/lib/region'
 
 const CART_KEY = ['me', 'cart'] as const
 
 export function CartPage() {
+  const { currency } = useRegion()
   usePageTitle('السلة')
   const t = useCopy()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const cart = useQuery({ queryKey: CART_KEY, queryFn: () => cartApi.get('EGP') })
+  const cart = useQuery({ queryKey: [...CART_KEY, currency], queryFn: () => cartApi.get(currency) })
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: CART_KEY })
@@ -127,14 +129,14 @@ export function CartPage() {
               <aside className="sticky top-27 flex flex-col gap-4 max-lg:static">
                 <div className="flex flex-col gap-3 rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)]">
                   <h2 className="text-xl">ملخّص الطلب</h2>
-                  <Row label="المجموع" value={formatEGP(summary?.subtotal ?? 0)} />
+                  <Row label="المجموع" value={formatMoney(summary?.subtotal ?? 0, currency)} />
                   {!!summary?.discount && (
-                    <Row label="الخصم" value={`− ${formatEGP(summary.discount)}`} accent />
+                    <Row label="الخصم" value={`− ${formatMoney(summary.discount, currency)}`} accent />
                   )}
                   <Row label="الشحن" value={needsShipping ? 'بيتحسب حسب المحافظة' : 'مفيش'} />
                   <div className="mt-1 flex items-baseline justify-between border-t border-divider pt-3">
                     <b className="text-ink">الإجمالي</b>
-                    <b className="font-head text-[28px] text-ink">{formatEGP(summary?.total ?? 0)}</b>
+                    <b className="font-head text-[28px] text-ink">{formatMoney(summary?.total ?? 0, currency)}</b>
                   </div>
                   <p className="text-xs text-muted">عندك كوبون خصم؟ هتكتبه في خطوة الدفع.</p>
                   <button
@@ -205,6 +207,7 @@ function CartRow({
   onQty: (q: number) => void
   onRemove: () => void
 }) {
+  const { currency } = useRegion()
   const item = line.item
   const label =
     line.itemType === 'BOOK' && item?.formatType
@@ -241,8 +244,8 @@ function CartRow({
       </div>
       {canChangeQty && <QuantityStepper value={line.quantity} max={item?.stock ?? 99} onChange={onQty} />}
       <span className="flex w-24 flex-col items-end">
-        <b className="text-lg text-ink">{formatEGP(line.lineTotal)}</b>
-        {line.lineDiscount > 0 && <s className="text-xs text-muted-2">{formatEGP(line.lineSubtotal)}</s>}
+        <b className="text-lg text-ink">{formatMoney(line.lineTotal, currency)}</b>
+        {line.lineDiscount > 0 && <s className="text-xs text-muted-2">{formatMoney(line.lineSubtotal, currency)}</s>}
       </span>
       <button
         type="button"

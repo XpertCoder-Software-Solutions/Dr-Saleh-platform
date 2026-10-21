@@ -13,8 +13,9 @@ import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { bookStartPrice, productPrice } from '@/lib/catalog'
-import { formatEGP, minutesLabel, readingMinutes } from '@/lib/format'
+import { formatMoney, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { useRegion } from '@/lib/region'
 
 type Tab = 'all' | 'courses' | 'articles' | 'shop'
 
@@ -25,6 +26,7 @@ const rowClass =
 
 /** One search box across courses, articles, books and products. */
 export function SearchPage() {
+  const { currency } = useRegion()
   const t = useCopy()
   const [params, setParams] = useSearchParams()
   const q = (params.get('q') ?? '').trim()
@@ -224,8 +226,8 @@ export function SearchPage() {
                           <b className="text-ink">{b.titleAr}</b>
                           <span className="text-xs text-muted">كتاب</span>
                         </span>
-                        {bookStartPrice(b) != null && (
-                          <b className="text-ink">من {formatEGP(bookStartPrice(b))}</b>
+                        {bookStartPrice(b, currency) != null && (
+                          <b className="text-ink">من {formatMoney(bookStartPrice(b, currency), currency)}</b>
                         )}
                       </Link>
                     ))}
@@ -238,7 +240,7 @@ export function SearchPage() {
                           <b className="text-ink">{p.name}</b>
                           <span className="text-xs text-muted">منتج · {p.category?.nameAr}</span>
                         </span>
-                        <b className="text-ink">{formatEGP(productPrice(p).current)}</b>
+                        <b className="text-ink">{formatMoney(productPrice(p, currency).current, currency)}</b>
                       </Link>
                     ))}
                   </div>

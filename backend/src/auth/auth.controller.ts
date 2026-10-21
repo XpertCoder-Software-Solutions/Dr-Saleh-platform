@@ -35,6 +35,7 @@ import {
   AuthService,
   LoginResult,
   MessageResult,
+  OtpSentResult,
   RefreshTokenResult,
   RegisterResult,
 } from './auth.service';
@@ -151,7 +152,7 @@ export class AuthController {
   })
   resendEmailVerification(
     @Body() resendEmailVerificationDto: ResendEmailVerificationDto,
-  ): Promise<MessageResult> {
+  ): Promise<OtpSentResult> {
     return this.authService.resendEmailVerification(resendEmailVerificationDto);
   }
 
@@ -260,7 +261,7 @@ export class AuthController {
   forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @Req() request: Request,
-  ): Promise<MessageResult> {
+  ): Promise<OtpSentResult> {
     return this.authService.forgotPassword(
       forgotPasswordDto,
       this.getAuditContext(request),

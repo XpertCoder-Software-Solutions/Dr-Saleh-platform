@@ -14,9 +14,10 @@ import { EmptyState, ErrorState } from '@/components/ui/States'
 import { Highlight } from '@/components/ui/Highlight'
 import { cn } from '@/lib/cn'
 import { activeFormats, FORMAT_LABEL, formatPrice } from '@/lib/catalog'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormatType } from '@/types/api'
+import { useRegion } from '@/lib/region'
 
 const FORMAT_TABS: { id: '' | BookFormatType; label: string }[] = [
   { id: '', label: 'الكل' },
@@ -174,6 +175,7 @@ export function LibraryPage() {
 }
 
 function FeaturedBook({ book }: { book: Book }) {
+  const { currency } = useRegion()
   const formats = activeFormats(book)
   const [head, ...tail] = book.titleAr.split(' ')
   return (
@@ -188,14 +190,14 @@ function FeaturedBook({ book }: { book: Book }) {
         <p className="line-clamp-3 leading-loose text-muted">{book.descriptionAr}</p>
         <div className="flex flex-wrap gap-2.5">
           {formats.map((f) => {
-            const p = formatPrice(f, book).current
+            const p = formatPrice(f, book, currency).current
             return (
               <span
                 key={f.id}
                 className="flex flex-col rounded-xl border border-line bg-white px-3.5 py-2 text-center"
               >
                 <b className="text-ink">{FORMAT_LABEL[f.formatType]}</b>
-                {p != null && <span className="text-[13px] font-bold text-gold-ink">{formatEGP(p)}</span>}
+                {p != null && <span className="text-[13px] font-bold text-gold-ink">{formatMoney(p, currency)}</span>}
               </span>
             )
           })}

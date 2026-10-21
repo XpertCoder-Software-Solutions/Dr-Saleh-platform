@@ -3,7 +3,6 @@ import {
   useState,
   type InputHTMLAttributes,
   type ReactNode,
-  type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react'
 import { Icon } from '@/components/ui/Icon'
@@ -197,35 +196,6 @@ export function TextAreaField({ label, error, hint, labelAside, className, ...re
   )
 }
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label: string
-  error?: string | null
-  options: { value: string; label: string }[]
-  placeholder?: string
-}
-
-export function SelectField({ label, error, options, placeholder, className, ...rest }: SelectProps) {
-  const id = useId()
-  return (
-    <FieldFrame id={id} label={label} error={error}>
-      <select
-        id={id}
-        className={cn(inputClass, 'appearance-auto', className)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-err` : undefined}
-        {...rest}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </FieldFrame>
-  )
-}
-
 /** A set of pill buttons acting as one radio group (e.g. consultation type). */
 export function ChoiceChips<T extends string>({
   label,
@@ -275,7 +245,19 @@ export function CheckField({
 }: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { label: ReactNode }) {
   return (
     <label className="flex cursor-pointer items-start gap-2.5 text-[15px] text-text-2">
-      <input type="checkbox" className="mt-0.5 size-5 flex-none accent-blue-600" {...rest} />
+      <span className="relative mt-0.5 flex size-5.5 flex-none">
+        <input
+          type="checkbox"
+          className="peer size-full cursor-pointer appearance-none rounded-md border-[1.5px] border-line-2 bg-white transition-colors checked:border-navy checked:bg-navy focus-visible:shadow-[0_0_0_4px_rgba(61,155,216,.25)] focus-visible:outline-none"
+          {...rest}
+        />
+        <Icon
+          name="check"
+          size={14}
+          strokeWidth={3}
+          className="pointer-events-none absolute inset-0 m-auto text-white opacity-0 peer-checked:opacity-100"
+        />
+      </span>
       <span>{label}</span>
     </label>
   )
@@ -309,3 +291,5 @@ export function PasswordRules({ password }: { password: string }) {
     </ul>
   )
 }
+
+export { SelectField, type SelectOption } from './Select'

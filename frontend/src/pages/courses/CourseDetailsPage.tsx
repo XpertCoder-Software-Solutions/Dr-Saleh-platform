@@ -14,7 +14,8 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { buttonClass, inputClass, innerClass, sectionClass } from '@/components/ui/button'
 import { Alert, EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { coursePrice, durationLabel, formatDate, formatEGP, lessonsLabel } from '@/lib/format'
+import { coursePrice, durationLabel, formatDate, formatMoney, lessonsLabel } from '@/lib/format'
+import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Course, CourseReview, CourseSection } from '@/types/api'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -379,7 +380,7 @@ function BuyCard({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const wishlist = useWishlist('COURSE')
-  const [currency, setCurrency] = useState<'EGP' | 'USD'>('EGP')
+  const { currency } = useRegion()
   const [error, setError] = useState<string | null>(null)
 
   const owned = useQuery({
@@ -389,16 +390,9 @@ function BuyCard({
   })
   const isOwned = (owned.data ?? []).some((c) => c.courseId === course.id)
 
-  const price = coursePrice(course)
-  const usdDiscounted = course.discountPriceUSD != null && course.discountPriceUSD < course.priceUSD
-  const shown =
-    currency === 'EGP'
-      ? { current: price.current, old: price.old }
-      : {
-          current: usdDiscounted ? course.discountPriceUSD! : course.priceUSD,
-          old: usdDiscounted ? course.priceUSD : null,
-        }
-  const fmt = (n: number) => (currency === 'EGP' ? formatEGP(n) : `$${n}`)
+  const price = coursePrice(course, currency)
+  const shown = { current: price.current, old: price.old }
+  const fmt = (n: number) => formatMoney(n, currency)
 
   const addToCart = useMutation({
     mutationFn: () => api.post('/cart/items', { itemType: 'COURSE', itemId: course.id, quantity: 1 }),
@@ -485,24 +479,6 @@ function BuyCard({
                 خصم {price.discountPercent}%
               </span>
             )}
-          </div>
-          <div
-            className="grid grid-cols-2 rounded-[14px] bg-surface p-1"
-            role="radiogroup"
-            aria-label="العملة"
-          >
-            {(['EGP', 'USD'] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                role="radio"
-                aria-checked={currency === c}
-                onClick={() => setCurrency(c)}
-                className="min-h-10.5 rounded-[10px] border-0 bg-transparent font-bold text-muted aria-checked:bg-white aria-checked:text-ink aria-checked:shadow-[0_4px_12px_-6px_rgba(12,42,74,.3)]"
-              >
-                {c === 'EGP' ? 'جنيه مصري' : 'دولار أمريكي'}
-              </button>
-            ))}
           </div>
           {error && <Alert tone="error">{error}</Alert>}
           <button

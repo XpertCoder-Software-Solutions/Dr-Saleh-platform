@@ -8,7 +8,8 @@ import { Icon } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/States'
 import { CARD_GRADS, pickBySeed, productPrice } from '@/lib/catalog'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
+import { useRegion } from '@/lib/region'
 
 export function ProductImage({ product, className }: { product: StoreProduct; className?: string }) {
   const src = resolveAssetUrl(product.coverImage)
@@ -27,7 +28,8 @@ export function ProductImage({ product, className }: { product: StoreProduct; cl
 }
 
 export function ProductCard({ product }: { product: StoreProduct }) {
-  const price = productPrice(product)
+  const { currency } = useRegion()
+  const price = productPrice(product, currency)
   const cart = useAddToCart()
   const [added, setAdded] = useState(false)
   const outOfStock = product.stock <= 0
@@ -50,7 +52,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         <ProductImage product={product} className="h-52 rounded-[18px] max-sm:h-40" />
         {off > 0 && (
           <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-ink">
-            وفّر {formatEGP(price.old! - price.current)}
+            وفّر {formatMoney(price.old! - price.current, currency)}
           </span>
         )}
       </div>
@@ -63,9 +65,9 @@ export function ProductCard({ product }: { product: StoreProduct }) {
       </div>
       <div className="flex items-center justify-between gap-2 px-2 pt-1">
         <span className="flex flex-col">
-          <b className="font-head text-xl text-ink">{formatEGP(price.current)}</b>
+          <b className="font-head text-xl text-ink">{formatMoney(price.current, currency)}</b>
           <span className={outOfStock ? 'text-xs text-danger' : 'text-xs text-muted'}>
-            {outOfStock ? 'نفد من المخزن' : price.old ? <s>{formatEGP(price.old)}</s> : 'متوفر'}
+            {outOfStock ? 'نفد من المخزن' : price.old ? <s>{formatMoney(price.old, currency)}</s> : 'متوفر'}
           </span>
         </span>
         <button

@@ -15,6 +15,8 @@ import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { EmptyState, ErrorState } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { useRegion, type Currency } from '@/lib/region'
+import { formatMoney } from '@/lib/format'
 
 const PAGE_SIZE = 9
 
@@ -29,6 +31,10 @@ export function CoursesPage() {
   const [params, setParams] = useSearchParams()
   const search = params.get('q') ?? ''
   const categoryId = params.get('cat') ?? ''
+  const { currency } = useRegion()
+  const minPrice = priceParam(params.get('min'))
+  const maxPrice = priceParam(params.get('max'))
+  const hasPrice = minPrice !== undefined || maxPrice !== undefined
   const page = Math.max(1, Number(params.get('page')) || 1)
 
   // The input follows the URL (back/forward, clear filters) but stays editable.
@@ -39,7 +45,15 @@ export function CoursesPage() {
     setDraft(search)
   }
 
-  const query = { page, limit: PAGE_SIZE, search: search || undefined, categoryId: categoryId || undefined }
+  const query = {
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+    categoryId: categoryId || undefined,
+    minPrice,
+    maxPrice,
+    priceCurrency: hasPrice ? currency : undefined,
+  }
   const list = useQuery({
     queryKey: ['courses', 'list', query],
     queryFn: () => coursesApi.list(query),
@@ -73,7 +87,7 @@ export function CoursesPage() {
   const courses = list.data?.courses ?? []
   const pagination = list.data?.pagination
   const totalCount = total.data?.pagination.total
-  const filtered = Boolean(search || categoryId)
+  const filtered = Boolean(search || categoryId || hasPrice)
   const clearAll = () => setParams(new URLSearchParams())
 
   return (
@@ -170,6 +184,18 @@ export function CoursesPage() {
                   </button>
                 ))}
               </div>
+              <PriceFilter
+                currency={currency}
+                min={minPrice}
+                max={maxPrice}
+                onChange={(min, max) =>
+                  update({
+                    min: min === undefined ? null : String(min),
+                    max: max === undefined ? null : String(max),
+                    page: null,
+                  })
+                }
+              />
             </div>
 
             <div className="relative flex min-h-37.5 flex-col gap-2 overflow-hidden rounded-card bg-linear-160 from-gold-soft to-gold-light py-5 ps-5 pe-24 max-md:hidden">
@@ -259,6 +285,116 @@ export function CoursesPage() {
       </section>
 
       <CTABand />
+    </>
+  )
+}
+
+function priceParam(v: string | null): number | undefined {
+  if (v === null || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) && n >= 0 ? n : undefined
+}
+
+/** Ready-made ranges per currency; the last one has no upper bound. */
+const PRICE_RANGES: Record<Currency, { min?: number; max?: number }[]> = {
+  EGP: [{ min: 0, max: 0 }, { min: 1, max: 300 }, { min: 300, max: 600 }, { min: 600 }],
+  USD: [{ min: 0, max: 0 }, { min: 0.01, max: 10 }, { min: 10, max: 20 }, { min: 20 }],
+}
+
+function rangeLabel(r: { min?: number; max?: number }, currency: Currency) {
+  if (r.max === 0) return 'مجانًا'
+  if (r.max === undefined) return `أكتر من ${formatMoney(r.min ?? 0, currency)}`
+  if (!r.min || r.min <= 1) return `لحد ${formatMoney(r.max, currency)}`
+  return `${formatMoney(r.min, currency)} – ${formatMoney(r.max, currency)}`
+}
+
+function PriceFilter({
+  currency,
+  min,
+  max,
+  onChange,
+}: {
+  currency: Currency
+  min?: number
+  max?: number
+  onChange: (min?: number, max?: number) => void
+}) {
+  const ranges = PRICE_RANGES[currency]
+  const isRange = (r: { min?: number; max?: number }) => r.min === min && r.max === max
+  // The boxes show only a hand-typed range, not one of the ready-made ones.
+  const boxValue = (v?: number) => (v === undefined || ranges.some(isRange) ? '' : String(v))
+  const [from, setFrom] = useState(boxValue(min))
+  const [to, setTo] = useState(boxValue(max))
+  const [last, setLast] = useState(`${min}|${max}`)
+  if (last !== `${min}|${max}`) {
+    setLast(`${min}|${max}`)
+    setFrom(boxValue(min))
+    setTo(boxValue(max))
+  }
+  const custom = (min !== undefined || max !== undefined) && !ranges.some(isRange)
+  const num = (v: string) => (v.trim() === '' ? undefined : Math.max(0, Number(v.replace(/[^\d.]/g, '')) || 0))
+
+  return (
+    <>
+      <span className="mt-2 text-sm font-bold text-ink">السعر</span>
+      <div className="flex flex-col gap-1.5 max-md:flex-row max-md:flex-wrap" role="radiogroup" aria-label="السعر">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={min === undefined && max === undefined}
+          className={categoryBtn}
+          onClick={() => onChange(undefined, undefined)}
+        >
+          كل الأسعار
+        </button>
+        {ranges.map((r) => (
+          <button
+            key={`${r.min}-${r.max}`}
+            type="button"
+            role="radio"
+            aria-checked={isRange(r)}
+            className={categoryBtn}
+            onClick={() => onChange(r.min, r.max)}
+          >
+            {rangeLabel(r, currency)}
+          </button>
+        ))}
+      </div>
+      <form
+        className={cn('mt-1 flex items-center gap-2 rounded-xl p-1', custom && 'bg-surface-blue')}
+        onSubmit={(e) => {
+          e.preventDefault()
+          const a = num(from)
+          const b = num(to)
+          if (a !== undefined && b !== undefined && a > b) onChange(b, a)
+          else onChange(a, b)
+        }}
+        aria-label="سعر مخصص"
+      >
+        <input
+          inputMode="decimal"
+          placeholder="من"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          aria-label={`أقل سعر (${currency === 'USD' ? 'دولار' : 'جنيه'})`}
+          className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-line-2 bg-white px-2.5 text-center text-sm outline-none focus:border-blue-400"
+        />
+        <span className="text-muted">–</span>
+        <input
+          inputMode="decimal"
+          placeholder="إلى"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          aria-label={`أعلى سعر (${currency === 'USD' ? 'دولار' : 'جنيه'})`}
+          className="h-10 w-full min-w-0 rounded-[10px] border-[1.5px] border-line-2 bg-white px-2.5 text-center text-sm outline-none focus:border-blue-400"
+        />
+        <button
+          type="submit"
+          className="h-10 flex-none rounded-[10px] border-0 bg-navy px-3 text-sm font-bold text-white"
+        >
+          تطبيق
+        </button>
+      </form>
     </>
   )
 }

@@ -18,9 +18,10 @@ import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { Highlight } from '@/components/ui/Highlight'
 import { cn } from '@/lib/cn'
 import { CARD_GRADS, pickBySeed, productPrice } from '@/lib/catalog'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { useRegion } from '@/lib/region'
 
 const TRUST: { icon: IconName; text: string }[] = [
   { icon: 'truck', text: 'توصيل لكل المحافظات' },
@@ -61,13 +62,14 @@ export function ProductDetailsPage() {
 }
 
 function ProductDetails({ product }: { product: StoreProduct }) {
+  const { currency } = useRegion()
   const t = useCopy()
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cart = useAddToCart()
   const wishlist = useWishlist('PRODUCT')
-  const price = productPrice(product)
+  const price = productPrice(product, currency)
   const outOfStock = product.stock <= 0
   const [head, ...tail] = product.name.split(' ')
   const [lead, ...rest] = product.description.split(/\n+/).filter(Boolean)
@@ -153,9 +155,9 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-baseline gap-2">
                       <span className="text-sm text-muted">الإجمالي</span>
-                      <b className="font-head text-2xl text-ink">{formatEGP(price.current * qty)}</b>
+                      <b className="font-head text-2xl text-ink">{formatMoney(price.current * qty, currency)}</b>
                       {price.old != null && (
-                        <s className="text-sm text-muted-2">{formatEGP(price.old * qty)}</s>
+                        <s className="text-sm text-muted-2">{formatMoney(price.old * qty, currency)}</s>
                       )}
                     </span>
                     <QuantityStepper value={qty} onChange={setQty} max={product.stock} />

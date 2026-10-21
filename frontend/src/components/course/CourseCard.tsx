@@ -3,8 +3,9 @@ import type { CourseSummary } from '@/types/api'
 import { routes } from '@/app/routes'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
-import { coursePrice, durationLabel, formatEGP, lessonsLabel } from '@/lib/format'
+import { coursePrice, durationLabel, formatMoney, lessonsLabel } from '@/lib/format'
 import { CourseCover } from './CourseCover'
+import { useRegion } from '@/lib/region'
 
 const NEW_DAYS = 30
 // Captured once per page load; precise enough for a "new" badge.
@@ -19,8 +20,9 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishlist }: CourseCardProps) {
+  const { currency } = useRegion()
   const catalog = variant === 'catalog'
-  const price = coursePrice(course)
+  const price = coursePrice(course, currency)
   const isNew = LOADED_AT - new Date(course.createdAt).getTime() < NEW_DAYS * 86_400_000
   const badge = price.discountPercent > 0 ? `خصم ${price.discountPercent}%` : isNew ? 'جديد' : null
   const category = course.category?.nameAr ?? null
@@ -89,9 +91,9 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
         <div className="mt-auto flex items-center justify-between border-t border-divider pt-3.5">
           <span className="flex items-baseline gap-2">
             <span className={cn('text-ink-grad font-bold', catalog ? 'text-xl' : 'text-[23px]')}>
-              {price.isFree ? 'مجانًا' : formatEGP(price.current)}
+              {price.isFree ? 'مجانًا' : formatMoney(price.current, currency)}
             </span>
-            {price.old !== null && <s className="text-[15px] text-muted-2">{formatEGP(price.old)}</s>}
+            {price.old !== null && <s className="text-[15px] text-muted-2">{formatMoney(price.old, currency)}</s>}
           </span>
           {course.ratingAverage != null && (
             <span
