@@ -41,6 +41,8 @@ services:
       API_PREFIX: api
       SWAGGER_ENABLED: "true"
       DEMO_SEED: "true"
+      # Codes are shown on screen instead of emailed (never set this in production).
+      EXPOSE_DEV_OTP: "true"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/drsaleh?schema=public
       REDIS_HOST: redis
       REDIS_PORT: "6379"

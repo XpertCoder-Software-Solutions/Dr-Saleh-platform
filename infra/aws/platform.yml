@@ -89,6 +89,44 @@ Resources:
           return request;
         }
 
+  # GET /geo -> {"country":"EG"} for the visitor (prices in EGP inside Egypt, USD elsewhere).
+  # Answered by the function at the edge; nothing reaches the bucket.
+  GeoFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: dr-saleh-geo
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Returns the visitor's country from CloudFront-Viewer-Country
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var h = event.request.headers['cloudfront-viewer-country'];
+          var country = h && h.value ? h.value : '';
+          return {
+            statusCode: 200,
+            statusDescription: 'OK',
+            headers: {
+              'content-type': { value: 'application/json' },
+              'cache-control': { value: 'no-store' }
+            },
+            body: JSON.stringify({ country: country })
+          };
+        }
+
+  # Makes CloudFront add CloudFront-Viewer-Country so GeoFunction can read it.
+  GeoOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: dr-saleh-viewer-country
+        Comment: Adds CloudFront-Viewer-Country for /geo
+        CookiesConfig: { CookieBehavior: none }
+        QueryStringsConfig: { QueryStringBehavior: none }
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers: [CloudFront-Viewer-Country]
+
   OriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -129,6 +167,16 @@ Resources:
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt SpaRewriteFunction.FunctionMetadata.FunctionARN
+        CacheBehaviors:
+          - PathPattern: /geo
+            TargetOriginId: site
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+            OriginRequestPolicyId: !Ref GeoOriginRequestPolicy
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt GeoFunction.FunctionMetadata.FunctionARN
 
   SiteBucketPolicy:
     Type: AWS::S3::BucketPolicy

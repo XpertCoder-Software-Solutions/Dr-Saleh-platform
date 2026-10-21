@@ -7,10 +7,10 @@ import { routes } from '@/app/routes'
 import { PageHero } from '@/components/layout/PageHero'
 import { Icon } from '@/components/ui/Icon'
 import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
-import { CheckField, ChoiceChips, SelectField, TextAreaField, TextField } from '@/components/ui/fields'
+import { CheckField, ChoiceChips, TextAreaField, TextField } from '@/components/ui/fields'
+import { CountrySelectField } from '@/components/ui/CountrySelect'
 import { Alert, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
-import { COUNTRIES } from '@/lib/countries'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Gender } from '@/types/api'
 import { ConsultSuccess } from './ConsultSuccess'
@@ -182,22 +182,19 @@ export function ConsultationPage() {
                   />
                 </div>
                 <div className="grid grid-cols-[1.3fr_0.7fr_1fr] gap-4 max-sm:grid-cols-2">
-                  <SelectField
+                  <CountrySelectField
                     label="الدولة"
                     value={form.country}
-                    onChange={(e) => set('country', e.target.value)}
-                    options={COUNTRIES.map((c) => ({ value: c, label: c }))}
+                    onChange={(v) => set('country', v)}
                     className="max-sm:col-span-2"
                   />
                   <TextField
                     label="السن"
-                    type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={120}
+                    maxLength={3}
                     placeholder="35"
                     value={form.age}
-                    onChange={(e) => set('age', e.target.value)}
+                    onChange={(e) => set('age', e.target.value.replace(/\D/g, ''))}
                     error={errors.age}
                   />
                   <ChoiceChips

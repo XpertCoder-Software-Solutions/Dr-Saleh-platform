@@ -271,7 +271,12 @@ type CourseProgressClient = Pick<
   'lesson' | 'userCourse' | 'userLessonProgress'
 >;
 
-const LESSON_COMPLETION_THRESHOLD_PERCENTAGE = 90;
+/**
+ * A video lesson counts as complete once this share of it has actually been watched
+ * (the player reports watched coverage, not the playhead position, so skipping to the
+ * end does not complete it). PDF lessons are completed explicitly.
+ */
+const LESSON_COMPLETION_THRESHOLD_PERCENTAGE = 95;
 
 @Injectable()
 export class CoursesService {
@@ -1006,6 +1011,20 @@ export class CoursesService {
     );
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Progress only moves forward: re-watching a finished lesson keeps it complete.
+      const existing = await tx.userLessonProgress.findUnique({
+        where: { userId_lessonId: { userId, lessonId } },
+        select: { isCompleted: true, completionPercentage: true },
+      });
+      if (existing) {
+        normalizedProgress.isCompleted =
+          existing.isCompleted || normalizedProgress.isCompleted;
+        normalizedProgress.completionPercentage = Math.max(
+          Number(existing.completionPercentage),
+          normalizedProgress.completionPercentage,
+        );
+      }
+
       const progress = await tx.userLessonProgress.upsert({
         where: {
           userId_lessonId: {
@@ -1629,6 +1648,11 @@ export class CoursesService {
       where.isFeatured = query.isFeatured;
     }
 
+    const priceRange = this.buildPriceRangeWhere(query);
+    if (priceRange) {
+      where.AND = [priceRange];
+    }
+
     if (query.search) {
       where.OR = [
         { titleAr: { contains: query.search, mode: 'insensitive' } },
@@ -1651,6 +1675,35 @@ export class CoursesService {
     }
 
     return where;
+  }
+
+  /** Filters on the price the buyer pays: the discount price when set, otherwise the list price. */
+  private buildPriceRangeWhere(
+    query: CourseQueryDto,
+  ): Prisma.CourseWhereInput | null {
+    if (query.minPrice === undefined && query.maxPrice === undefined) {
+      return null;
+    }
+
+    const range: Prisma.DecimalFilter<'Course'> = {};
+    if (query.minPrice !== undefined) range.gte = query.minPrice;
+    if (query.maxPrice !== undefined) range.lte = query.maxPrice;
+
+    if (query.priceCurrency === 'USD') {
+      return {
+        OR: [
+          { discountPriceUSD: range },
+          { discountPriceUSD: null, priceUSD: range },
+        ],
+      };
+    }
+
+    return {
+      OR: [
+        { discountPriceEGP: range },
+        { discountPriceEGP: null, priceEGP: range },
+      ],
+    };
   }
 
   private validateDiscountPrices({

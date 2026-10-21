@@ -87,7 +87,15 @@ export type RegisterResult = {
   message: string;
   data: {
     user: RegisteredUser;
+    /** Local testing only (EXPOSE_DEV_OTP). */
+    devOtp?: string;
   };
+};
+
+/** Code-sending endpoints; devOtp only with EXPOSE_DEV_OTP outside production. */
+export type OtpSentResult = {
+  message: string;
+  data: { devOtp?: string };
 };
 
 export type MessageResult = {
@@ -220,9 +228,11 @@ export class AuthService {
         { critical: true },
       );
     } catch {
-      throw new ServiceUnavailableException(
-        'Account created, but verification email could not be sent. Please try again later.',
-      );
+      if (!this.devOtp(otp).devOtp) {
+        throw new ServiceUnavailableException(
+          'Account created, but verification email could not be sent. Please try again later.',
+        );
+      }
     }
 
     return {
@@ -230,6 +240,7 @@ export class AuthService {
         'Account created successfully. Verification code sent to your email.',
       data: {
         user,
+        ...this.devOtp(otp),
       },
     };
   }
@@ -331,7 +342,7 @@ export class AuthService {
 
   async resendEmailVerification(
     resendEmailVerificationDto: ResendEmailVerificationDto,
-  ): Promise<MessageResult> {
+  ): Promise<OtpSentResult> {
     const email = this.normalizeEmail(resendEmailVerificationDto.email);
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -383,14 +394,16 @@ export class AuthService {
         { critical: true },
       );
     } catch {
-      throw new ServiceUnavailableException(
-        'Verification email could not be sent. Please try again later.',
-      );
+      if (!this.devOtp(otp).devOtp) {
+        throw new ServiceUnavailableException(
+          'Verification email could not be sent. Please try again later.',
+        );
+      }
     }
 
     return {
       message: 'Verification OTP sent successfully',
-      data: {},
+      data: { ...this.devOtp(otp) },
     };
   }
 
@@ -524,7 +537,7 @@ export class AuthService {
   async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
     auditContext?: AuthAuditContext,
-  ): Promise<MessageResult> {
+  ): Promise<OtpSentResult> {
     const email = this.normalizeEmail(forgotPasswordDto.email);
     const genericResponse = {
       message: 'If this email exists, a password reset OTP has been sent',
@@ -579,9 +592,11 @@ export class AuthService {
         { critical: true },
       );
     } catch {
-      throw new ServiceUnavailableException(
-        'Password reset email could not be sent. Please try again later.',
-      );
+      if (!this.devOtp(otp).devOtp) {
+        throw new ServiceUnavailableException(
+          'Password reset email could not be sent. Please try again later.',
+        );
+      }
     }
 
     this.logAuthAudit({
@@ -593,7 +608,7 @@ export class AuthService {
       auditContext,
     });
 
-    return genericResponse;
+    return { ...genericResponse, data: { ...this.devOtp(otp) } };
   }
 
   /**
@@ -807,6 +822,17 @@ export class AuthService {
       email: user.email,
       role: user.role,
     };
+  }
+
+  /**
+   * Local testing only: with EXPOSE_DEV_OTP=true (and never in production) the code is
+   * returned in the response so it can be used without a working mailbox.
+   */
+  private devOtp(otp: string): { devOtp?: string } {
+    const enabled =
+      process.env.EXPOSE_DEV_OTP === 'true' &&
+      process.env.NODE_ENV !== 'production';
+    return enabled ? { devOtp: otp } : {};
   }
 
   private hashResetToken(token: string): string {

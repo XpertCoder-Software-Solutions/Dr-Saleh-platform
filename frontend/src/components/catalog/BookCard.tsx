@@ -11,8 +11,9 @@ import {
   pickBySeed,
   SHELF_THEMES,
 } from '@/lib/catalog'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
 import type { Book } from '@/types/api'
+import { useRegion } from '@/lib/region'
 
 const bookShadow = 'rounded-[4px_10px_10px_4px] shadow-[-10px_16px_30px_-10px_rgba(12,42,74,.55)]'
 
@@ -58,8 +59,9 @@ export function BookCoverArt({
 }
 
 export function BookCard({ book, showCategory }: { book: Book; showCategory?: boolean }) {
+  const { currency } = useRegion()
   const theme = pickBySeed(SHELF_THEMES, book.id)
-  const price = bookStartPrice(book)
+  const price = bookStartPrice(book, currency)
   const formats = [...new Set(activeFormats(book).map((f) => f.formatType))]
   const hours = audioHours(book)
   return (
@@ -97,7 +99,7 @@ export function BookCard({ book, showCategory }: { book: Book; showCategory?: bo
         )}
         {price !== null && (
           <span className="mt-auto text-[15px] text-muted">
-            يبدأ من <b className="text-lg text-ink">{formatEGP(price)}</b>
+            يبدأ من <b className="text-lg text-ink">{formatMoney(price, currency)}</b>
           </span>
         )}
       </div>

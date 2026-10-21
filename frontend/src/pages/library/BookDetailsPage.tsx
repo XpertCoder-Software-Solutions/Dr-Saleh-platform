@@ -18,10 +18,11 @@ import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { Highlight } from '@/components/ui/Highlight'
 import { cn } from '@/lib/cn'
 import { activeFormats, bookStartPrice, FORMAT_LABEL, formatPrice } from '@/lib/catalog'
-import { durationLabel, formatEGP } from '@/lib/format'
+import { durationLabel, formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormat, BookFormatType } from '@/types/api'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { useRegion } from '@/lib/region'
 
 const FORMAT_ICON: Record<BookFormatType, IconName> = {
   Physical: 'bookClosed',
@@ -68,6 +69,7 @@ export function BookDetailsPage() {
 }
 
 function BookDetails({ book }: { book: Book }) {
+  const { currency } = useRegion()
   const t = useCopy()
   const navigate = useNavigate()
   const formats = activeFormats(book)
@@ -79,7 +81,7 @@ function BookDetails({ book }: { book: Book }) {
   const wishlist = useWishlist('BOOK')
 
   const format = formats.find((f) => f.id === formatId)
-  const price = format ? formatPrice(format, book) : { current: bookStartPrice(book), old: null }
+  const price = format ? formatPrice(format, book, currency) : { current: bookStartPrice(book, currency), old: null }
   const physical = format?.formatType === 'Physical'
   const outOfStock = physical && (format?.stock ?? 0) <= 0
   const [head, ...tail] = book.titleAr.split(' ')
@@ -200,7 +202,7 @@ function BookDetails({ book }: { book: Book }) {
                     ) : (
                       <>
                         {t('cta.addToCart')}
-                        {price.current != null && ` · ${formatEGP(price.current * (physical ? qty : 1))}`}
+                        {price.current != null && ` · ${formatMoney(price.current * (physical ? qty : 1), currency)}`}
                       </>
                     )}
                   </button>
@@ -291,7 +293,8 @@ function FormatOption({
   selected: boolean
   onPick: () => void
 }) {
-  const price = formatPrice(format, book)
+  const { currency } = useRegion()
+  const price = formatPrice(format, book, currency)
   return (
     <button
       type="button"
@@ -304,9 +307,9 @@ function FormatOption({
       <b className="text-ink">{FORMAT_LABEL[format.formatType]}</b>
       {price.current != null && (
         <span className="text-[15px] font-bold text-ink">
-          {formatEGP(price.current)}
+          {formatMoney(price.current, currency)}
           {price.old != null && (
-            <s className="ms-1.5 text-xs font-normal text-muted-2">{formatEGP(price.old)}</s>
+            <s className="ms-1.5 text-xs font-normal text-muted-2">{formatMoney(price.old, currency)}</s>
           )}
         </span>
       )}
@@ -315,6 +318,7 @@ function FormatOption({
 }
 
 function MoreBooks({ current }: { current: Book }) {
+  const { currency } = useRegion()
   const { data } = useQuery({ queryKey: ['books'], queryFn: booksApi.list })
   const others = (data ?? []).filter((b) => b.isActive && b.id !== current.id).slice(0, 4)
   if (!others.length) return null
@@ -329,7 +333,7 @@ function MoreBooks({ current }: { current: Book }) {
         />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
           {others.map((b) => {
-            const p = bookStartPrice(b)
+            const p = bookStartPrice(b, currency)
             return (
               <Link
                 key={b.id}
@@ -344,7 +348,7 @@ function MoreBooks({ current }: { current: Book }) {
                       .map((f) => FORMAT_LABEL[f.formatType])
                       .join(' · ')}
                   </span>
-                  {p != null && <b className="text-ink">{formatEGP(p)}</b>}
+                  {p != null && <b className="text-ink">{formatMoney(p, currency)}</b>}
                 </span>
               </Link>
             )

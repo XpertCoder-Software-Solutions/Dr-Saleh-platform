@@ -7,6 +7,7 @@ import { PageHero } from '@/components/layout/PageHero'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { CheckField, ChoiceChips, SelectField, TextAreaField, TextField } from '@/components/ui/fields'
+import { CountrySelectField } from '@/components/ui/CountrySelect'
 import { Alert, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
@@ -60,7 +61,8 @@ export function ConsultRequestPage() {
     fullName: user?.fullName ?? '',
     whatsApp: '',
     email: user?.email ?? '',
-    city: 'مصر',
+    country: 'مصر',
+    city: '',
     categoryId: '',
     childAge: '',
     relation: '',
@@ -81,7 +83,7 @@ export function ConsultRequestPage() {
         email: form.email.trim(),
         phone: form.whatsApp.trim(),
         whatsApp: form.whatsApp.trim(),
-        country: form.city.trim() || 'غير محدد',
+        country: [form.country, form.city.trim()].filter(Boolean).join('، ') || 'غير محدد',
         gender: user?.gender ?? undefined,
         consultationTopic: category?.name ?? category?.nameAr ?? 'استشارة',
         notes: form.situation.trim(),
@@ -192,9 +194,15 @@ export function ConsultRequestPage() {
                     error={errors.email}
                     hint="بنبعتلك عليه تأكيد الطلب"
                   />
+                  <CountrySelectField
+                    label="الدولة"
+                    value={form.country}
+                    onChange={(v) => set('country', v)}
+                  />
                   <TextField
-                    label="البلد / المدينة"
-                    placeholder="مصر، القاهرة"
+                    label="المدينة"
+                    labelAside={<span className="text-muted">(اختياري)</span>}
+                    placeholder="مثال: القاهرة"
                     value={form.city}
                     onChange={(e) => set('city', e.target.value)}
                   />

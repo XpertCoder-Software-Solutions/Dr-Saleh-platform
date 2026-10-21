@@ -8,7 +8,8 @@ function flagUrl(iso: string) {
   return `/flags/${iso}.svg`
 }
 
-function Flag({ iso, className }: { iso: string; className?: string }) {
+/** Country flag from /public/flags. */
+export function Flag({ iso, className }: { iso: string; className?: string }) {
   return (
     <img
       src={flagUrl(iso)}

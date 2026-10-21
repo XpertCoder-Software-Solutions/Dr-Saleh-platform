@@ -15,6 +15,7 @@ import { TextAreaField } from '@/components/ui/fields'
 import { Alert, ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { formatEGP } from '@/lib/format'
+import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 
 const card = 'rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-sm:p-4'
@@ -32,11 +33,16 @@ export function CheckoutPage() {
   const addresses = useQuery({ queryKey: ['me', 'addresses'], queryFn: addressesApi.list })
   const [addressId, setAddressId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
-  const [currency, setCurrency] = useState<Currency>('EGP')
+  const region = useRegion()
+  // Outside Egypt digital orders default to PayPal (USD); cards/Apple Pay/wallets settle in EGP.
+  const [chosenCurrency, setCurrency] = useState<Currency | null>(null)
   const [notes, setNotes] = useState('')
 
   const lines = cart.data?.cart.items ?? []
   const needsShipping = lines.some(lineNeedsShipping)
+  const currency: Currency = needsShipping
+    ? 'EGP'
+    : (chosenCurrency ?? (region.isEgypt ? 'EGP' : 'USD'))
   const list = (addresses.data?.addresses ?? []).filter((a) => a.isActive)
   const selected = list.find((a) => a.id === (addressId ?? list[0]?.id))
   const shipping = needsShipping ? (selected?.governorate?.shippingCost ?? 0) : 0
@@ -199,9 +205,13 @@ export function CheckoutPage() {
 
               {!needsShipping && (
                 <div className={card}>
-                  <h2 className="mb-1 text-2xl">عملة الدفع</h2>
-                  <p className="mb-4 text-sm text-muted">لو هتدفع بـ PayPal اختار الدولار.</p>
-                  <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="العملة">
+                  <h2 className="mb-1 text-2xl">طريقة الدفع</h2>
+                  <p className="mb-4 text-sm text-muted">
+                    {region.isEgypt
+                      ? 'اختار هتدفع منين. هتأكد الدفع في الخطوة الجاية.'
+                      : 'PayPal بالدولار، أو كارت / Apple Pay بيتخصم بالجنيه المصري.'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1" role="radiogroup" aria-label="طريقة الدفع">
                     {(['EGP', 'USD'] as const).map((c) => (
                       <button
                         key={c}
@@ -211,11 +221,17 @@ export function CheckoutPage() {
                         onClick={() => setCurrency(c)}
                         className="flex flex-col items-start gap-1 rounded-tile border-2 border-line bg-white p-4 text-start aria-checked:border-navy aria-checked:bg-surface-blue"
                       >
-                        <b className="text-ink">{c === 'EGP' ? 'جنيه مصري' : 'دولار أمريكي'}</b>
+                        <b className="text-ink">
+                          {c === 'EGP'
+                            ? region.isEgypt
+                              ? 'Apple Pay · كارت · محفظة'
+                              : 'Apple Pay · كارت'
+                            : 'PayPal'}
+                        </b>
                         <span className="text-sm text-muted">
                           {c === 'EGP'
-                            ? 'Apple Pay · كروت · محافظ'
-                            : `PayPal${usd.data ? ` · $${usd.data.summary.total}` : ''}`}
+                            ? `بالجنيه المصري · ${formatEGP(subtotal)}`
+                            : `بالدولار${usd.data ? ` · $${usd.data.summary.total}` : ''}`}
                         </span>
                       </button>
                     ))}

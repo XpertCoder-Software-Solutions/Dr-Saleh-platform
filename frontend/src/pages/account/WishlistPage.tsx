@@ -12,7 +12,9 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
-import { formatEGP } from '@/lib/format'
+import { formatMoney } from '@/lib/format'
+import { useRegion } from '@/lib/region'
+import { productPrice } from '@/lib/catalog'
 
 type Filter = 'all' | WishlistItemType
 
@@ -98,14 +100,14 @@ export function WishlistPage() {
 }
 
 function WishCard({ row }: { row: WishlistRow }) {
+  const { currency } = useRegion()
   const queryClient = useQueryClient()
   const cart = useAddToCart()
   const [added, setAdded] = useState(false)
   const item = row.item!
   const kind = KIND[row.itemType]
   const img = resolveAssetUrl(item.image)
-  const hasDiscount = item.discountPriceEGP != null && item.discountPriceEGP < item.priceEGP
-  const price = hasDiscount ? item.discountPriceEGP! : item.priceEGP
+  const { current: price, old: listPrice } = productPrice(item, currency)
   const outOfStock = row.itemType === 'PRODUCT' && item.stock === 0
 
   const remove = useMutation({
@@ -147,10 +149,10 @@ function WishCard({ row }: { row: WishlistRow }) {
       </div>
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-divider px-2.5 pt-3 pb-1.5">
         <span className="flex flex-col">
-          <b className="font-head text-lg text-ink">{formatEGP(price)}</b>
-          {hasDiscount && (
+          <b className="font-head text-lg text-ink">{formatMoney(price, currency)}</b>
+          {listPrice !== null && (
             <span className="text-xs font-bold text-success">
-              السعر نزل {formatEGP(item.priceEGP - price)}
+              السعر نزل {formatMoney((listPrice ?? price) - price, currency)}
             </span>
           )}
         </span>
