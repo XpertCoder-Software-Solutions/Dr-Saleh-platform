@@ -65,7 +65,7 @@ export function PricePill({
     : null
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative', open && 'z-50', className)}>
       <div
         className={cn(
           'flex min-h-13 items-center rounded-field border-[1.5px] transition-colors',
@@ -127,14 +127,19 @@ export function PricePill({
             }}
             className="mt-4 flex min-h-11 w-full bg-navy items-center justify-center rounded-xl border-0 font-bold text-white hover:bg-ink"
           >
-            {resultCount === undefined
-              ? 'تمام'
-              : resultCount === 0
-                ? 'مفيش نتايج'
-                : `اعرض ${resultCount} نتيجة`}
+            {resultsLabel(resultCount)}
           </button>
         </div>
       )}
     </div>
   )
+}
+
+/** "اعرض 3 نتايج" with the Arabic count agreement. */
+function resultsLabel(n?: number) {
+  if (n === undefined) return 'تمام'
+  if (n === 0) return 'مفيش نتايج'
+  if (n === 1) return 'اعرض نتيجة واحدة'
+  if (n === 2) return 'اعرض نتيجتين'
+  return `اعرض ${n} ${n <= 10 ? 'نتايج' : 'نتيجة'}`
 }
