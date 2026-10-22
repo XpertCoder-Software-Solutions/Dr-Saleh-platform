@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../database/prisma.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReferralsModule } from '../referrals/referrals.module';
+import { PaymentMethodsController } from './payment-methods.controller';
 import { PaypalPaymentsController } from './paypal-payments.controller';
 import { PaymobPaymentsController } from './paymob-payments.controller';
 import { PaymentsController } from './payments.controller';
@@ -10,6 +11,7 @@ import { PaymentsService } from './payments.service';
 @Module({
   imports: [PrismaModule, ReferralsModule, NotificationsModule],
   controllers: [
+    PaymentMethodsController,
     PaymentsController,
     PaypalPaymentsController,
     PaymobPaymentsController,

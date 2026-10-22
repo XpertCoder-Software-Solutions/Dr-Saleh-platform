@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiClientError } from '@/api/client'
@@ -86,6 +86,13 @@ export function PayPage() {
     queryFn: () => ordersApi.get(orderId),
     select: (d) => d.order,
   })
+  // Providers whose keys aren't set on the server yet are left out of the list.
+  const providers = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: paymentsApi.methods,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  })
 
   if (order.error instanceof ApiClientError && order.error.statusCode === 404) return <NotFoundPage />
   if (order.data && order.data.paymentStatus === 'PAID') {
@@ -123,7 +130,7 @@ export function PayPage() {
         <div className={innerClass}>
           {order.isError ? (
             <ErrorState onRetry={() => order.refetch()} />
-          ) : !order.data ? (
+          ) : !order.data || providers.isPending ? (
             <div className={cn(card, 'flex justify-center py-16 text-blue-600')}>
               <Spinner />
             </div>
@@ -133,7 +140,7 @@ export function PayPage() {
               {order.data.status === 'CANCELLED' ? tx('اتلغى', 'cancelled') : tx('اتقفل', 'closed')}).
             </Alert>
           ) : (
-            <Pay order={order.data} />
+            <Pay order={order.data} providers={providers.data} />
           )}
         </div>
       </section>
@@ -141,16 +148,22 @@ export function PayPage() {
   )
 }
 
-function Pay({ order }: { order: Order }) {
+function Pay({ order, providers }: { order: Order; providers?: { paypal: boolean; paymob: boolean } }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const usd = order.currency === 'USD'
   const region = useRegion()
   // Egyptian mobile wallets are only offered in Egypt; physical orders ship in Egypt and are
   // paid in EGP, so PayPal (USD) is left out for them.
-  const methods = METHODS.filter(
+  const usable = METHODS.filter(
     (m) => (m.id !== 'WALLET' || region.isEgypt) && (!order.hasPhysicalItems || m.currency === 'EGP'),
   )
+  // Without the server's answer (or if nothing is set up yet) keep every method listed,
+  // so the buyer still gets the provider's own error rather than an empty page.
+  const configured = providers
+    ? usable.filter((m) => (m.id === 'PAYPAL' ? providers.paypal : providers.paymob))
+    : usable
+  const methods = configured.length ? configured : usable
   const [method, setMethod] = useState<Method>(
     (methods.find((m) => m.currency === order.currency) ?? methods[0]).id,
   )
@@ -186,6 +199,15 @@ function Pay({ order }: { order: Order }) {
     setMethod(next)
     switchCurrency.mutate(next, { onError: () => setMethod(previous) })
   }
+
+  // The order may be priced in a currency none of the listed methods uses (e.g. a USD order
+  // while PayPal isn't set up): re-price it for the method picked by default.
+  const defaultCurrency = METHODS.find((m) => m.id === method)!.currency
+  useEffect(() => {
+    if (defaultCurrency !== order.currency && switchCurrency.isIdle) switchCurrency.mutate(method)
+    // Runs once for the initial method; later picks go through chooseMethod.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const coupon = useMutation({
     mutationFn: () => couponsApi.apply(order.id, code.trim().toUpperCase()),

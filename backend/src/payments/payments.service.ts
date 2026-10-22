@@ -143,6 +143,7 @@ type RequiredPaypalConfig = {
   clientId: string;
   clientSecret: string;
   baseUrl: string;
+  /** Empty when no webhook is set up; only the webhook handler needs it. */
   webhookId: string;
 };
 
@@ -289,6 +290,13 @@ type PaypalWebhookEvent = {
 
 @Injectable()
 export class PaymentsService {
+  /** PayPal OAuth token, reused until shortly before it expires. */
+  private paypalToken: {
+    key: string;
+    token: string;
+    expiresAt: number;
+  } | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(fawryConfig.KEY)
@@ -534,10 +542,14 @@ export class PaymentsService {
       existingPayment?.providerResponse,
     );
 
+    // Reuse the open PayPal order only while the total is unchanged (a coupon or a
+    // currency switch since then needs a new PayPal order for the new amount).
     if (
       existingPayment?.status === PaymentStatus.PENDING &&
       existingPayment.paypalOrderId &&
-      existingApprovalUrl
+      existingApprovalUrl &&
+      existingPayment.currency === order.currency &&
+      existingPayment.amount.toString() === order.totalAmount.toString()
     ) {
       return {
         message: 'PayPal order already exists',
@@ -555,9 +567,7 @@ export class PaymentsService {
       configuration,
     );
     const paypalOrderId = this.optionalStringValue(paypalOrder.id);
-    const approvalUrl = paypalOrder.links?.find(
-      (link) => link.rel.toLowerCase() === 'approve',
-    )?.href;
+    const approvalUrl = this.findPaypalApprovalUrl(paypalOrder.links ?? []);
 
     if (!paypalOrderId || !approvalUrl) {
       throw new BadGatewayException(
@@ -588,7 +598,7 @@ export class PaymentsService {
     headers: Record<string, unknown>,
     webhookEvent: Record<string, unknown>,
   ): Promise<{ message: string; data: { received: boolean } }> {
-    const configuration = this.getRequiredPaypalConfig();
+    const configuration = this.getRequiredPaypalConfig({ webhook: true });
     const paypalWebhookEvent = webhookEvent as PaypalWebhookEvent;
 
     await this.verifyPaypalWebhook(headers, paypalWebhookEvent, configuration);
@@ -1509,23 +1519,25 @@ export class PaymentsService {
   }
 
   private buildPaypalCreateOrderRequest(order: OrderPaymentRecord) {
-    const { returnUrl, cancelUrl } = this.paypalConfiguration;
+    const { returnUrl, cancelUrl, brandName } = this.paypalConfiguration;
     const withOrder = (url: string) =>
       `${url}${url.includes('?') ? '&' : '?'}orderId=${order.id}&provider=paypal`;
 
     return {
       intent: 'CAPTURE',
-      // Where PayPal sends the buyer back after approving or cancelling.
-      ...(returnUrl
-        ? {
-            application_context: {
-              return_url: withOrder(returnUrl),
-              cancel_url: withOrder(cancelUrl || returnUrl),
-              user_action: 'PAY_NOW',
-              shipping_preference: 'NO_SHIPPING',
-            },
-          }
-        : {}),
+      // Where PayPal sends the buyer back after approving or cancelling; the result page
+      // then asks the API for the status, which captures the approved payment.
+      payment_source: {
+        paypal: {
+          experience_context: {
+            brand_name: brandName,
+            return_url: withOrder(returnUrl),
+            cancel_url: withOrder(cancelUrl),
+            user_action: 'PAY_NOW',
+            shipping_preference: 'NO_SHIPPING',
+          },
+        },
+      },
       purchase_units: [
         {
           reference_id: order.orderNumber,
@@ -1664,15 +1676,61 @@ export class PaymentsService {
     paypalOrder: PaypalOrderResponse,
     webhookEvent?: PaypalWebhookEvent,
   ): Promise<PaymentRecord> {
-    const nextStatus = this.mapPaypalStatus(
+    const capture = this.findPaypalCapture(paypalOrder, webhookEvent);
+    let nextStatus = this.mapPaypalStatus(
       this.toStringValue(paypalOrder.status),
       webhookEvent?.event_type,
     );
+    // A completed PayPal order can still hold a capture that is pending review or was
+    // declined; only a completed capture counts as paid.
+    const captureStatus = this.toStringValue(capture?.status).toUpperCase();
+    if (
+      nextStatus === PaymentStatus.PAID &&
+      captureStatus &&
+      !['COMPLETED', 'PARTIALLY_REFUNDED'].includes(captureStatus)
+    ) {
+      nextStatus =
+        captureStatus === 'PENDING'
+          ? PaymentStatus.PENDING
+          : this.mapPaypalStatus(captureStatus, undefined);
+    }
+
+    // Never mark paid unless PayPal captured exactly the order's total in its currency.
+    let amountMismatch = false;
+    if (nextStatus === PaymentStatus.PAID) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: payment.orderId },
+        select: { totalAmount: true, currency: true },
+      });
+      const paidAmount =
+        capture?.amount ?? paypalOrder.purchase_units?.[0]?.amount;
+      const paidCents = Math.round(Number(paidAmount?.value) * 100);
+      const expectedCents = Math.round(
+        Number(order?.totalAmount.toString() ?? NaN) * 100,
+      );
+      if (
+        !order ||
+        paidCents !== expectedCents ||
+        this.toStringValue(paidAmount?.currency_code).toUpperCase() !==
+          order.currency
+      ) {
+        nextStatus = PaymentStatus.FAILED;
+        amountMismatch = true;
+      }
+    }
+
+    // Paid is final; ignore late events that would move it backwards (refunds aside).
+    if (
+      payment.status === PaymentStatus.PAID &&
+      nextStatus !== PaymentStatus.PAID &&
+      nextStatus !== PaymentStatus.REFUNDED
+    ) {
+      return payment;
+    }
     const paypalOrderId =
       this.optionalStringValue(paypalOrder.id) ??
       payment.paypalOrderId ??
       payment.providerReferenceNumber;
-    const capture = this.findPaypalCapture(paypalOrder, webhookEvent);
     const providerPaymentReference =
       this.optionalStringValue(capture?.id) ??
       this.extractPaypalCaptureIdFromWebhook(webhookEvent) ??
@@ -1708,7 +1766,9 @@ export class PaymentsService {
           providerResponse,
           failureReason:
             nextStatus === PaymentStatus.FAILED
-              ? this.extractPaypalFailureReason(webhookEvent)
+              ? amountMismatch
+                ? 'Paid amount does not match the order total.'
+                : this.extractPaypalFailureReason(webhookEvent)
               : null,
           paidAt:
             nextStatus === PaymentStatus.PAID
@@ -2366,7 +2426,7 @@ export class PaymentsService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'PayPal-Request-Id': `${payment.id}-capture`,
+          'PayPal-Request-Id': `${paypalOrderId}-capture`,
         },
         body: '{}',
       },
@@ -2436,6 +2496,12 @@ export class PaymentsService {
   private async getPaypalAccessToken(
     configuration: RequiredPaypalConfig,
   ): Promise<string> {
+    const cacheKey = `${configuration.baseUrl}|${configuration.clientId}`;
+    const cached = this.paypalToken;
+    if (cached && cached.key === cacheKey && cached.expiresAt > Date.now()) {
+      return cached.token;
+    }
+
     const credentials = Buffer.from(
       `${configuration.clientId}:${configuration.clientSecret}`,
     ).toString('base64');
@@ -2462,6 +2528,14 @@ export class PaymentsService {
         response: body,
       });
     }
+
+    // Reuse the token until a minute before it expires (PayPal issues ~9-hour tokens).
+    const lifetimeSeconds = Number(body.expires_in) || 0;
+    this.paypalToken = {
+      key: cacheKey,
+      token: body.access_token,
+      expiresAt: Date.now() + Math.max(0, lifetimeSeconds - 60) * 1000,
+    };
 
     return body.access_token;
   }
@@ -2595,15 +2669,40 @@ export class PaymentsService {
     return configuration as RequiredFawryConfig;
   }
 
-  private getRequiredPaypalConfig(): RequiredPaypalConfig {
+  /** True once the PayPal credentials are set (the site shows PayPal only then). */
+  isPaypalConfigured(): boolean {
+    return Boolean(
+      this.paypalConfiguration.clientId &&
+      this.paypalConfiguration.clientSecret,
+    );
+  }
+
+  /** True once the Paymob keys and at least one integration are set. */
+  isPaymobConfigured(): boolean {
+    const c = this.paymobConfiguration;
+    return Boolean(
+      c.secretKey &&
+      c.publicKey &&
+      c.hmacSecret &&
+      c.notificationUrl &&
+      c.redirectionUrl &&
+      (c.integrationIdCard || c.integrationIdWallet || c.integrationIdApplePay),
+    );
+  }
+
+  private getRequiredPaypalConfig(
+    options: { webhook?: boolean } = {},
+  ): RequiredPaypalConfig {
     const configuration = {
       clientId: this.paypalConfiguration.clientId,
       clientSecret: this.paypalConfiguration.clientSecret,
       baseUrl: this.paypalConfiguration.baseUrl,
-      webhookId: this.paypalConfiguration.webhookId,
+      webhookId: this.paypalConfiguration.webhookId ?? '',
     };
     const missingKeys = Object.entries(configuration)
-      .filter(([, value]) => !value)
+      .filter(
+        ([key, value]) => !value && (key !== 'webhookId' || options.webhook),
+      )
       .map(([key]) => key);
 
     if (missingKeys.length > 0) {
@@ -2748,8 +2847,11 @@ export class PaymentsService {
     );
   }
 
+  /** The buyer's approval link: "payer-action" with payment_source, "approve" otherwise. */
   private findPaypalApprovalUrl(links: PaypalLink[]): string | undefined {
-    return links.find((link) => link.rel.toLowerCase() === 'approve')?.href;
+    return links.find((link) =>
+      ['payer-action', 'approve'].includes(link.rel.toLowerCase()),
+    )?.href;
   }
 
   private toPaypalLinks(value: unknown): PaypalLink[] {

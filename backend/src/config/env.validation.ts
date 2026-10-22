@@ -72,6 +72,7 @@ export type ValidatedEnvironment = {
   PAYPAL_CLIENT_SECRET?: string;
   PAYPAL_BASE_URL?: string;
   PAYPAL_WEBHOOK_ID?: string;
+  PAYPAL_MODE?: string;
   REFERRAL_REWARD_TYPE: ReferralRewardType;
   REFERRAL_REWARD_VALUE: string;
   REFERRAL_COUPON_EXPIRES_DAYS: string;
@@ -273,6 +274,19 @@ export function validateEnv(
     errors.push('PAYPAL_BASE_URL must be a valid URL.');
   }
 
+  const paypalMode = optionalString(config.PAYPAL_MODE).toLowerCase();
+
+  if (paypalMode.length > 0 && !['live', 'sandbox'].includes(paypalMode)) {
+    errors.push('PAYPAL_MODE must be "live" or "sandbox".');
+  }
+
+  for (const key of ['PAYPAL_RETURN_URL', 'PAYPAL_CANCEL_URL'] as const) {
+    const value = optionalString(config[key]);
+    if (value.length > 0 && !isUrlLike(value)) {
+      errors.push(`${key} must be a valid URL.`);
+    }
+  }
+
   const referralRewardType = toEnum(
     'REFERRAL_REWARD_TYPE',
     config.REFERRAL_REWARD_TYPE,
@@ -380,6 +394,7 @@ export function validateEnv(
     PAYPAL_CLIENT_SECRET: optionalString(config.PAYPAL_CLIENT_SECRET),
     PAYPAL_BASE_URL: paypalBaseUrl,
     PAYPAL_WEBHOOK_ID: optionalString(config.PAYPAL_WEBHOOK_ID),
+    PAYPAL_MODE: paypalMode,
     REFERRAL_REWARD_TYPE: referralRewardType,
     REFERRAL_REWARD_VALUE: referralRewardValue,
     REFERRAL_COUPON_EXPIRES_DAYS: toIntegerString(

@@ -378,3 +378,156 @@ function createNotificationOrder() {
     },
   };
 }
+
+describe('PaymentsService PayPal', () => {
+  let prisma: MockPrismaClient;
+  let service: PaymentsService;
+  type PaypalTestable = {
+    applyPaypalStatusUpdate(
+      payment: Record<string, unknown>,
+      paypalOrder: Record<string, unknown>,
+    ): Promise<{ status: PaymentStatus }>;
+    buildPaypalCreateOrderRequest(order: Record<string, unknown>): {
+      payment_source: {
+        paypal: { experience_context: Record<string, string> };
+      };
+      purchase_units: Array<{
+        amount: { currency_code: string; value: string };
+      }>;
+    };
+    findPaypalApprovalUrl(
+      links: Array<{ rel: string; href: string }>,
+    ): string | undefined;
+  };
+  const testable = () => service as unknown as PaypalTestable;
+
+  const pending = () => ({
+    ...createPendingPayment(),
+    amount: new Prisma.Decimal(25),
+    currency: Currency.USD,
+    provider: PaymentProvider.PAYPAL,
+    method: PaymentMethod.PAYPAL_CHECKOUT,
+    paypalOrderId: 'PP-ORDER-1',
+  });
+  const paypalOrder = (captureStatus: string, value = '25.00') => ({
+    id: 'PP-ORDER-1',
+    status: 'COMPLETED',
+    purchase_units: [
+      {
+        amount: { currency_code: 'USD', value },
+        payments: {
+          captures: [
+            {
+              id: 'CAPTURE-1',
+              status: captureStatus,
+              amount: { currency_code: 'USD', value },
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  beforeEach(() => {
+    prisma = createPrismaMock();
+    service = new PaymentsService(
+      prisma as unknown as PrismaService,
+      {} as FawryConfig,
+      {
+        mode: 'sandbox',
+        clientId: 'id',
+        clientSecret: 'secret',
+        baseUrl: 'https://api-m.sandbox.paypal.com',
+        webhookId: undefined,
+        returnUrl: 'https://example.com/checkout/result',
+        cancelUrl: 'https://example.com/checkout/result',
+        brandName: 'Dr. Saleh Abdelkarim',
+      },
+      paymobConfig,
+      {
+        rewardReferralAfterFirstPaidOrder: jest.fn(),
+      } as unknown as ReferralsService,
+      {
+        sendCourseAccessGranted: jest.fn(),
+        sendPaymentFailed: jest.fn(),
+        sendPaymentSuccess: jest.fn(),
+      } as unknown as NotificationsService,
+      { logAction: jest.fn() } as unknown as AuditLogService,
+    );
+    prisma.payment.update.mockImplementation(
+      ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ ...pending(), ...data }),
+    );
+    prisma.order.findUnique.mockImplementation(
+      ({ select }: { select?: Record<string, unknown> }) =>
+        Promise.resolve(
+          select?.user === undefined
+            ? { totalAmount: new Prisma.Decimal(25), currency: Currency.USD }
+            : { ...createNotificationOrder(), currency: Currency.USD },
+        ),
+    );
+    prisma.orderItem.findMany.mockResolvedValue([]);
+    prisma.bookFormat.findMany.mockResolvedValue([]);
+  });
+
+  it('is configured with only the client id and secret', () => {
+    expect(service.isPaypalConfigured()).toBe(true);
+  });
+
+  it('sends the buyer back to the result page through experience_context', () => {
+    const body = testable().buildPaypalCreateOrderRequest({
+      id: orderId,
+      orderNumber: 'DS-2026-000001',
+      totalAmount: new Prisma.Decimal(25),
+    });
+    const context = body.payment_source.paypal.experience_context;
+    expect(context.return_url).toBe(
+      `https://example.com/checkout/result?orderId=${orderId}&provider=paypal`,
+    );
+    expect(context.user_action).toBe('PAY_NOW');
+    expect(body.purchase_units[0].amount).toEqual({
+      currency_code: 'USD',
+      value: '25.00',
+    });
+    expect(
+      testable().findPaypalApprovalUrl([
+        { rel: 'self', href: 'https://x/self' },
+        { rel: 'payer-action', href: 'https://paypal/approve' },
+      ]),
+    ).toBe('https://paypal/approve');
+  });
+
+  it('marks the order paid on a completed capture of the full amount', async () => {
+    const result = await testable().applyPaypalStatusUpdate(
+      pending(),
+      paypalOrder('COMPLETED'),
+    );
+    expect(result.status).toBe(PaymentStatus.PAID);
+    expect(prisma.order.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: OrderStatus.PAID }) as unknown,
+      }),
+    );
+  });
+
+  it('does not mark paid when the captured amount differs', async () => {
+    const result = await testable().applyPaypalStatusUpdate(
+      pending(),
+      paypalOrder('COMPLETED', '1.00'),
+    );
+    expect(result.status).toBe(PaymentStatus.FAILED);
+    expect(prisma.order.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: OrderStatus.PAID }) as unknown,
+      }),
+    );
+  });
+
+  it('keeps a capture held for review pending', async () => {
+    const result = await testable().applyPaypalStatusUpdate(
+      pending(),
+      paypalOrder('PENDING'),
+    );
+    expect(result.status).toBe(PaymentStatus.PENDING);
+  });
+});
