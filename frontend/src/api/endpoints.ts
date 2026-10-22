@@ -15,6 +15,7 @@ import type {
 } from '@/types/api'
 import { api } from './client'
 import { toast } from '@/lib/toast'
+import { lang } from '@/lib/i18n'
 
 // ---------- auth ----------
 
@@ -101,7 +102,7 @@ export const coursesApi = {
     api.get<{ reviews: FeaturedReview[] }>('/course-reviews/featured', { params: { limit } }),
 }
 
-export type FeaturedReview = CourseReview & { course: { id: string; titleAr: string } }
+export type FeaturedReview = CourseReview & { course: { id: string; titleAr: string; titleEn?: string } }
 
 // ---------- library ----------
 
@@ -161,11 +162,11 @@ export const productsApi = {
       /** Lowest/highest price on offer (newer APIs only). */
       priceBounds?: Record<Currency, PriceBounds>
     }>('/products', {
-      params: { lang: 'ar', ...query },
+      params: { lang, ...query },
     }),
   bySlug: (slug: string) =>
-    api.get<StoreProduct>(`/products/slug/${encodeURIComponent(slug)}`, { params: { lang: 'ar' } }),
-  categories: () => api.get<NamedCategory[]>('/product-categories', { params: { lang: 'ar' } }),
+    api.get<StoreProduct>(`/products/slug/${encodeURIComponent(slug)}`, { params: { lang } }),
+  categories: () => api.get<NamedCategory[]>('/product-categories', { params: { lang } }),
 }
 
 // ---------- articles ----------
@@ -198,12 +199,12 @@ export interface ArticleQuery {
 export const articlesApi = {
   list: (query: ArticleQuery) =>
     api.get<{ articles: ArticleSummary[]; pagination: Pagination }>('/articles', {
-      params: { lang: 'ar', ...query },
+      params: { lang, ...query },
     }),
   bySlug: (slug: string) =>
-    api.get<ArticleSummary>(`/articles/slug/${encodeURIComponent(slug)}`, { params: { lang: 'ar' } }),
-  categories: () => api.get<NamedCategory[]>('/article-categories', { params: { lang: 'ar' } }),
-  tags: () => api.get<NamedCategory[]>('/article-tags', { params: { lang: 'ar' } }),
+    api.get<ArticleSummary>(`/articles/slug/${encodeURIComponent(slug)}`, { params: { lang } }),
+  categories: () => api.get<NamedCategory[]>('/article-categories', { params: { lang } }),
+  tags: () => api.get<NamedCategory[]>('/article-tags', { params: { lang } }),
 }
 
 // ---------- consultations & contact ----------
@@ -226,7 +227,7 @@ export interface ConsultationRequestInput {
 }
 
 export const consultationsApi = {
-  categories: () => api.get<NamedCategory[]>('/consultation-categories', { params: { lang: 'ar' } }),
+  categories: () => api.get<NamedCategory[]>('/consultation-categories', { params: { lang } }),
   submit: (input: ConsultationRequestInput) => api.post<Record<string, never>>('/consultations', input),
 }
 

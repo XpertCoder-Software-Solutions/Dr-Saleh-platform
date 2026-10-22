@@ -9,6 +9,7 @@ import { buttonClass } from '@/components/ui/button'
 import { EmptyState, Spinner } from '@/components/ui/States'
 import { readAudioPosition, saveAudioPosition } from '@/lib/audio-position'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { loc, tx } from '@/lib/i18n'
 
 /** Reads a digital book (PDF in the browser) or plays an audio book the user owns. */
 export function ReaderPage() {
@@ -16,7 +17,7 @@ export function ReaderPage() {
   const books = useMyBooks()
   const owned = books.data?.items.find((b) => b.bookFormatId === formatId)
   const audio = owned?.formatType === 'Audio'
-  usePageTitle(owned?.book.titleAr ?? 'كتبي')
+  usePageTitle(loc(owned?.book.titleAr, owned?.book.titleEn) ?? tx('كتبي', 'My books'))
 
   const file = useQuery({
     queryKey: ['me', 'book-url', formatId],
@@ -40,11 +41,14 @@ export function ReaderPage() {
       <div className="mx-auto mt-16 max-w-lg rounded-card bg-white p-8">
         <EmptyState
           icon="lock"
-          title="الكتاب ده مش في مكتبتك"
-          body="النسخ الرقمية والصوتية اللي بتشتريها بتظهر في صفحة كتبي."
+          title={tx('الكتاب ده مش في مكتبتك', "This book isn't in your library")}
+          body={tx(
+            'النسخ الرقمية والصوتية اللي بتشتريها بتظهر في صفحة كتبي.',
+            'Digital and audio editions you buy appear in My books.',
+          )}
           action={
             <Link to={routes.myBooks} className={buttonClass({ variant: 'gold' })}>
-              كتبي
+              {tx('كتبي', 'My books')}
             </Link>
           }
         />
@@ -55,11 +59,11 @@ export function ReaderPage() {
       <div className="mx-auto mt-16 max-w-lg rounded-card bg-white p-8">
         <EmptyState
           icon="alert"
-          title="مقدرناش نفتح الملف"
+          title={tx('مقدرناش نفتح الملف', "We couldn't open the file")}
           body={(file.error as Error).message}
           action={
             <button type="button" className={buttonClass({ variant: 'navy' })} onClick={() => file.refetch()}>
-              جرّب تاني
+              {tx('جرّب تاني', 'Try again')}
             </button>
           }
         />
@@ -72,8 +76,10 @@ export function ReaderPage() {
           {cover && <img src={cover} alt="" className="size-full object-cover" />}
         </span>
         <div className="text-center">
-          <h1 className="text-2xl">{owned.book.titleAr}</h1>
-          <p className="text-muted">د. صالح عبد الكريم · كتاب صوتي</p>
+          <h1 className="text-2xl">{loc(owned.book.titleAr, owned.book.titleEn)}</h1>
+          <p className="text-muted">
+            {tx('د. صالح عبد الكريم · كتاب صوتي', 'Dr. Saleh Abdelkarim · Audiobook')}
+          </p>
         </div>
         <audio
           className="w-full"
@@ -91,12 +97,21 @@ export function ReaderPage() {
           }}
           onPause={(e) => saveAudioPosition(formatId, e.currentTarget.currentTime)}
         />
-        <p className="text-center text-xs text-muted">المنصة بتفتكر وقفت فين على الجهاز ده.</p>
+        <p className="text-center text-xs text-muted">
+          {tx(
+            'المنصة بتفتكر وقفت فين على الجهاز ده.',
+            'The platform remembers where you stopped on this device.',
+          )}
+        </p>
       </div>
     )
   } else {
     body = (
-      <iframe title={owned.book.titleAr} src={file.data!.url} className="w-full flex-1 border-0 bg-white" />
+      <iframe
+        title={loc(owned.book.titleAr, owned.book.titleEn)}
+        src={file.data!.url}
+        className="w-full flex-1 border-0 bg-white"
+      />
     )
   }
 
@@ -104,7 +119,7 @@ export function ReaderPage() {
     <div className="flex h-dvh flex-col bg-surface">
       <header className="flex flex-none items-center gap-4 border-b border-line bg-white px-5 py-3 max-sm:px-3">
         <Link to={routes.myBooks} className={buttonClass({ variant: 'outline', size: 'sm' })}>
-          <Icon name="chevRight" size={15} /> كتبي
+          <Icon name="chevRight" size={15} /> {tx('كتبي', 'My books')}
         </Link>
         {owned && (
           <span className="flex min-w-0 items-center gap-3">
@@ -112,8 +127,10 @@ export function ReaderPage() {
               {cover && <img src={cover} alt="" className="size-full object-cover" />}
             </span>
             <span className="flex min-w-0 flex-col">
-              <b className="truncate text-ink">{owned.book.titleAr}</b>
-              <span className="text-xs text-muted">{audio ? 'استماع' : 'قراءة'}</span>
+              <b className="truncate text-ink">{loc(owned.book.titleAr, owned.book.titleEn)}</b>
+              <span className="text-xs text-muted">
+                {audio ? tx('استماع', 'Listening') : tx('قراءة', 'Reading')}
+              </span>
             </span>
           </span>
         )}

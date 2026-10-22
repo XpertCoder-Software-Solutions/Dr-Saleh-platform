@@ -16,12 +16,13 @@ import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion } from '@/lib/region'
 import { confirmAction } from '@/lib/confirm'
+import { loc, tx } from '@/lib/i18n'
 
 const CART_KEY = ['me', 'cart'] as const
 
 export function CartPage() {
   const { currency } = useRegion()
-  usePageTitle('السلة')
+  usePageTitle(tx('السلة', 'Cart'))
   const t = useCopy()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -53,13 +54,16 @@ export function CartPage() {
     <>
       <PageHero
         portrait={false}
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'السلة' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('السلة', 'Cart') }]}
         title={
           <>
-            سلة <span className="text-sheen">مشترياتك</span>
+            {tx('سلة', 'Your')} <span className="text-sheen">{tx('مشترياتك', 'cart')}</span>
           </>
         }
-        body="راجع اللي اخترته قبل الدفع. الدورات والنسخ الرقمية بتتفتح لك فورًا، والمنتجات الورقية بتوصلك لحد البيت."
+        body={tx(
+          'راجع اللي اخترته قبل الدفع. الدورات والنسخ الرقمية بتتفتح لك فورًا، والمنتجات الورقية بتوصلك لحد البيت.',
+          'Review your items before paying. Courses and digital editions open right away; physical items are delivered to your door.',
+        )}
       />
 
       <section className={cn(sectionClass, 'relative z-2 -mt-14')}>
@@ -75,14 +79,17 @@ export function CartPage() {
               <EmptyState
                 icon="bag"
                 title={t('cart.empty')}
-                body="تصفّح الدورات والكتب والمنتجات، وأي حاجة تضيفها هتلاقيها هنا."
+                body={tx(
+                  'تصفّح الدورات والكتب والمنتجات، وأي حاجة تضيفها هتلاقيها هنا.',
+                  'Browse courses, books and products — anything you add will be here.',
+                )}
                 action={
                   <div className="flex flex-wrap justify-center gap-3">
                     <Link to={routes.courses} className={buttonClass({ variant: 'gold' })}>
-                      تصفّح الدورات
+                      {tx('تصفّح الدورات', 'Browse courses')}
                     </Link>
                     <Link to={routes.library} className={buttonClass({ variant: 'outline' })}>
-                      المكتبة
+                      {tx('المكتبة', 'Library')}
                     </Link>
                   </div>
                 }
@@ -93,8 +100,10 @@ export function CartPage() {
               <div className="rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-sm:p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-2xl">
-                    في السلة{' '}
-                    <span className="text-base font-medium text-muted">({summary?.itemsCount} عناصر)</span>
+                    {tx('في السلة', 'In your cart')}{' '}
+                    <span className="text-base font-medium text-muted">
+                      ({tx(`${summary?.itemsCount} عناصر`, `${summary?.itemsCount} items`)})
+                    </span>
                   </h2>
                   <button
                     type="button"
@@ -103,16 +112,19 @@ export function CartPage() {
                     onClick={async () => {
                       if (
                         await confirmAction({
-                          title: 'تفضّي السلة؟',
-                          body: 'كل الحاجات اللي في السلة هتتشال.',
-                          confirmLabel: 'أيوه، فضّيها',
+                          title: tx('تفضّي السلة؟', 'Empty your cart?'),
+                          body: tx(
+                            'كل الحاجات اللي في السلة هتتشال.',
+                            'Everything in your cart will be removed.',
+                          ),
+                          confirmLabel: tx('أيوه، فضّيها', 'Yes, empty it'),
                           icon: 'trash',
                         })
                       )
                         clear.mutate()
                     }}
                   >
-                    فضّي السلة
+                    {tx('فضّي السلة', 'Empty cart')}
                   </button>
                 </div>
                 <ul>
@@ -137,36 +149,62 @@ export function CartPage() {
                 {needsShipping && (
                   <p className="mt-4 flex items-center gap-3 rounded-tile bg-surface-blue px-4 py-3 text-sm text-text-2">
                     <Icon name="truck" size={18} className="flex-none text-blue-600" />
-                    فيه منتجات ورقية في سلتك، هتوصلك خلال 2 لـ 4 أيام عمل. الدورات والنسخ الرقمية بتتفتح
-                    فورًا.
+                    {tx(
+                      'فيه منتجات ورقية في سلتك، هتوصلك خلال 2 لـ 4 أيام عمل. الدورات والنسخ الرقمية بتتفتح فورًا.',
+                      'Your cart has physical items, delivered within 2–4 business days. Courses and digital editions open right away.',
+                    )}
                   </p>
                 )}
               </div>
 
               <aside className="sticky top-27 flex flex-col gap-4 max-lg:static">
                 <div className="flex flex-col gap-3 rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)]">
-                  <h2 className="text-xl">ملخّص الطلب</h2>
-                  <Row label="المجموع" value={formatMoney(summary?.subtotal ?? 0, currency)} />
+                  <h2 className="text-xl">{tx('ملخّص الطلب', 'Order summary')}</h2>
+                  <Row
+                    label={tx('المجموع', 'Subtotal')}
+                    value={formatMoney(summary?.subtotal ?? 0, currency)}
+                  />
                   {!!summary?.discount && (
-                    <Row label="الخصم" value={`− ${formatMoney(summary.discount, currency)}`} accent />
+                    <Row
+                      label={tx('الخصم', 'Discount')}
+                      value={`− ${formatMoney(summary.discount, currency)}`}
+                      accent
+                    />
                   )}
-                  {needsShipping && <Row label="الشحن" value="بيتحسب حسب المحافظة" />}
+                  {needsShipping && (
+                    <Row
+                      label={tx('الشحن', 'Shipping')}
+                      value={tx('بيتحسب حسب المحافظة', 'Calculated by governorate')}
+                    />
+                  )}
                   <div className="mt-1 flex items-baseline justify-between border-t border-divider pt-3">
-                    <b className="text-ink">الإجمالي</b>
+                    <b className="text-ink">{tx('الإجمالي', 'Total')}</b>
                     <b className="font-head text-[28px] text-ink">
                       {formatMoney(summary?.total ?? 0, currency)}
                     </b>
                   </div>
-                  <p className="text-xs text-muted">عندك كوبون خصم؟ هتكتبه في خطوة الدفع.</p>
+                  <p className="text-xs text-muted">
+                    {tx(
+                      'عندك كوبون خصم؟ هتكتبه في خطوة الدفع.',
+                      'Have a coupon? You can enter it at payment.',
+                    )}
+                  </p>
                   <button
                     type="button"
                     className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
                     disabled={unavailable}
                     onClick={() => navigate(routes.checkout)}
                   >
-                    <Icon name="lock" size={18} /> كمّل للدفع
+                    <Icon name="lock" size={18} /> {tx('كمّل للدفع', 'Proceed to payment')}
                   </button>
-                  {unavailable && <p className="text-sm text-danger">فيه عنصر مبقاش متاح، شيله الأول.</p>}
+                  {unavailable && (
+                    <p className="text-sm text-danger">
+                      {tx(
+                        'فيه عنصر مبقاش متاح، شيله الأول.',
+                        'An item is no longer available. Remove it first.',
+                      )}
+                    </p>
+                  )}
                   <PaymentLogos
                     names={['applePay', 'visa', 'mastercard', 'meeza', 'vodafone', 'paypal']}
                     className="justify-center"
@@ -175,18 +213,21 @@ export function CartPage() {
                 <ul className="flex flex-col gap-3 rounded-card border border-line bg-white p-5 text-sm text-text-2">
                   {(
                     [
-                      ['shield', 'دفع آمن ومشفّر'],
-                      ['play', 'الدورات بتتفتح فورًا بعد الدفع'],
-                      ['refresh', 'استرجاع حسب سياسة الاسترداد'],
+                      ['shield', tx('دفع آمن ومشفّر', 'Secure, encrypted payment')],
+                      ['play', tx('الدورات بتتفتح فورًا بعد الدفع', 'Courses open right after payment')],
+                      ['refresh', 'refunds'],
                     ] as [IconName, string][]
                   ).map(([icon, text]) => (
                     <li key={text} className="flex items-center gap-3">
                       <span className="flex size-8 items-center justify-center rounded-lg bg-surface-blue text-blue-600">
                         <Icon name={icon} size={15} />
                       </span>
-                      {text === 'استرجاع حسب سياسة الاسترداد' ? (
+                      {text === 'refunds' ? (
                         <span>
-                          استرجاع حسب <Link to={routes.refunds}>سياسة الاستبدال والاسترجاع</Link>
+                          {tx('استرجاع حسب', 'Refunds per our')}{' '}
+                          <Link to={routes.refunds}>
+                            {tx('سياسة الاستبدال والاسترجاع', 'returns & refunds policy')}
+                          </Link>
                         </span>
                       ) : (
                         text
@@ -195,7 +236,8 @@ export function CartPage() {
                   ))}
                 </ul>
                 <Link to={routes.courses} className="text-center font-bold">
-                  كمّل تسوّق <Icon name="chevLeft" size={14} className="inline" />
+                  {tx('كمّل تسوّق', 'Continue shopping')}{' '}
+                  <Icon name="chevLeft" size={14} className="inline" />
                 </Link>
               </aside>
             </div>
@@ -254,12 +296,14 @@ function CartRow({
         </span>
         {href ? (
           <Link to={href} className="font-bold text-ink">
-            {item?.nameAr}
+            {loc(item?.nameAr, item?.nameEn)}
           </Link>
         ) : (
-          <b className="text-muted">عنصر مبقاش متاح</b>
+          <b className="text-muted">{tx('عنصر مبقاش متاح', 'Item no longer available')}</b>
         )}
-        {item && !item.isActive && <span className="text-xs text-danger">مبقاش متاح للشراء</span>}
+        {item && !item.isActive && (
+          <span className="text-xs text-danger">{tx('مبقاش متاح للشراء', 'No longer available')}</span>
+        )}
       </div>
       {canChangeQty && <QuantityStepper value={line.quantity} max={item?.stock ?? 99} onChange={onQty} />}
       <span className="flex w-24 flex-col items-end">
@@ -270,7 +314,7 @@ function CartRow({
       </span>
       <button
         type="button"
-        aria-label={`شيل ${item?.nameAr ?? 'العنصر'}`}
+        aria-label={`شيل ${loc(item?.nameAr, item?.nameEn) ?? 'العنصر'}`}
         onClick={onRemove}
         className="flex size-10 flex-none items-center justify-center rounded-xl border border-red-200 bg-red-50 text-danger hover:bg-red-100"
       >

@@ -9,6 +9,7 @@ import { formatEGP } from '@/lib/format'
 import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
+import { loc, tx } from '@/lib/i18n'
 
 /** New shipping address. Shipping cost comes from the chosen governorate. */
 export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => void; onCancel?: () => void }) {
@@ -57,12 +58,16 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
     e.preventDefault()
     e.stopPropagation()
     const er: Record<string, string> = {}
-    if (f.fullName.trim().length < 3) er.fullName = 'اكتب اسم المستلم.'
-    if (!isValidPhone(f.phoneNumber)) er.phoneNumber = 'اكتب رقم موبايل صحيح للدولة اللي اخترتها.'
-    if (!f.governorateId) er.governorateId = 'اختار المحافظة.'
-    if (!f.city.trim()) er.city = 'اكتب المدينة أو المنطقة.'
-    if (!f.street.trim()) er.street = 'اكتب الشارع.'
-    if (!f.buildingNumber.trim()) er.buildingNumber = 'اكتب رقم العمارة.'
+    if (f.fullName.trim().length < 3) er.fullName = tx('اكتب اسم المستلم.', "Enter the recipient's name.")
+    if (!isValidPhone(f.phoneNumber))
+      er.phoneNumber = tx(
+        'اكتب رقم موبايل صحيح للدولة اللي اخترتها.',
+        'Enter a valid mobile number for the selected country.',
+      )
+    if (!f.governorateId) er.governorateId = tx('اختار المحافظة.', 'Choose the governorate.')
+    if (!f.city.trim()) er.city = tx('اكتب المدينة أو المنطقة.', 'Enter the city or area.')
+    if (!f.street.trim()) er.street = tx('اكتب الشارع.', 'Enter the street.')
+    if (!f.buildingNumber.trim()) er.buildingNumber = tx('اكتب رقم العمارة.', 'Enter the building number.')
     setErrors(er)
     warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
@@ -70,7 +75,10 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
 
   const options = (govs.data?.governorates ?? [])
     .filter((g) => g.isActive !== false)
-    .map((g) => ({ value: g.id, label: `${g.nameAr} · شحن ${formatEGP(g.shippingCost)}` }))
+    .map((g) => ({
+      value: g.id,
+      label: `${loc(g.nameAr, g.nameEn)} · ${tx('شحن', 'shipping')} ${formatEGP(g.shippingCost)}`,
+    }))
 
   return (
     <form
@@ -80,29 +88,34 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
     >
       <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
         <TextField
-          label="اسم المستلم"
+          label={tx('اسم المستلم', "Recipient's name")}
           autoComplete="name"
           value={f.fullName}
           onChange={set('fullName')}
           error={errors.fullName}
         />
         <PhoneField
-          label="رقم الموبايل"
+          label={tx('رقم الموبايل', 'Mobile number')}
           value={f.phoneNumber}
           onChange={(v) => set('phoneNumber')({ target: { value: v } })}
           error={errors.phoneNumber}
         />
         <SelectField
-          label="المحافظة"
-          placeholder="اختار المحافظة"
+          label={tx('المحافظة', 'Governorate')}
+          placeholder={tx('اختار المحافظة', 'Choose the governorate')}
           value={f.governorateId}
           onChange={set('governorateId')}
           options={options}
           error={errors.governorateId}
         />
-        <TextField label="المدينة / المنطقة" value={f.city} onChange={set('city')} error={errors.city} />
         <TextField
-          label="الشارع"
+          label={tx('المدينة / المنطقة', 'City / area')}
+          value={f.city}
+          onChange={set('city')}
+          error={errors.city}
+        />
+        <TextField
+          label={tx('الشارع', 'Street')}
           autoComplete="street-address"
           value={f.street}
           onChange={set('street')}
@@ -110,29 +123,29 @@ export function AddressForm({ onSaved, onCancel }: { onSaved: (a: Address) => vo
         />
         <div className="grid grid-cols-3 gap-3">
           <TextField
-            label="العمارة"
+            label={tx('العمارة', 'Building')}
             value={f.buildingNumber}
             onChange={set('buildingNumber')}
             error={errors.buildingNumber}
           />
-          <TextField label="الدور" value={f.floor} onChange={set('floor')} />
-          <TextField label="الشقة" value={f.apartment} onChange={set('apartment')} />
+          <TextField label={tx('الدور', 'Floor')} value={f.floor} onChange={set('floor')} />
+          <TextField label={tx('الشقة', 'Apartment')} value={f.apartment} onChange={set('apartment')} />
         </div>
       </div>
       <TextField
-        label="علامة مميزة (اختياري)"
-        placeholder="مثال: جنب الصيدلية"
+        label={tx('علامة مميزة (اختياري)', 'Landmark (optional)')}
+        placeholder={tx('مثال: جنب الصيدلية', 'e.g. next to the pharmacy')}
         value={f.landmark}
         onChange={set('landmark')}
       />
       {save.isError && <Alert tone="error">{(save.error as Error).message}</Alert>}
       <div className="flex gap-2.5">
         <button type="submit" className={buttonClass({ variant: 'navy' })} disabled={save.isPending}>
-          {save.isPending ? <Spinner /> : 'احفظ العنوان'}
+          {save.isPending ? <Spinner /> : tx('احفظ العنوان', 'Save address')}
         </button>
         {onCancel && (
           <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onCancel}>
-            إلغاء
+            {tx('إلغاء', 'Cancel')}
           </button>
         )}
       </div>

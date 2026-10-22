@@ -1,5 +1,6 @@
 import type { Pagination } from '@/types/api'
 import { Icon } from './Icon'
+import { tx } from '@/lib/i18n'
 
 const pageBtn =
   'flex h-11 min-w-11 items-center justify-center rounded-xl border-[1.5px] border-line-2 bg-white font-bold text-ink ' +
@@ -24,16 +25,14 @@ export function Pager({
   return (
     <nav
       className="mt-7 flex flex-wrap items-center justify-between gap-3.5 text-[15px] text-muted"
-      aria-label="الصفحات"
+      aria-label={tx('الصفحات', 'Pages')}
     >
-      <span>
-        عرض {from}-{to} من {total} {noun}
-      </span>
+      <span>{tx(`عرض ${from}-${to} من ${total} ${noun}`, `Showing ${from}-${to} of ${total} ${noun}`)}</span>
       <div className="flex items-center gap-2">
         <button
           type="button"
           className={pageBtn}
-          aria-label="الصفحة السابقة"
+          aria-label={tx('الصفحة السابقة', 'Previous page')}
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
         >
@@ -55,7 +54,7 @@ export function Pager({
         <button
           type="button"
           className={pageBtn}
-          aria-label="الصفحة التالية"
+          aria-label={tx('الصفحة التالية', 'Next page')}
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1)}
         >

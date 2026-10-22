@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 import { sinceLabel } from '@/lib/format'
 import type { ActivityItem } from '@/lib/activity'
+import { tx } from '@/lib/i18n'
 
 const TINT: Record<ActivityItem['tone'], string> = {
   blue: 'bg-surface-blue text-blue-600',
@@ -54,8 +55,8 @@ export function NotificationItem({
         <button
           type="button"
           onClick={onRead}
-          title="تعليم كمقروء"
-          aria-label="تعليم كمقروء"
+          title={tx('تعليم كمقروء', 'Mark as read')}
+          aria-label={tx('تعليم كمقروء', 'Mark as read')}
           className="relative z-1 flex size-7 flex-none items-center justify-center rounded-full border-0 bg-transparent hover:bg-white"
         >
           <span className="size-2.5 rounded-full bg-blue-400 group-hover:hidden" />

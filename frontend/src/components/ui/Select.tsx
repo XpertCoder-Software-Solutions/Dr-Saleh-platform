@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
+import { tx } from '@/lib/i18n'
 
 export interface SelectOption {
   value: string
@@ -147,7 +148,7 @@ export function SelectField({
         >
           {selected?.icon}
           <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-muted')}>
-            {selected?.label ?? placeholder ?? 'اختار'}
+            {selected?.label ?? placeholder ?? tx('اختار', 'Choose')}
           </span>
           <Icon
             name="chevDown"
@@ -170,7 +171,7 @@ export function SelectField({
                     setActive(0)
                   }}
                   onKeyDown={onListKey}
-                  placeholder="ابحث…"
+                  placeholder={tx('ابحث…', 'Search…')}
                   aria-controls={listId}
                   aria-activedescendant={filtered[active] ? `${listId}-${active}` : undefined}
                   className="h-11 w-full rounded-xl border-[1.5px] border-line-2 bg-white px-3.5 text-[15px] outline-none focus:border-blue-400"
@@ -198,7 +199,9 @@ export function SelectField({
                   {placeholder}
                 </li>
               )}
-              {filtered.length === 0 && <li className="px-4 py-3 text-sm text-muted">مفيش نتايج.</li>}
+              {filtered.length === 0 && (
+                <li className="px-4 py-3 text-sm text-muted">{tx('مفيش نتايج.', 'No results.')}</li>
+              )}
               {filtered.map((o, i) => (
                 <li
                   key={o.value}

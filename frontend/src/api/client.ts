@@ -2,6 +2,7 @@ import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestCo
 import type { ApiError, ApiSuccess, RefreshTokenData } from '@/types/api'
 import { translateApiMessage } from './messages'
 import { tokenStore } from './tokens'
+import { tx } from '@/lib/i18n'
 
 export const API_URL: string = import.meta.env.VITE_API_URL || '/api'
 
@@ -91,7 +92,13 @@ http.interceptors.response.use(undefined, async (error: AxiosError<ApiError>) =>
 
 function toClientError(error: AxiosError<ApiError>): ApiClientError {
   if (!error.response) {
-    return new ApiClientError('تعذّر الاتصال بالخادم. تأكد من الإنترنت وحاول تاني.', 0)
+    return new ApiClientError(
+      tx(
+        'تعذّر الاتصال بالخادم. تأكد من الإنترنت وحاول تاني.',
+        "Couldn't reach the server. Check your connection and try again.",
+      ),
+      0,
+    )
   }
   const body = error.response.data
   const status = error.response.status

@@ -1,10 +1,11 @@
 import { cn } from '@/lib/cn'
+import { tx } from '@/lib/i18n'
 
 const LOGOS = {
   applePay: { src: '/assets/payments/apple-pay.png', alt: 'Apple Pay' },
   visa: { src: '/assets/payments/visa.svg', alt: 'Visa' },
   mastercard: { src: '/assets/payments/mastercard.png', alt: 'Mastercard' },
-  meeza: { src: '/assets/payments/meeza.png', alt: 'ميزة' },
+  meeza: { src: '/assets/payments/meeza.png', alt: tx('ميزة', 'Meeza') },
   amex: { src: '/assets/payments/amex.png', alt: 'American Express' },
   vodafone: { src: '/assets/payments/vodafone-cash.png', alt: 'Vodafone Cash' },
   etisalat: { src: '/assets/payments/etisalat.png', alt: 'e& cash' },

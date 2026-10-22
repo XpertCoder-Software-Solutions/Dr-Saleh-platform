@@ -1,5 +1,6 @@
 import { useEffect, useId, type ReactNode } from 'react'
 import { Icon, type IconName } from './Icon'
+import { tx } from '@/lib/i18n'
 
 interface ModalProps {
   title: string
@@ -29,7 +30,7 @@ export function Modal({ title, sub, icon, onClose, footer, children, width = 720
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="إغلاق"
+        aria-label={tx('إغلاق', 'Close')}
         className="absolute inset-0 border-0 bg-navy/45 backdrop-blur-[2px]"
         onClick={onClose}
       />
@@ -54,7 +55,7 @@ export function Modal({ title, sub, icon, onClose, footer, children, width = 720
           </div>
           <button
             type="button"
-            aria-label="إغلاق"
+            aria-label={tx('إغلاق', 'Close')}
             onClick={onClose}
             className="flex size-10 items-center justify-center rounded-xl border border-line bg-white text-muted hover:bg-hover"
           >

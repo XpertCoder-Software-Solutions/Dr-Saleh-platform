@@ -5,10 +5,14 @@ import { buttonClass, innerClass, sectionClass } from '@/components/ui/button'
 import { routes } from '@/app/routes'
 import { cn } from '@/lib/cn'
 import { CONTACT } from '@/content/contact'
+import { tx } from '@/lib/i18n'
 
 export function CTABand({
-  title = 'مش لاقي الدورة المناسبة؟',
-  body = 'احكيلنا عن ابنك في استشارة قصيرة، والدكتور صالح يرشّحلك المسار اللي يناسبه.',
+  title = tx('مش لاقي الدورة المناسبة؟', "Can't find the right course?"),
+  body = tx(
+    'احكيلنا عن ابنك في استشارة قصيرة، والدكتور صالح يرشّحلك المسار اللي يناسبه.',
+    'Tell us about your child in a short consultation, and Dr. Saleh will recommend the right path.',
+  ),
 }: {
   title?: string
   body?: string
@@ -24,7 +28,7 @@ export function CTABand({
       >
         <div className="absolute inset-0 dots opacity-45" aria-hidden="true" />
         <div
-          className="absolute -top-50 -left-45 size-130 animate-spin-slow rounded-full border-2 border-dashed border-white/14"
+          className="absolute -end-45 -top-50 size-130 animate-spin-slow rounded-full border-2 border-dashed border-white/14"
           aria-hidden="true"
         />
         <div className="relative flex max-w-155 flex-col gap-4.5">
@@ -37,7 +41,7 @@ export function CTABand({
               rel="noreferrer"
               className={buttonClass({ variant: 'gold', size: 'lg' })}
             >
-              كلّمنا على واتساب <Icon name="arrowLeft" />
+              {tx('كلّمنا على واتساب', 'Chat with us on WhatsApp')} <Icon name="arrowLeft" />
             </a>
             <Link to={routes.consultation} className={buttonClass({ variant: 'glass', size: 'lg' })}>
               {t('cta.bookPrivate')}
@@ -45,7 +49,7 @@ export function CTABand({
           </div>
         </div>
         <img
-          className="absolute bottom-0 left-15 h-[92%] w-auto drop-shadow-[0_20px_40px_rgba(5,20,40,.45)] max-md:hidden"
+          className="absolute end-15 bottom-0 h-[92%] w-auto drop-shadow-[0_20px_40px_rgba(5,20,40,.45)] max-md:hidden"
           src="/assets/brand/saleh-cutout.webp"
           alt=""
           aria-hidden="true"

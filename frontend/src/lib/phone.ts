@@ -5,12 +5,15 @@ import {
   parsePhoneNumberFromString,
   type CountryCode,
 } from 'libphonenumber-js/min'
+import { isEn } from '@/lib/i18n'
 
 export interface Country {
   iso: CountryCode
   dial: string
   nameAr: string
   nameEn: string
+  /** Name in the site's language. */
+  label: string
 }
 
 export const DEFAULT_COUNTRY: CountryCode = 'EG'
@@ -55,13 +58,15 @@ export function listCountries(): Country[] {
     .map((iso) => ({
       iso,
       dial: getCountryCallingCode(iso),
+      // Shown in the picker: the name in the site's language.
       nameAr: NAME_AR[iso] ?? ar.of(iso) ?? iso,
+      label: isEn ? (NAME_EN[iso] ?? en.of(iso) ?? iso) : (NAME_AR[iso] ?? ar.of(iso) ?? iso),
       nameEn: NAME_EN[iso] ?? en.of(iso) ?? iso,
     }))
   const pinned = PINNED.map((iso) => all.find((c) => c.iso === iso)).filter((c): c is Country => !!c)
   const rest = all
     .filter((c) => !PINNED.includes(c.iso))
-    .sort((a, b) => a.nameAr.localeCompare(b.nameAr, 'ar'))
+    .sort((a, b) => a.label.localeCompare(b.label, isEn ? 'en' : 'ar'))
   cachedCountries = [...pinned, ...rest]
   return cachedCountries
 }

@@ -12,13 +12,8 @@ import { Alert, EmptyState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Lesson } from '@/types/api'
-import {
-  addRange,
-  coveragePercent,
-  isPlaybackStep,
-  loadRanges,
-  saveRanges,
-} from '@/lib/watchCoverage'
+import { addRange, coveragePercent, isPlaybackStep, loadRanges, saveRanges } from '@/lib/watchCoverage'
+import { loc, tx } from '@/lib/i18n'
 
 /** Saves watch progress at most this often while a video plays. */
 const SAVE_EVERY_MS = 15_000
@@ -26,7 +21,7 @@ const SAVE_EVERY_MS = 15_000
 const COMPLETE_AT = 95
 
 function minutes(seconds?: number | null) {
-  return seconds ? `${Math.max(1, Math.round(seconds / 60))} د` : ''
+  return seconds ? `${Math.max(1, Math.round(seconds / 60))} ${tx('د', 'min')}` : ''
 }
 
 /** Progress ring in the top bar. */
@@ -74,7 +69,7 @@ export function PlayerPage() {
     queryFn: () => myCoursesApi.continue(courseId),
     enabled: !params.get('lesson'),
   })
-  usePageTitle(course.data?.titleAr ?? 'الدورة')
+  usePageTitle(loc(course.data?.titleAr, course.data?.titleEn) ?? tx('الدورة', 'Course'))
 
   const sections = useMemo(
     () =>
@@ -117,18 +112,29 @@ export function PlayerPage() {
   if (course.isError) {
     const forbidden = course.error instanceof ApiClientError && [403, 404].includes(course.error.statusCode)
     return (
-      <PlayerFrame title="الدورة" progress={0} courseId={courseId}>
+      <PlayerFrame title={tx('الدورة', 'Course')} progress={0} courseId={courseId}>
         <div className="mx-auto max-w-xl rounded-card bg-white p-8">
           <EmptyState
             icon="lock"
-            title={forbidden ? 'الدورة دي مش في حسابك' : 'مقدرناش نفتح الدورة'}
-            body={forbidden ? 'اشترك في الدورة الأول عشان تقدر تتفرج على الدروس.' : 'جرّب تاني بعد شوية.'}
+            title={
+              forbidden
+                ? tx('الدورة دي مش في حسابك', "This course isn't in your account")
+                : tx('مقدرناش نفتح الدورة', "We couldn't open the course")
+            }
+            body={
+              forbidden
+                ? tx(
+                    'اشترك في الدورة الأول عشان تقدر تتفرج على الدروس.',
+                    'Enroll in the course first to watch the lessons.',
+                  )
+                : tx('جرّب تاني بعد شوية.', 'Try again in a bit.')
+            }
             action={
               <Link
                 to={forbidden ? routes.course(courseId) : routes.myCourses}
                 className={buttonClass({ variant: 'gold' })}
               >
-                {forbidden ? 'صفحة الدورة' : 'دوراتي'}
+                {forbidden ? tx('صفحة الدورة', 'Course page') : tx('دوراتي', 'My courses')}
               </Link>
             }
           />
@@ -139,9 +145,17 @@ export function PlayerPage() {
 
   if (course.isLoading || !lesson) {
     return (
-      <PlayerFrame title={course.data?.titleAr ?? ''} progress={0} courseId={courseId}>
+      <PlayerFrame
+        title={loc(course.data?.titleAr, course.data?.titleEn) ?? ''}
+        progress={0}
+        courseId={courseId}
+      >
         <div className="flex justify-center py-32 text-white">
-          {course.isLoading ? <Spinner /> : <p>الدورة لسه مفيهاش دروس.</p>}
+          {course.isLoading ? (
+            <Spinner />
+          ) : (
+            <p>{tx('الدورة لسه مفيهاش دروس.', "This course doesn't have lessons yet.")}</p>
+          )}
         </div>
       </PlayerFrame>
     )
@@ -152,10 +166,15 @@ export function PlayerPage() {
 
   return (
     <PlayerFrame
-      title={course.data!.titleAr}
+      title={loc(course.data!.titleAr, course.data!.titleEn)}
       progress={progress.data?.completionPercentage ?? 0}
       sub={
-        progress.data ? `${progress.data.completedLessons} من ${progress.data.totalLessons} دروس` : undefined
+        progress.data
+          ? tx(
+              `${progress.data.completedLessons} من ${progress.data.totalLessons} دروس`,
+              `${progress.data.completedLessons} of ${progress.data.totalLessons} lessons`,
+            )
+          : undefined
       }
       courseId={courseId}
     >
@@ -174,14 +193,14 @@ export function PlayerPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
               <span className="text-sm text-muted">
-                القسم {sectionNo} · الدرس {index + 1}
+                {tx('القسم', 'Section')} {sectionNo} · {tx('الدرس', 'Lesson')} {index + 1}
               </span>
-              <h1 className="text-[clamp(22px,3vw,30px)]">{lesson.titleAr}</h1>
+              <h1 className="text-[clamp(22px,3vw,30px)]">{loc(lesson.titleAr, lesson.titleEn)}</h1>
             </div>
             <div className="flex gap-2.5">
               {isDone ? (
                 <span className="inline-flex min-h-12 items-center gap-1.5 rounded-xl bg-green-50 px-4 font-bold text-success">
-                  <Icon name="check" size={16} /> مكتمل
+                  <Icon name="check" size={16} /> {tx('مكتمل', 'Completed')}
                 </span>
               ) : lesson.lessonType === 'PDF' ? (
                 // A file can't report "watched", so PDF lessons are finished by hand.
@@ -191,14 +210,21 @@ export function PlayerPage() {
                   disabled={save.isPending}
                   onClick={() => save.mutate({ completionPercentage: 100, isCompleted: true })}
                 >
-                  خلصت الملف
+                  {tx('خلصت الملف', "I've finished the file")}
                 </button>
               ) : (
                 <span
                   className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-text-2"
-                  title="الدرس بيتحسب مكتمل لما تتفرج عليه للآخر"
+                  title={tx(
+                    'الدرس بيتحسب مكتمل لما تتفرج عليه للآخر',
+                    'A lesson counts as complete once you watch it to the end',
+                  )}
                 >
-                  <Icon name="play" size={14} /> اتفرجت على {watchedPct}% · كمّله للآخر عشان يتحسب
+                  <Icon name="play" size={14} />{' '}
+                  {tx(
+                    `اتفرجت على ${watchedPct}% · كمّله للآخر عشان يتحسب`,
+                    `Watched ${watchedPct}% · finish it to count it`,
+                  )}
                 </span>
               )}
               {next && (
@@ -207,32 +233,38 @@ export function PlayerPage() {
                   className={buttonClass({ variant: 'navy' })}
                   onClick={() => go(next.id)}
                 >
-                  الدرس التالي <Icon name="arrowLeft" size={16} />
+                  {tx('الدرس التالي', 'Next lesson')} <Icon name="arrowLeft" size={16} />
                 </button>
               )}
             </div>
           </div>
-          {save.isError && <Alert tone="error">مقدرناش نحفظ تقدّمك. {(save.error as Error).message}</Alert>}
+          {save.isError && (
+            <Alert tone="error">
+              {tx('مقدرناش نحفظ تقدّمك.', "We couldn't save your progress.")} {(save.error as Error).message}
+            </Alert>
+          )}
           {!next && isDone && (
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-card bg-gold-soft p-5">
               <span className="flex items-center gap-3 text-gold-ink">
                 <Icon name="award" size={22} />
-                <b>{g('خلّصت آخر درس!', 'خلّصتي آخر درس!', 'آخر درس اتخلص!')}</b>
+                <b>
+                  {g('خلّصت آخر درس!', 'خلّصتي آخر درس!', 'آخر درس اتخلص!', 'You finished the last lesson!')}
+                </b>
               </span>
               <Link to={routes.certificates} className={buttonClass({ variant: 'gold', size: 'sm' })}>
-                شهاداتي
+                {tx('شهاداتي', 'My certificates')}
               </Link>
             </div>
           )}
           <div className="rounded-card border border-line bg-white p-6 max-sm:p-4">
-            <h2 className="mb-2 text-lg">عن الدورة</h2>
-            <RichText value={course.data!.shortDescriptionAr} />
+            <h2 className="mb-2 text-lg">{tx('عن الدورة', 'About the course')}</h2>
+            <RichText value={loc(course.data!.shortDescriptionAr, course.data!.shortDescriptionEn)} />
           </div>
         </div>
 
         <aside className="sticky top-6 overflow-hidden rounded-card border border-line bg-white max-lg:static">
           <div className="flex items-center justify-between border-b border-divider px-5 py-4">
-            <h2 className="text-lg">محتوى الدورة</h2>
+            <h2 className="text-lg">{tx('محتوى الدورة', 'Course content')}</h2>
             <span className="text-sm font-bold text-muted">
               {completed}/{lessons.length}
             </span>
@@ -242,7 +274,7 @@ export function PlayerPage() {
               <div key={s.id} className="mb-1">
                 {sections.length > 1 && (
                   <p className="px-3 pt-3 pb-1.5 text-xs font-bold text-muted">
-                    القسم {si + 1}: {s.titleAr}
+                    القسم {si + 1}: {loc(s.titleAr, s.titleEn)}
                   </p>
                 )}
                 <ul className="flex flex-col gap-0.5">
@@ -256,7 +288,7 @@ export function PlayerPage() {
                           onClick={() => go(l.id)}
                           aria-current={on ? 'true' : undefined}
                           className={cn(
-                            'flex w-full items-center gap-3 rounded-[14px] border-0 px-3 py-2.5 text-right transition-colors',
+                            'flex w-full items-center gap-3 rounded-[14px] border-0 px-3 py-2.5 text-start transition-colors',
                             on ? 'bg-surface-blue' : 'bg-transparent hover:bg-hover',
                           )}
                         >
@@ -278,12 +310,12 @@ export function PlayerPage() {
                           </span>
                           <span className="flex min-w-0 flex-1 flex-col">
                             <span className={cn('truncate text-sm', on ? 'font-bold text-ink' : 'text-text')}>
-                              {l.titleAr}
+                              {loc(l.titleAr, l.titleEn)}
                             </span>
                             <span className="text-xs text-muted">
                               {l.lessonType === 'PDF'
-                                ? 'ملف PDF'
-                                : `فيديو · ${minutes(l.videoDurationSeconds)}`}
+                                ? tx('ملف PDF', 'PDF file')
+                                : `${tx('فيديو', 'Video')} · ${minutes(l.videoDurationSeconds)}`}
                             </span>
                           </span>
                         </button>
@@ -362,9 +394,14 @@ function LessonMedia({
         ) : media.isError || failed ? (
           <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-white">
             <Icon name="alert" size={30} className="text-gold" />
-            <b>مقدرناش نشغّل الدرس دلوقتي</b>
+            <b>{tx('مقدرناش نشغّل الدرس دلوقتي', "We can't play the lesson right now")}</b>
             <span className="text-sm text-on-dark">
-              {media.error instanceof Error ? media.error.message : 'الرابط مش شغال. جرّب تحدّث الصفحة.'}
+              {media.error instanceof Error
+                ? media.error.message
+                : tx(
+                    'الرابط مش شغال. جرّب تحدّث الصفحة.',
+                    "The link isn't working. Try refreshing the page.",
+                  )}
             </span>
             <button
               type="button"
@@ -374,7 +411,7 @@ function LessonMedia({
                 media.refetch()
               }}
             >
-              جرّب تاني
+              {tx('جرّب تاني', 'Try again')}
             </button>
           </div>
         ) : isVideo ? (
@@ -411,11 +448,15 @@ function LessonMedia({
             }}
           />
         ) : (
-          <iframe title={lesson.titleAr} src={media.data!.url} className="size-full bg-white" />
+          <iframe
+            title={loc(lesson.titleAr, lesson.titleEn)}
+            src={media.data!.url}
+            className="size-full bg-white"
+          />
         )}
         {media.data && !failed && (
-          <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
-            رابط مؤمَّن · بينتهي بعد شوية
+          <span className="pointer-events-none absolute end-3 top-3 rounded-full bg-black/45 px-3 py-1 text-xs text-white">
+            {tx('رابط مؤمَّن · بينتهي بعد شوية', 'Secure link · expires soon')}
           </span>
         )}
       </div>
@@ -426,7 +467,7 @@ function LessonMedia({
           rel="noreferrer"
           className={buttonClass({ variant: 'outline', size: 'sm', className: 'self-start' })}
         >
-          <Icon name="download" size={15} /> افتح الملف في تاب جديدة
+          <Icon name="download" size={15} /> {tx('افتح الملف في تاب جديدة', 'Open the file in a new tab')}
         </a>
       )}
       {pdf.data && (
@@ -437,7 +478,7 @@ function LessonMedia({
           className="flex items-center gap-3 self-start rounded-tile bg-surface-blue px-4 py-3 font-bold text-ink"
         >
           <span className="rounded-md bg-gold-soft px-2 py-0.5 text-xs text-gold-ink">PDF</span>
-          ملف الدرس، تنزيل
+          {tx('ملف الدرس، تنزيل', 'Lesson file, download')}
         </a>
       )}
     </div>
@@ -463,26 +504,30 @@ function PlayerFrame({
       <header className="flex bg-navy-wide items-center justify-between gap-4 px-6 py-3 text-white max-sm:px-4">
         <div className="flex min-w-0 items-center gap-4">
           <Link to={routes.home} className="flex-none max-sm:hidden">
-            <img src="/assets/brand/logo-white.webp" alt="منصة د. صالح عبد الكريم" className="h-10 w-auto" />
+            <img
+              src="/assets/brand/logo-white.webp"
+              alt={tx('منصة د. صالح عبد الكريم', 'Dr. Saleh Abdelkarim Platform')}
+              className="h-10 w-auto"
+            />
           </Link>
           <span className="h-8 w-px bg-white/20 max-sm:hidden" aria-hidden="true" />
           <span className="flex min-w-0 flex-col">
             <Link to={routes.myCourses} className="text-xs text-on-dark-muted hover:text-white">
-              دوراتي
+              {tx('دوراتي', 'My courses')}
             </Link>
             <b className="truncate">{title}</b>
           </span>
         </div>
         <div className="flex flex-none items-center gap-4">
           <span className="flex items-center gap-2.5 max-sm:hidden">
-            <span className="flex flex-col text-left text-xs">
-              <b className="text-sm">تقدّمك في الدورة</b>
+            <span className="flex flex-col text-end text-xs">
+              <b className="text-sm">{tx('تقدّمك في الدورة', 'Your course progress')}</b>
               {sub && <span className="text-on-dark">{sub}</span>}
             </span>
             <Ring value={progress} />
           </span>
           <Link to={routes.course(courseId)} className={buttonClass({ variant: 'glass', size: 'sm' })}>
-            صفحة الدورة
+            {tx('صفحة الدورة', 'Course page')}
           </Link>
         </div>
       </header>

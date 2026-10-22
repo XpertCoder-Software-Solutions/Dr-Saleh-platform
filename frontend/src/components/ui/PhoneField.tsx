@@ -3,6 +3,7 @@ import type { CountryCode } from 'libphonenumber-js/min'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 import { joinPhone, listCountries, splitPhone, type Country } from '@/lib/phone'
+import { tx } from '@/lib/i18n'
 
 function flagUrl(iso: string) {
   return `/flags/${iso}.svg`
@@ -17,7 +18,10 @@ export function Flag({ iso, className }: { iso: string; className?: string }) {
       width={24}
       height={16}
       loading="lazy"
-      className={cn('h-4 w-6 flex-none rounded-[3px] object-cover shadow-[0_0_0_1px_rgba(0,0,0,.08)]', className)}
+      className={cn(
+        'h-4 w-6 flex-none rounded-[3px] object-cover shadow-[0_0_0_1px_rgba(0,0,0,.08)]',
+        className,
+      )}
     />
   )
 }
@@ -84,6 +88,7 @@ export function PhoneField({
     return countries.filter(
       (c) =>
         c.nameAr.includes(query.trim()) ||
+        c.label.toLowerCase().includes(query.trim().toLowerCase()) ||
         c.nameEn.toLowerCase().includes(q) ||
         c.iso.toLowerCase() === q ||
         c.dial.startsWith(q),
@@ -147,7 +152,10 @@ export function PhoneField({
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-controls={listId}
-            aria-label={`مفتاح الدولة: ${current.nameAr} +${current.dial}`}
+            aria-label={tx(
+              `مفتاح الدولة: ${current.label} +${current.dial}`,
+              `Country code: ${current.label} +${current.dial}`,
+            )}
             onClick={() => {
               setActive(0)
               setOpen((o) => !o)
@@ -167,7 +175,7 @@ export function PhoneField({
             autoComplete={autoComplete}
             required={required}
             disabled={disabled}
-            placeholder={iso === 'EG' ? '10 1234 5678' : 'رقم الموبايل'}
+            placeholder={iso === 'EG' ? '10 1234 5678' : tx('رقم الموبايل', 'Mobile number')}
             value={national}
             onChange={(e) => {
               const raw = e.target.value
@@ -186,7 +194,7 @@ export function PhoneField({
         </div>
 
         {open && (
-          <div className="absolute inset-x-0 top-full z-40 mt-2 overflow-hidden rounded-card border border-line bg-white shadow-pop animate-dd-in">
+          <div className="absolute inset-x-0 top-full z-40 mt-2 animate-dd-in overflow-hidden rounded-card border border-line bg-white shadow-pop">
             <div className="border-b border-line p-2.5">
               <input
                 ref={searchRef}
@@ -197,14 +205,24 @@ export function PhoneField({
                   setActive(0)
                 }}
                 onKeyDown={onListKey}
-                placeholder="ابحث باسم الدولة أو المفتاح…"
+                placeholder={tx('ابحث باسم الدولة أو المفتاح…', 'Search by country or code…')}
                 aria-controls={listId}
                 aria-activedescendant={filtered[active] ? `${listId}-${filtered[active].iso}` : undefined}
                 className="h-11 w-full rounded-xl border-[1.5px] border-line-2 bg-white px-3.5 text-[15px] outline-none focus:border-blue-400"
               />
             </div>
-            <ul ref={listRef} id={listId} role="listbox" aria-label="الدول" className="max-h-72 overflow-y-auto py-1.5">
-              {filtered.length === 0 && <li className="px-4 py-3 text-sm text-muted">مفيش دولة بالاسم ده.</li>}
+            <ul
+              ref={listRef}
+              id={listId}
+              role="listbox"
+              aria-label={tx('الدول', 'Countries')}
+              className="max-h-72 overflow-y-auto py-1.5"
+            >
+              {filtered.length === 0 && (
+                <li className="px-4 py-3 text-sm text-muted">
+                  {tx('مفيش دولة بالاسم ده.', 'No country with that name.')}
+                </li>
+              )}
               {filtered.map((c, i) => (
                 <li
                   key={c.iso}
@@ -222,7 +240,7 @@ export function PhoneField({
                   )}
                 >
                   <Flag iso={c.iso} />
-                  <span className="min-w-0 flex-1 truncate">{c.nameAr}</span>
+                  <span className="min-w-0 flex-1 truncate">{c.label}</span>
                   <span className="text-[13px] text-muted">{c.iso}</span>
                   <span className="w-16 text-left text-text-2 [direction:ltr]">+{c.dial}</span>
                 </li>

@@ -11,14 +11,15 @@ import { clearToasts, toast } from '@/lib/toast'
 import { AuthShell, AuthSwitch } from './AuthShell'
 import { buttonClass } from '@/components/ui/button'
 import { OtpInput, PasswordField, PasswordRules, TextField } from '@/components/ui/fields'
+import { tx } from '@/lib/i18n'
 
 type Step = 'email' | 'otp' | 'password'
 
 const RESEND_SECONDS = 60
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'email', label: 'البريد' },
-  { id: 'otp', label: 'الكود' },
-  { id: 'password', label: 'كلمة المرور' },
+  { id: 'email', label: tx('البريد', 'Email') },
+  { id: 'otp', label: tx('الكود', 'Code') },
+  { id: 'password', label: tx('كلمة المرور', 'Password') },
 ]
 
 function errorText(err: unknown, fallback: string) {
@@ -30,7 +31,7 @@ function errorText(err: unknown, fallback: string) {
  * new password + confirmation.
  */
 export function ForgotPasswordPage() {
-  usePageTitle('نسيت كلمة المرور')
+  usePageTitle(tx('نسيت كلمة المرور', 'Forgot password'))
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
@@ -58,7 +59,9 @@ export function ForgotPasswordPage() {
       setWait(RESEND_SECONDS)
       return true
     } catch (err) {
-      toast.error(errorText(err, 'مقدرناش نبعت الكود. حاول تاني.'))
+      toast.error(
+        errorText(err, tx('مقدرناش نبعت الكود. حاول تاني.', "We couldn't send the code. Please try again.")),
+      )
       return false
     } finally {
       setBusy(false)
@@ -68,20 +71,20 @@ export function ForgotPasswordPage() {
   async function onEmail(e: FormEvent) {
     e.preventDefault()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      toast.warning('اكتب بريد إلكتروني صحيح.')
+      toast.warning(tx('اكتب بريد إلكتروني صحيح.', 'Enter a valid email address.'))
       return
     }
     await sendCode()
   }
 
   async function onResend() {
-    if (await sendCode()) toast.success('بعتنالك كود جديد.')
+    if (await sendCode()) toast.success(tx('بعتنالك كود جديد.', "We've sent you a new code."))
   }
 
   async function onOtp(e: FormEvent) {
     e.preventDefault()
     if (otp.length !== 6) {
-      toast.warning('الكود لازم يكون 6 أرقام.')
+      toast.warning(tx('الكود لازم يكون 6 أرقام.', 'The code must be 6 digits.'))
       return
     }
     setBusy(true)
@@ -91,7 +94,7 @@ export function ForgotPasswordPage() {
       clearToasts()
       setStep('password')
     } catch (err) {
-      toast.error(errorText(err, 'الكود مش صحيح.'))
+      toast.error(errorText(err, tx('الكود مش صحيح.', "That code isn't correct.")))
       setOtp('')
     } finally {
       setBusy(false)
@@ -106,21 +109,34 @@ export function ForgotPasswordPage() {
       return
     }
     if (confirm !== password) {
-      setConfirmError('كلمتين المرور مش متطابقين.')
-      toast.warning('تأكيد كلمة المرور مش زي كلمة المرور الجديدة.')
+      setConfirmError(tx('كلمتين المرور مش متطابقين.', "The passwords don't match."))
+      toast.warning(
+        tx(
+          'تأكيد كلمة المرور مش زي كلمة المرور الجديدة.',
+          "The confirmation doesn't match the new password.",
+        ),
+      )
       return
     }
     setBusy(true)
     try {
       await authApi.resetPassword({ email: email.trim(), resetToken, newPassword: password })
       clearToasts()
-      toast.success('تم تغيير كلمة المرور. سجّل دخول بكلمة المرور الجديدة.')
+      toast.success(
+        tx(
+          'تم تغيير كلمة المرور. سجّل دخول بكلمة المرور الجديدة.',
+          'Password changed. Sign in with your new password.',
+        ),
+      )
       navigate(routes.login, { replace: true, state: { email: email.trim() } })
     } catch (err) {
-      const message = errorText(err, 'مقدرناش نغيّر كلمة المرور. حاول تاني.')
+      const message = errorText(
+        err,
+        tx('مقدرناش نغيّر كلمة المرور. حاول تاني.', "We couldn't change the password. Please try again."),
+      )
       toast.error(message)
       // The 15-minute window ran out: start again from the code.
-      if (message.includes('ابدأ من الأول')) {
+      if (message.includes('ابدأ من الأول') || /expired|invalid/i.test(message)) {
         setResetToken('')
         setStep('email')
       }
@@ -130,28 +146,48 @@ export function ForgotPasswordPage() {
   }
 
   const title =
-    step === 'email' ? 'نسيت كلمة المرور؟' : step === 'otp' ? 'اكتب الكود' : 'كلمة مرور جديدة'
+    step === 'email'
+      ? tx('نسيت كلمة المرور؟', 'Forgot your password?')
+      : step === 'otp'
+        ? tx('اكتب الكود', 'Enter the code')
+        : tx('كلمة مرور جديدة', 'New password')
   const sub =
     step === 'email' ? (
-      'اكتب بريدك الإلكتروني وهنبعتلك كود تغيّر بيه كلمة المرور.'
+      tx(
+        'اكتب بريدك الإلكتروني وهنبعتلك كود تغيّر بيه كلمة المرور.',
+        "Enter your email and we'll send you a code to reset your password.",
+      )
     ) : step === 'otp' ? (
       <>
-        لو البريد <b dir="ltr">{email.trim()}</b> مسجّل عندنا، هيوصلك كود من 6 أرقام. الكود صالح 10
-        دقايق.
+        {tx('لو البريد', 'If')} <b dir="ltr">{email.trim()}</b>{' '}
+        {tx(
+          'مسجّل عندنا، هيوصلك كود من 6 أرقام. الكود صالح 10 دقايق.',
+          "is registered, you'll receive a 6-digit code. It's valid for 10 minutes.",
+        )}
       </>
     ) : (
-      'الكود صحيح. اختار كلمة مرور جديدة واكتبها مرتين.'
+      tx(
+        'الكود صحيح. اختار كلمة مرور جديدة واكتبها مرتين.',
+        'Code verified. Choose a new password and enter it twice.',
+      )
     )
   const stepIndex = STEPS.findIndex((s) => s.id === step)
 
   return (
     <AuthShell title={title} sub={sub}>
-      <ol className="flex items-center gap-2" aria-label="خطوات تغيير كلمة المرور">
+      <ol
+        className="flex items-center gap-2"
+        aria-label={tx('خطوات تغيير كلمة المرور', 'Password reset steps')}
+      >
         {STEPS.map((s, i) => {
           const done = i < stepIndex
           const current = i === stepIndex
           return (
-            <li key={s.id} className="flex flex-1 items-center gap-2" aria-current={current ? 'step' : undefined}>
+            <li
+              key={s.id}
+              className="flex flex-1 items-center gap-2"
+              aria-current={current ? 'step' : undefined}
+            >
               <span
                 className={cn(
                   'flex size-8 flex-none items-center justify-center rounded-full text-sm font-bold',
@@ -174,7 +210,7 @@ export function ForgotPasswordPage() {
       {step === 'email' && (
         <form className="flex flex-col gap-4.5" onSubmit={onEmail} noValidate>
           <TextField
-            label="البريد الإلكتروني"
+            label={tx('البريد الإلكتروني', 'Email')}
             type="email"
             ltr
             autoComplete="email"
@@ -188,7 +224,7 @@ export function ForgotPasswordPage() {
             className={buttonClass({ variant: 'navy', size: 'lg', block: true })}
             disabled={busy || !email.trim()}
           >
-            {busy ? <Spinner label="جاري الإرسال" /> : 'ابعت الكود'}
+            {busy ? <Spinner label={tx('جاري الإرسال', 'Sending')} /> : tx('ابعت الكود', 'Send code')}
           </button>
         </form>
       )}
@@ -201,7 +237,7 @@ export function ForgotPasswordPage() {
             className={buttonClass({ variant: 'navy', size: 'lg', block: true })}
             disabled={busy || otp.length !== 6}
           >
-            {busy ? <Spinner label="جاري التأكد" /> : 'تأكيد الكود'}
+            {busy ? <Spinner label={tx('جاري التأكد', 'Verifying')} /> : tx('تأكيد الكود', 'Verify code')}
           </button>
           <div className="flex items-center justify-between text-sm">
             <button
@@ -210,14 +246,16 @@ export function ForgotPasswordPage() {
               disabled={wait > 0 || busy}
               onClick={onResend}
             >
-              {wait > 0 ? `ابعت الكود تاني بعد ${wait} ثانية` : 'ابعت الكود تاني'}
+              {wait > 0
+                ? tx(`ابعت الكود تاني بعد ${wait} ثانية`, `Resend code in ${wait}s`)
+                : tx('ابعت الكود تاني', 'Resend code')}
             </button>
             <button
               type="button"
               className="border-0 bg-transparent p-0 font-semibold text-muted hover:text-ink"
               onClick={() => setStep('email')}
             >
-              غيّر البريد
+              {tx('غيّر البريد', 'Change email')}
             </button>
           </div>
         </form>
@@ -226,7 +264,7 @@ export function ForgotPasswordPage() {
       {step === 'password' && (
         <form className="flex flex-col gap-4.5" onSubmit={onPassword} noValidate>
           <PasswordField
-            label="كلمة المرور الجديدة"
+            label={tx('كلمة المرور الجديدة', 'New password')}
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -234,7 +272,7 @@ export function ForgotPasswordPage() {
           />
           <PasswordRules password={password} />
           <PasswordField
-            label="تأكيد كلمة المرور الجديدة"
+            label={tx('تأكيد كلمة المرور الجديدة', 'Confirm new password')}
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => {
@@ -249,13 +287,13 @@ export function ForgotPasswordPage() {
             className={buttonClass({ variant: 'navy', size: 'lg', block: true })}
             disabled={busy || !password || !confirm}
           >
-            {busy ? <Spinner label="جاري الحفظ" /> : 'حفظ كلمة المرور'}
+            {busy ? <Spinner label={tx('جاري الحفظ', 'Saving')} /> : tx('حفظ كلمة المرور', 'Save password')}
           </button>
         </form>
       )}
 
       <AuthSwitch>
-        افتكرتها؟ <Link to={routes.login}>سجّل دخول</Link>
+        {tx('افتكرتها؟', 'Remembered it?')} <Link to={routes.login}>{tx('سجّل دخول', 'Sign in')}</Link>
       </AuthSwitch>
     </AuthShell>
   )

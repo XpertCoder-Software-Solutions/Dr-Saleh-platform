@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Icon, type IconName } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 import { usePendingConfirm, type ConfirmTone } from '@/lib/confirm'
+import { dir, tx } from '@/lib/i18n'
 
 const TONE: Record<ConfirmTone, { icon: IconName; ring: string; badge: string; confirm: string }> = {
   danger: {
@@ -65,7 +66,7 @@ export function ConfirmHost() {
   const tone = TONE[pending.tone ?? 'danger']
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" dir="rtl">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" dir={dir}>
       <div
         aria-hidden="true"
         className="absolute inset-0 animate-fade-in bg-navy/50 backdrop-blur-[3px]"
@@ -100,7 +101,7 @@ export function ConfirmHost() {
             onClick={() => pending.resolve(false)}
             className="min-h-12 rounded-2xl border-[1.5px] border-line-2 bg-white px-4 font-bold text-ink transition-colors hover:border-blue-300 hover:bg-hover focus-visible:border-blue-400 focus-visible:shadow-[0_0_0_4px_rgba(61,155,216,.2)] focus-visible:outline-none"
           >
-            {pending.cancelLabel ?? 'رجوع'}
+            {pending.cancelLabel ?? tx('رجوع', 'Back')}
           </button>
           <button
             ref={confirmRef}
@@ -111,7 +112,7 @@ export function ConfirmHost() {
               tone.confirm,
             )}
           >
-            {pending.confirmLabel ?? 'تأكيد'}
+            {pending.confirmLabel ?? tx('تأكيد', 'Confirm')}
           </button>
         </div>
       </div>

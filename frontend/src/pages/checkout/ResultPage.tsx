@@ -12,6 +12,7 @@ import { ErrorState, Spinner } from '@/components/ui/States'
 import { cn } from '@/lib/cn'
 import { formatDate, formatEGP } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { loc, tx } from '@/lib/i18n'
 
 /**
  * Where Paymob and PayPal send the buyer back. The backend checks the result
@@ -41,7 +42,9 @@ export function ResultPage() {
           await paymentsApi.paypalStatus(query.orderId)
         }
       } catch (e) {
-        setConfirmError(e instanceof Error ? e.message : 'تعذّر التحقق من الدفع.')
+        setConfirmError(
+          e instanceof Error ? e.message : tx('تعذّر التحقق من الدفع.', "We couldn't verify the payment."),
+        )
       } finally {
         queryClient.invalidateQueries({ queryKey: ['me'] })
       }
@@ -61,14 +64,20 @@ export function ResultPage() {
   const paid = order.data?.paymentStatus === 'PAID'
   const failed = order.data && ['FAILED', 'CANCELLED'].includes(order.data.paymentStatus)
   const pendingTooLong = useTimeout(order.data?.paymentStatus === 'PENDING', 20_000)
-  usePageTitle(paid ? 'تم الطلب بنجاح' : failed ? 'الدفع مكملش' : 'جاري تأكيد الدفع')
+  usePageTitle(
+    paid
+      ? tx('تم الطلب بنجاح', 'Order placed successfully')
+      : failed
+        ? tx('الدفع مكملش', "Payment didn't go through")
+        : tx('جاري تأكيد الدفع', 'Confirming payment'),
+  )
 
   if (!orderId && !confirmError) {
-    return <Shell tone="wait" title="جاري تأكيد الدفع…" />
+    return <Shell tone="wait" title={tx('جاري تأكيد الدفع…', 'Confirming payment…')} />
   }
   if (order.isError || (confirmError && !order.data)) {
     return (
-      <Shell tone="fail" title="مقدرناش نتأكد من الدفع">
+      <Shell tone="fail" title={tx('مقدرناش نتأكد من الدفع', "We couldn't confirm the payment")}>
         <div className="mx-auto max-w-140">
           <ErrorState message={confirmError ?? undefined} onRetry={() => order.refetch()} />
         </div>
@@ -76,7 +85,16 @@ export function ResultPage() {
     )
   }
   if (!order.data || (order.data.paymentStatus === 'PENDING' && !pendingTooLong)) {
-    return <Shell tone="wait" title="جاري تأكيد الدفع…" body="ثواني بنتأكد من البنك. متقفلش الصفحة." />
+    return (
+      <Shell
+        tone="wait"
+        title={tx('جاري تأكيد الدفع…', 'Confirming payment…')}
+        body={tx(
+          'ثواني بنتأكد من البنك. متقفلش الصفحة.',
+          'Checking with the bank. Please keep this page open.',
+        )}
+      />
+    )
   }
   if (paid) return <Success order={order.data} />
   return <Failed order={order.data} stillPending={order.data.paymentStatus === 'PENDING'} />
@@ -146,16 +164,19 @@ function Success({ order }: { order: Order }) {
   return (
     <Shell
       tone="ok"
-      title="تم الطلب بنجاح"
-      body={`شكرًا${user ? ` يا ${user.firstName}` : ''}! وصلك إيميل فيه تفاصيل الطلب.${digital.length ? ' الدورات والنسخ الرقمية اتفتحت في حسابك دلوقتي.' : ''}`}
-      meta={`رقم الطلب: #${order.orderNumber} · ${formatDate(order.paidAt ?? order.createdAt)}`}
+      title={tx('تم الطلب بنجاح', 'Order placed successfully')}
+      body={tx(
+        `شكرًا${user ? ` يا ${user.firstName}` : ''}! وصلك إيميل فيه تفاصيل الطلب.${digital.length ? ' الدورات والنسخ الرقمية اتفتحت في حسابك دلوقتي.' : ''}`,
+        `Thank you${user ? `, ${user.firstName}` : ''}! We've emailed you the order details.${digital.length ? ' Your courses and digital editions are now unlocked in your account.' : ''}`,
+      )}
+      meta={`${tx('رقم الطلب:', 'Order')} #${order.orderNumber} · ${formatDate(order.paidAt ?? order.createdAt)}`}
     >
       <div className={cn(innerClass, 'grid grid-cols-[1fr_340px] items-start gap-6 max-lg:grid-cols-1')}>
         <div className="flex flex-col gap-5">
           {digital.length > 0 && (
             <div className={card}>
-              <h2 className="text-2xl">جاهز دلوقتي</h2>
-              <p className="mb-4 text-sm text-muted">اتفتح في حسابك</p>
+              <h2 className="text-2xl">{tx('جاهز دلوقتي', 'Ready now')}</h2>
+              <p className="mb-4 text-sm text-muted">{tx('اتفتح في حسابك', 'Unlocked in your account')}</p>
               <div className="flex flex-col gap-3">
                 {digital.map((it) => (
                   <div
@@ -165,12 +186,14 @@ function Success({ order }: { order: Order }) {
                     <span className="flex size-12 bg-navy items-center justify-center rounded-xl text-white">
                       <Icon name={it.itemType === 'COURSE' ? 'video' : 'book'} />
                     </span>
-                    <b className="flex-1 text-ink">{it.titleAr}</b>
+                    <b className="flex-1 text-ink">{loc(it.titleAr, it.titleEn)}</b>
                     <Link
                       to={it.itemType === 'COURSE' ? routes.myCourses : routes.myBooks}
                       className={buttonClass({ variant: 'gold', size: 'sm' })}
                     >
-                      {it.itemType === 'COURSE' ? 'ابدأ أول درس' : 'افتح الكتاب'}
+                      {it.itemType === 'COURSE'
+                        ? tx('ابدأ أول درس', 'Start the first lesson')
+                        : tx('افتح الكتاب', 'Open the book')}
                     </Link>
                   </div>
                 ))}
@@ -179,10 +202,17 @@ function Success({ order }: { order: Order }) {
           )}
           {order.hasPhysicalItems && (
             <div className={card}>
-              <h2 className="text-2xl">في الطريق ليك</h2>
-              <p className="mb-4 text-sm text-muted">الكتب والمنتجات الورقية</p>
+              <h2 className="text-2xl">{tx('في الطريق ليك', 'On its way to you')}</h2>
+              <p className="mb-4 text-sm text-muted">
+                {tx('الكتب والمنتجات الورقية', 'Paperbacks and products')}
+              </p>
               <ol className="grid grid-cols-4 gap-2 text-center text-sm">
-                {['اتأكد', 'بيتجهّز', 'اتشحن', 'وصل'].map((s, i) => (
+                {[
+                  tx('اتأكد', 'Confirmed'),
+                  tx('بيتجهّز', 'Preparing'),
+                  tx('اتشحن', 'Shipped'),
+                  tx('وصل', 'Delivered'),
+                ].map((s, i) => (
                   <li key={s} className="flex flex-col items-center gap-2">
                     <span
                       className={cn(
@@ -200,17 +230,20 @@ function Success({ order }: { order: Order }) {
                 ))}
               </ol>
               <p className="mt-4 text-sm text-muted">
-                هيوصلك خلال 2 لـ 4 أيام عمل، وهنبعتلك رقم التتبّع على واتساب.
+                {tx(
+                  'هيوصلك خلال 2 لـ 4 أيام عمل، وهنبعتلك رقم التتبّع على واتساب.',
+                  "Arrives within 2–4 business days. We'll send the tracking number on WhatsApp.",
+                )}
               </p>
             </div>
           )}
         </div>
         <aside className={cn(card, 'flex flex-col gap-2.5')}>
-          <h2 className="text-xl">الإيصال</h2>
+          <h2 className="text-xl">{tx('الإيصال', 'Receipt')}</h2>
           {order.items.map((it) => (
             <div key={it.id} className="flex justify-between gap-3 text-sm">
               <span className="text-text-2">
-                {it.titleAr}
+                {loc(it.titleAr, it.titleEn)}
                 {it.quantity > 1 && ` × ${it.quantity}`}
               </span>
               <b className="text-ink">{money(it.totalPrice)}</b>
@@ -218,25 +251,25 @@ function Success({ order }: { order: Order }) {
           ))}
           {order.discountAmount > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-text-2">الخصم</span>
+              <span className="text-text-2">{tx('الخصم', 'Discount')}</span>
               <b className="text-success">− {money(order.discountAmount)}</b>
             </div>
           )}
           {order.hasPhysicalItems && (
             <div className="flex justify-between text-sm">
-              <span className="text-text-2">الشحن</span>
+              <span className="text-text-2">{tx('الشحن', 'Shipping')}</span>
               <b className="text-ink">{money(order.shippingCost)}</b>
             </div>
           )}
           <div className="flex items-baseline justify-between border-t border-divider pt-3">
-            <b>المدفوع</b>
+            <b>{tx('المدفوع', 'Paid')}</b>
             <b className="font-head text-2xl text-ink">{money(order.totalAmount)}</b>
           </div>
           <Link
             to={routes.dashboard}
             className={buttonClass({ variant: 'navy', block: true, className: 'mt-2' })}
           >
-            <Icon name="grid" size={18} /> روح لحسابك
+            <Icon name="grid" size={18} /> {tx('روح لحسابك', 'Go to your account')}
           </Link>
         </aside>
       </div>
@@ -246,20 +279,48 @@ function Success({ order }: { order: Order }) {
 
 function Failed({ order, stillPending }: { order: Order; stillPending: boolean }) {
   const reasons: [IconName, string, string][] = [
-    ['card', 'رصيد الكارت أو حدّ الشراء أونلاين', 'اتأكد إن الكارت مفعّل للشراء أونلاين وفيه رصيد كفاية.'],
-    ['lock', 'كود التحقق (OTP) ماتكتبش', 'لو الصفحة اتقفلت قبل ما تكتب الكود، جرّب تاني.'],
-    ['globe', 'النت فصل أثناء الدفع', 'اتأكد من الاتصال وجرّب مرة كمان.'],
+    [
+      'card',
+      tx('رصيد الكارت أو حدّ الشراء أونلاين', 'Card balance or online purchase limit'),
+      tx(
+        'اتأكد إن الكارت مفعّل للشراء أونلاين وفيه رصيد كفاية.',
+        'Make sure the card is enabled for online purchases and has enough balance.',
+      ),
+    ],
+    [
+      'lock',
+      tx('كود التحقق (OTP) ماتكتبش', "The verification code (OTP) wasn't entered"),
+      tx(
+        'لو الصفحة اتقفلت قبل ما تكتب الكود، جرّب تاني.',
+        'If the page closed before you entered the code, try again.',
+      ),
+    ],
+    [
+      'globe',
+      tx('النت فصل أثناء الدفع', 'The connection dropped during payment'),
+      tx('اتأكد من الاتصال وجرّب مرة كمان.', 'Check your connection and try again.'),
+    ],
   ]
   return (
     <Shell
       tone="fail"
-      title={stillPending ? 'الدفع لسه متأكدش' : 'الدفع مكملش'}
+      title={
+        stillPending
+          ? tx('الدفع لسه متأكدش', "Payment isn't confirmed yet")
+          : tx('الدفع مكملش', "Payment didn't go through")
+      }
       body={
         stillPending
-          ? 'لو اتخصم منك مبلغ، الطلب هيتأكد أول ما يوصلنا تأكيد البنك وهيوصلك إيميل.'
-          : 'ما تقلقش، طلبك لسه محفوظ. لو اتخصم منك أي مبلغ هيرجع لحسابك تلقائيًا حسب بنكك.'
+          ? tx(
+              'لو اتخصم منك مبلغ، الطلب هيتأكد أول ما يوصلنا تأكيد البنك وهيوصلك إيميل.',
+              "If you were charged, the order will be confirmed as soon as the bank confirms, and you'll get an email.",
+            )
+          : tx(
+              'ما تقلقش، طلبك لسه محفوظ. لو اتخصم منك أي مبلغ هيرجع لحسابك تلقائيًا حسب بنكك.',
+              "Don't worry — your order is saved. Any amount charged will be refunded automatically, depending on your bank.",
+            )
       }
-      meta={`رقم الطلب: #${order.orderNumber} · ${formatDate(order.createdAt)}`}
+      meta={`${tx('رقم الطلب:', 'Order')} #${order.orderNumber} · ${formatDate(order.createdAt)}`}
     >
       <div
         className={cn(
@@ -268,8 +329,8 @@ function Failed({ order, stillPending }: { order: Order; stillPending: boolean }
         )}
       >
         <div className={card}>
-          <h2 className="text-2xl">إيه اللي ممكن يكون حصل؟</h2>
-          <p className="mb-2 text-sm text-muted">أشهر الأسباب وحلها</p>
+          <h2 className="text-2xl">{tx('إيه اللي ممكن يكون حصل؟', 'What might have happened?')}</h2>
+          <p className="mb-2 text-sm text-muted">{tx('أشهر الأسباب وحلها', 'Common causes and fixes')}</p>
           {reasons.map(([icon, t, d]) => (
             <div key={t} className="flex gap-3 border-t border-divider py-3.5">
               <span className="flex size-10 flex-none items-center justify-center rounded-xl bg-red-50 text-danger">
@@ -284,35 +345,40 @@ function Failed({ order, stillPending }: { order: Order; stillPending: boolean }
           {order.status === 'PENDING' && (
             <div className="mt-3 flex flex-wrap gap-3">
               <Link to={routes.checkoutPay(order.id)} className={buttonClass({ variant: 'gold' })}>
-                <Icon name="refresh" size={18} /> جرّب الدفع تاني
+                <Icon name="refresh" size={18} /> {tx('جرّب الدفع تاني', 'Try paying again')}
               </Link>
               <Link to={routes.checkoutPay(order.id)} className={buttonClass({ variant: 'outline' })}>
-                <Icon name="card" size={18} /> اختار طريقة دفع تانية
+                <Icon name="card" size={18} /> {tx('اختار طريقة دفع تانية', 'Choose another payment method')}
               </Link>
             </div>
           )}
         </div>
         <aside className="flex flex-col gap-4">
           <div className={card}>
-            <b className="font-head text-lg text-ink">طلبك محفوظ</b>
+            <b className="font-head text-lg text-ink">{tx('طلبك محفوظ', 'Your order is saved')}</b>
             <p className="mb-3 text-sm text-muted">
-              {order.items.length} عناصر ·{' '}
+              {tx(`${order.items.length} عناصر`, `${order.items.length} items`)} ·{' '}
               {order.currency === 'USD' ? `$${order.totalAmount}` : formatEGP(order.totalAmount)}
             </p>
             <Link to={routes.orders} className={buttonClass({ variant: 'navy', block: true })}>
-              طلباتي
+              {tx('طلباتي', 'My orders')}
             </Link>
           </div>
           <div className="rounded-card border border-green-200 bg-green-50 p-5">
-            <b className="text-ink">لسه المشكلة موجودة؟</b>
-            <p className="mb-3 text-sm text-text-2">ابعتلنا رقم الطلب على واتساب وهنساعدك تكمّل.</p>
+            <b className="text-ink">{tx('لسه المشكلة موجودة؟', 'Still having trouble?')}</b>
+            <p className="mb-3 text-sm text-text-2">
+              {tx(
+                'ابعتلنا رقم الطلب على واتساب وهنساعدك تكمّل.',
+                "Send us the order number on WhatsApp and we'll help you finish.",
+              )}
+            </p>
             <a
               href={CONTACT.whatsapp.href}
               target="_blank"
               rel="noreferrer"
               className={buttonClass({ variant: 'whatsapp', size: 'sm' })}
             >
-              <Icon name="whatsapp" size={16} /> كلّمنا على واتساب
+              <Icon name="whatsapp" size={16} /> {tx('كلّمنا على واتساب', 'Chat with us on WhatsApp')}
             </a>
           </div>
         </aside>

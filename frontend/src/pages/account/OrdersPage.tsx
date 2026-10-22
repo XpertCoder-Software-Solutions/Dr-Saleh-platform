@@ -15,6 +15,7 @@ import { cn } from '@/lib/cn'
 import { formatDate, formatEGP } from '@/lib/format'
 import { orderKinds, orderStatus } from '@/lib/order-status'
 import { confirmAction } from '@/lib/confirm'
+import { loc, tx } from '@/lib/i18n'
 
 type Filter = 'all' | 'pending' | 'paid' | 'closed'
 
@@ -47,12 +48,13 @@ export function OrdersPage() {
   return (
     <AccountShell
       active="orders"
-      pageTitle="طلباتي"
-      title={<span className="text-sheen">طلباتي</span>}
+      pageTitle={tx('طلباتي', 'My orders')}
+      title={<span className="text-sheen">{tx('طلباتي', 'My orders')}</span>}
       body={g(
         'تابع حالة كل طلب، وكمّل دفع أي طلب لسه مستني.',
         'تابعي حالة كل طلب، وكمّلي دفع أي طلب لسه مستني.',
         'حالة كل طلب، ودفع الطلبات اللي لسه مستنية.',
+        'Track every order and finish paying any that are pending.',
       )}
     >
       <Panel className="p-4">
@@ -60,10 +62,10 @@ export function OrdersPage() {
           value={filter}
           onChange={setFilter}
           tabs={[
-            { id: 'all', label: 'الكل', count: list.length },
-            { id: 'pending', label: 'في انتظار الدفع', count: count('pending') },
-            { id: 'paid', label: 'مدفوعة', count: count('paid') },
-            { id: 'closed', label: 'ملغية ومستردة', count: count('closed') },
+            { id: 'all', label: tx('الكل', 'All'), count: list.length },
+            { id: 'pending', label: tx('في انتظار الدفع', 'Awaiting payment'), count: count('pending') },
+            { id: 'paid', label: tx('مدفوعة', 'Paid'), count: count('paid') },
+            { id: 'closed', label: tx('ملغية ومستردة', 'Cancelled & refunded'), count: count('closed') },
           ]}
         />
       </Panel>
@@ -78,18 +80,25 @@ export function OrdersPage() {
         <Panel>
           <EmptyState
             icon="receipt"
-            title="مفيش طلبات لسه"
-            body="أي طلب بتعمله هتلاقيه هنا بحالته."
+            title={tx('مفيش طلبات لسه', 'No orders yet')}
+            body={tx(
+              'أي طلب بتعمله هتلاقيه هنا بحالته.',
+              'Every order you place shows up here with its status.',
+            )}
             action={
               <Link to={routes.courses} className={buttonClass({ variant: 'gold' })}>
-                تصفّح الدورات
+                {tx('تصفّح الدورات', 'Browse courses')}
               </Link>
             }
           />
         </Panel>
       ) : visible.length === 0 ? (
         <Panel>
-          <EmptyState compact icon="receipt" title="مفيش طلبات بالحالة دي" />
+          <EmptyState
+            compact
+            icon="receipt"
+            title={tx('مفيش طلبات بالحالة دي', 'No orders with this status')}
+          />
         </Panel>
       ) : (
         <ul className="flex flex-col gap-4">
@@ -104,7 +113,7 @@ export function OrdersPage() {
         </ul>
       )}
       {orders.data && orders.data.pagination.totalPages > 1 && (
-        <Pager pagination={orders.data.pagination} noun="طلب" onChange={setPage} />
+        <Pager pagination={orders.data.pagination} noun={tx('طلب', 'orders')} onChange={setPage} />
       )}
     </AccountShell>
   )
@@ -125,14 +134,14 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-4 border-0 bg-transparent p-5 text-right max-sm:p-4"
+        className="flex w-full items-center gap-4 border-0 bg-transparent p-5 text-start max-sm:p-4"
       >
         <span className="flex size-11 flex-none items-center justify-center rounded-xl bg-surface-blue text-blue-600">
           <Icon name="receipt" size={18} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <b className="text-ink">
-            طلب{' '}
+            {tx('طلب', 'Order')}{' '}
             <span dir="ltr" className="whitespace-nowrap">
               #{order.orderNumber}
             </span>
@@ -147,7 +156,7 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
         <StatusPill tone={st.tone} className="max-sm:hidden">
           {st.label}
         </StatusPill>
-        <b className="w-24 text-left font-head text-lg text-ink max-sm:hidden">
+        <b className="w-24 text-end font-head text-lg text-ink max-sm:hidden">
           {money(order, order.totalAmount)}
         </b>
         <Icon
@@ -160,11 +169,11 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
       {open && (
         <div className="grid grid-cols-[1.3fr_1fr] gap-6 border-t border-divider p-5 max-md:grid-cols-1 max-sm:p-4">
           <div className="flex flex-col gap-2">
-            <h3 className="mb-1 text-base">محتوى الطلب</h3>
+            <h3 className="mb-1 text-base">{tx('محتوى الطلب', 'Order items')}</h3>
             {order.items.map((i) => (
               <div key={i.id} className="flex justify-between gap-3 text-sm">
                 <span className="text-text-2">
-                  {i.titleAr}
+                  {loc(i.titleAr, i.titleEn)}
                   {i.quantity > 1 && <span className="text-muted"> × {i.quantity}</span>}
                 </span>
                 <b className="whitespace-nowrap text-ink">{money(order, i.totalPrice)}</b>
@@ -172,29 +181,29 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
             ))}
             {order.discountAmount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted">الخصم</span>
+                <span className="text-muted">{tx('الخصم', 'Discount')}</span>
                 <b className="text-success">− {money(order, order.discountAmount)}</b>
               </div>
             )}
             {order.shippingCost > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-muted">الشحن</span>
+                <span className="text-muted">{tx('الشحن', 'Shipping')}</span>
                 <b className="text-ink">{money(order, order.shippingCost)}</b>
               </div>
             )}
             <div className="mt-1 flex justify-between border-t border-divider pt-2">
-              <b className="text-ink">الإجمالي</b>
+              <b className="text-ink">{tx('الإجمالي', 'Total')}</b>
               <b className="font-head text-lg text-ink">{money(order, order.totalAmount)}</b>
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-base">حالة الطلب</h3>
+            <h3 className="text-base">{tx('حالة الطلب', 'Order status')}</h3>
             <Timeline order={order} />
             {order.trackingNumber && (
               <p className="flex items-center gap-2 text-sm text-text-2">
                 <Icon name="truck" size={15} className="text-blue-600" />
-                رقم الشحنة:{' '}
+                {tx('رقم الشحنة:', 'Tracking number:')}{' '}
                 <b dir="ltr" className="text-ink">
                   {order.trackingNumber}
                 </b>
@@ -211,7 +220,7 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
               target="_blank"
               className={buttonClass({ variant: 'outline', size: 'sm', className: 'self-start' })}
             >
-              <Icon name="download" size={15} /> تحميل الفاتورة
+              <Icon name="download" size={15} /> {tx('تحميل الفاتورة', 'Download invoice')}
             </Link>
             {pending && (
               <div className="flex flex-wrap gap-2.5">
@@ -219,7 +228,7 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
                   to={routes.checkoutPay(order.id)}
                   className={buttonClass({ variant: 'gold', size: 'sm' })}
                 >
-                  <Icon name="card" size={15} /> ادفع دلوقتي
+                  <Icon name="card" size={15} /> {tx('ادفع دلوقتي', 'Pay now')}
                 </Link>
                 <button
                   type="button"
@@ -228,16 +237,19 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
                   onClick={async () => {
                     if (
                       await confirmAction({
-                        title: 'تلغي الطلب؟',
-                        body: 'لو غيّرت رأيك هتقدر تضيف الحاجات للسلة وتطلب تاني.',
-                        confirmLabel: 'أيوه، الغيه',
-                        cancelLabel: 'لأ، خليه',
+                        title: tx('تلغي الطلب؟', 'Cancel this order?'),
+                        body: tx(
+                          'لو غيّرت رأيك هتقدر تضيف الحاجات للسلة وتطلب تاني.',
+                          'If you change your mind, you can add the items to your cart and order again.',
+                        ),
+                        confirmLabel: tx('أيوه، الغيه', 'Yes, cancel it'),
+                        cancelLabel: tx('لأ، خليه', 'No, keep it'),
                       })
                     )
                       cancel.mutate()
                   }}
                 >
-                  إلغاء الطلب
+                  {tx('إلغاء الطلب', 'Cancel order')}
                 </button>
               </div>
             )}
@@ -253,15 +265,22 @@ function OrderRow({ order, open, onToggle }: { order: Order; open: boolean; onTo
 function Timeline({ order }: { order: Order }) {
   const paid = order.status === 'PAID'
   const steps: { label: string; sub?: string; state: 'done' | 'now' | 'todo' | 'off' }[] = [
-    { label: 'تم استلام الطلب', sub: formatDate(order.createdAt), state: 'done' },
+    { label: tx('تم استلام الطلب', 'Order received'), sub: formatDate(order.createdAt), state: 'done' },
     order.status === 'CANCELLED'
-      ? { label: 'اتلغى', state: 'off' }
+      ? { label: tx('اتلغى', 'Cancelled'), state: 'off' }
       : order.status === 'REFUNDED'
-        ? { label: 'المبلغ اترد', state: 'done' }
+        ? { label: tx('المبلغ اترد', 'Refunded'), state: 'done' }
         : paid
-          ? { label: 'تم الدفع', sub: order.paidAt ? formatDate(order.paidAt) : undefined, state: 'done' }
+          ? {
+              label: tx('تم الدفع', 'Paid'),
+              sub: order.paidAt ? formatDate(order.paidAt) : undefined,
+              state: 'done',
+            }
           : {
-              label: order.paymentStatus === 'FAILED' ? 'الدفع مكملش' : 'في انتظار الدفع',
+              label:
+                order.paymentStatus === 'FAILED'
+                  ? tx('الدفع مكملش', 'Payment failed')
+                  : tx('في انتظار الدفع', 'Awaiting payment'),
               state: 'now',
             },
   ]
@@ -269,16 +288,16 @@ function Timeline({ order }: { order: Order }) {
     const ship = order.shippingStatus
     const shipped = ship === 'SHIPPED' || ship === 'DELIVERED'
     steps.push({
-      label: shipped ? 'خرج للشحن' : 'بيتجهّز للشحن',
+      label: shipped ? tx('خرج للشحن', 'Shipped') : tx('بيتجهّز للشحن', 'Preparing for shipping'),
       sub: shipped
         ? [order.shippedAt && formatDate(order.shippedAt), order.shippingCarrier].filter(Boolean).join(' · ')
         : paid
-          ? 'بيوصلك خلال 2 لـ 4 أيام عمل'
-          : 'بعد الدفع',
+          ? tx('بيوصلك خلال 2 لـ 4 أيام عمل', 'Arrives in 2–4 business days')
+          : tx('بعد الدفع', 'After payment'),
       state: shipped ? 'done' : paid ? 'now' : 'todo',
     })
     steps.push({
-      label: 'تم التوصيل',
+      label: tx('تم التوصيل', 'Delivered'),
       sub: ship === 'DELIVERED' && order.deliveredAt ? formatDate(order.deliveredAt) : undefined,
       state: ship === 'DELIVERED' ? 'done' : ship === 'SHIPPED' ? 'now' : 'todo',
     })

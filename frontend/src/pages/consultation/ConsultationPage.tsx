@@ -17,6 +17,7 @@ import { ConsultSuccess } from './ConsultSuccess'
 import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
+import { isEn, loc, tx } from '@/lib/i18n'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -29,7 +30,7 @@ type Errors = Partial<
 
 /** The original consultation page (the header link points here). */
 export function ConsultationPage() {
-  usePageTitle('الاستشارات')
+  usePageTitle(tx('الاستشارات', 'Consultations'))
   const t = useCopy()
   const { user } = useAuth()
   const categories = useQuery({
@@ -72,15 +73,19 @@ export function ConsultationPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     const er: Errors = {}
-    if (!form.categoryId) er.categoryId = 'اختار نوع الاستشارة.'
-    if (form.fullName.trim().length < 3) er.fullName = 'اكتب اسمك.'
-    if (!EMAIL_RE.test(form.email.trim())) er.email = 'البريد الإلكتروني مش صحيح.'
-    if (!isValidPhone(form.phone)) er.phone = 'اكتب رقم صحيح للدولة اللي اخترتها.'
-    if (form.whatsApp && !isValidPhone(form.whatsApp)) er.whatsApp = 'رقم الواتساب مش صحيح.'
-    if (!(Number(form.age) >= 1 && Number(form.age) <= 120)) er.age = 'اكتب السن.'
-    if (!form.gender) er.gender = 'اختار النوع.'
-    if (form.topic.trim().length < 3) er.topic = 'اكتب موضوع الاستشارة.'
-    if (!form.agree) er.agree = 'لازم توافق على الشروط.'
+    if (!form.categoryId) er.categoryId = tx('اختار نوع الاستشارة.', 'Choose the consultation type.')
+    if (form.fullName.trim().length < 3) er.fullName = tx('اكتب اسمك.', 'Enter your name.')
+    if (!EMAIL_RE.test(form.email.trim()))
+      er.email = tx('البريد الإلكتروني مش صحيح.', "That email doesn't look right.")
+    if (!isValidPhone(form.phone))
+      er.phone = tx('اكتب رقم صحيح للدولة اللي اخترتها.', 'Enter a valid number for the selected country.')
+    if (form.whatsApp && !isValidPhone(form.whatsApp))
+      er.whatsApp = tx('رقم الواتساب مش صحيح.', "That WhatsApp number doesn't look right.")
+    if (!(Number(form.age) >= 1 && Number(form.age) <= 120)) er.age = tx('اكتب السن.', 'Enter the age.')
+    if (!form.gender) er.gender = tx('اختار النوع.', 'Choose the gender.')
+    if (form.topic.trim().length < 3)
+      er.topic = tx('اكتب موضوع الاستشارة.', 'Describe the consultation topic.')
+    if (!form.agree) er.agree = tx('لازم توافق على الشروط.', 'You need to accept the terms.')
     setErrors(er)
     warnFormErrors(er)
     if (Object.keys(er).length === 0) submit.mutate()
@@ -89,49 +94,64 @@ export function ConsultationPage() {
   return (
     <>
       <PageHero
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'الاستشارات' }]}
+        crumbs={[
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          { label: tx('الاستشارات', 'Consultations') },
+        ]}
         eyebrow={
           <>
             <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-            جلسات أونلاين من أي مكان
+            {tx('جلسات أونلاين من أي مكان', 'Online sessions from anywhere')}
           </>
         }
         title={
           <>
-            {t('cta.book').split(' ')[0]} استشارتك <span className="text-sheen">مع د. صالح</span>
+            {isEn ? 'Book your consultation' : `${t('cta.book').split(' ')[0]} استشارتك`}{' '}
+            <span className="text-sheen">{tx('مع د. صالح', 'with Dr. Saleh')}</span>
           </>
         }
-        body="املأ بياناتك وفريقنا هيتواصل معاك في أقرب وقت لتحديد ميعاد الاستشارة المناسب ليك. بياناتك بتتحفظ بسرية تامة."
+        body={tx(
+          'املأ بياناتك وفريقنا هيتواصل معاك في أقرب وقت لتحديد ميعاد الاستشارة المناسب ليك. بياناتك بتتحفظ بسرية تامة.',
+          'Fill in your details and our team will contact you shortly to set a suitable time. Your details are kept strictly confidential.',
+        )}
       />
 
       <section className={cn(sectionClass, 'relative z-2 -mt-14')}>
         <div className={cn(innerClass, 'grid grid-cols-[1fr_1.35fr] items-start gap-7 max-lg:grid-cols-1')}>
           <div className="flex flex-col gap-4 max-lg:order-last">
             <div className="flex flex-col gap-3 rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)]">
-              <b className="font-head text-xl text-ink">إزاي بتتم الاستشارة؟</b>
-              {['تملأ النموذج في دقيقتين', 'نكلمك على واتساب لتأكيد الميعاد', 'جلسة خاصة مع د. صالح'].map(
-                (s, i) => (
-                  <div
-                    key={s}
-                    className="flex items-center gap-3 rounded-tile bg-surface px-4 py-3.5 font-semibold text-ink"
-                  >
-                    <span className="flex size-9 flex-none bg-gold items-center justify-center rounded-full font-extrabold text-navy">
-                      {i + 1}
-                    </span>
-                    {s}
-                  </div>
-                ),
-              )}
+              <b className="font-head text-xl text-ink">{tx('إزاي بتتم الاستشارة؟', 'How does it work?')}</b>
+              {[
+                tx('تملأ النموذج في دقيقتين', 'Fill in the form in two minutes'),
+                tx('نكلمك على واتساب لتأكيد الميعاد', 'We message you on WhatsApp to confirm the time'),
+                tx('جلسة خاصة مع د. صالح', 'A private session with Dr. Saleh'),
+              ].map((s, i) => (
+                <div
+                  key={s}
+                  className="flex items-center gap-3 rounded-tile bg-surface px-4 py-3.5 font-semibold text-ink"
+                >
+                  <span className="flex size-9 flex-none bg-gold items-center justify-center rounded-full font-extrabold text-navy">
+                    {i + 1}
+                  </span>
+                  {s}
+                </div>
+              ))}
             </div>
             <p className="flex items-start gap-3 rounded-card border border-line bg-white p-5 text-sm leading-relaxed text-muted">
               <Icon name="lock" size={18} className="mt-0.5 flex-none text-blue-600" />
-              جميع بياناتك بتتحفظ بسرية تامة، وبنستخدمها بس للتواصل معاك بخصوص الحجز.
+              {tx(
+                'جميع بياناتك بتتحفظ بسرية تامة، وبنستخدمها بس للتواصل معاك بخصوص الحجز.',
+                'All your details are kept confidential and used only to contact you about the booking.',
+              )}
             </p>
             <Link
               to={routes.consultRequest}
               className="flex items-center justify-between rounded-card border border-line bg-white p-5 font-bold"
             >
-              عندك ولاد ومحتاج تحكي الموقف بالتفصيل؟ استخدم الفورم المفصّل
+              {tx(
+                'عندك ولاد ومحتاج تحكي الموقف بالتفصيل؟ استخدم الفورم المفصّل',
+                'Have children and need to describe the situation in detail? Use the detailed form',
+              )}
               <Icon name="arrowLeft" size={18} />
             </Link>
           </div>
@@ -142,23 +162,26 @@ export function ConsultationPage() {
             ) : (
               <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
                 <ChoiceChips
-                  label="نوع الاستشارة"
+                  label={tx('نوع الاستشارة', 'Consultation type')}
                   value={form.categoryId}
                   onChange={(v) => set('categoryId', v)}
-                  options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name ?? c.nameAr }))}
+                  options={(categories.data ?? []).map((c) => ({
+                    value: c.id,
+                    label: c.name ?? loc(c.nameAr, c.nameEn),
+                  }))}
                   error={errors.categoryId}
                 />
                 <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
                   <TextField
-                    label="الاسم بالكامل"
-                    placeholder="مثال: أحمد محمد"
+                    label={tx('الاسم بالكامل', 'Full name')}
+                    placeholder={tx('مثال: أحمد محمد', 'e.g. Ahmed Mohamed')}
                     autoComplete="name"
                     value={form.fullName}
                     onChange={(e) => set('fullName', e.target.value)}
                     error={errors.fullName}
                   />
                   <TextField
-                    label="البريد الإلكتروني"
+                    label={tx('البريد الإلكتروني', 'Email')}
                     type="email"
                     ltr
                     placeholder="name@example.com"
@@ -168,28 +191,28 @@ export function ConsultationPage() {
                     error={errors.email}
                   />
                   <PhoneField
-                    label="رقم الهاتف"
+                    label={tx('رقم الهاتف', 'Phone number')}
                     value={form.phone}
                     onChange={(v) => set('phone', v)}
                     error={errors.phone}
                   />
                   <PhoneField
-                    label="رقم الواتساب"
+                    label={tx('رقم الواتساب', 'WhatsApp number')}
                     value={form.whatsApp}
                     onChange={(v) => set('whatsApp', v)}
                     error={errors.whatsApp}
-                    hint="لو مختلف عن رقم الهاتف"
+                    hint={tx('لو مختلف عن رقم الهاتف', 'If different from the phone number')}
                   />
                 </div>
                 <div className="grid grid-cols-[1.3fr_0.7fr_1fr] gap-4 max-sm:grid-cols-2">
                   <CountrySelectField
-                    label="الدولة"
+                    label={tx('الدولة', 'Country')}
                     value={form.country}
                     onChange={(v) => set('country', v)}
                     className="max-sm:col-span-2"
                   />
                   <TextField
-                    label="السن"
+                    label={tx('السن', 'Age')}
                     inputMode="numeric"
                     maxLength={3}
                     placeholder="35"
@@ -198,27 +221,30 @@ export function ConsultationPage() {
                     error={errors.age}
                   />
                   <ChoiceChips
-                    label="النوع"
+                    label={tx('النوع', 'Gender')}
                     value={form.gender}
                     onChange={(v) => set('gender', v)}
                     options={[
-                      { value: 'Male' as const, label: 'ذكر' },
-                      { value: 'Female' as const, label: 'أنثى' },
+                      { value: 'Male' as const, label: tx('ذكر', 'Male') },
+                      { value: 'Female' as const, label: tx('أنثى', 'Female') },
                     ]}
                     error={errors.gender}
                   />
                 </div>
                 <TextField
-                  label="موضوع الاستشارة"
-                  placeholder="مثال: عناد ابني (6 سنين) وقت المذاكرة"
+                  label={tx('موضوع الاستشارة', 'Consultation topic')}
+                  placeholder={tx(
+                    'مثال: عناد ابني (6 سنين) وقت المذاكرة',
+                    "e.g. my son's (6) stubbornness at study time",
+                  )}
                   value={form.topic}
                   onChange={(e) => set('topic', e.target.value)}
                   error={errors.topic}
                 />
                 <TextAreaField
-                  label="تفاصيل إضافية"
-                  labelAside={<span className="text-muted">(اختياري)</span>}
-                  placeholder="احكيلنا باختصار عن الموقف..."
+                  label={tx('تفاصيل إضافية', 'More details')}
+                  labelAside={<span className="text-muted">{tx('(اختياري)', '(optional)')}</span>}
+                  placeholder={tx('احكيلنا باختصار عن الموقف...', 'Tell us briefly about the situation...')}
                   value={form.notes}
                   onChange={(e) => set('notes', e.target.value)}
                   maxLength={2000}
@@ -228,8 +254,9 @@ export function ConsultationPage() {
                   onChange={(e) => set('agree', e.target.checked)}
                   label={
                     <>
-                      أوافق على <Link to={routes.terms}>شروط الاستخدام</Link> و
-                      <Link to={routes.privacy}>سياسة الخصوصية</Link>.
+                      {tx('أوافق على', 'I agree to the')}{' '}
+                      <Link to={routes.terms}>{tx('شروط الاستخدام', 'terms of use')}</Link> {tx('و', 'and')}{' '}
+                      <Link to={routes.privacy}>{tx('سياسة الخصوصية', 'privacy policy')}</Link>.
                     </>
                   }
                 />
@@ -240,7 +267,11 @@ export function ConsultationPage() {
                   className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
                   disabled={submit.isPending}
                 >
-                  {submit.isPending ? <Spinner label="جاري الإرسال" /> : 'إرسال طلب الاستشارة'}
+                  {submit.isPending ? (
+                    <Spinner label={tx('جاري الإرسال', 'Sending')} />
+                  ) : (
+                    tx('إرسال طلب الاستشارة', 'Send consultation request')
+                  )}
                 </button>
               </form>
             )}
@@ -260,14 +291,17 @@ export function ConsultationPage() {
               <Icon name="message" />
             </span>
             <span className="flex flex-col">
-              <b className="text-ink">سؤالك مش عن استشارة؟</b>
+              <b className="text-ink">{tx('سؤالك مش عن استشارة؟', 'Not about a consultation?')}</b>
               <span className="text-sm text-muted">
-                لو عندك استفسار عن دورة أو طلب أو دفع، كلّمنا من صفحة التواصل.
+                {tx(
+                  'لو عندك استفسار عن دورة أو طلب أو دفع، كلّمنا من صفحة التواصل.',
+                  'For questions about a course, an order or payment, reach us on the contact page.',
+                )}
               </span>
             </span>
           </span>
           <Link to={routes.contact} className={buttonClass({ variant: 'outline', size: 'sm' })}>
-            تواصل معنا <Icon name="arrowLeft" size={16} />
+            {tx('تواصل معنا', 'Contact us')} <Icon name="arrowLeft" size={16} />
           </Link>
         </div>
       </section>

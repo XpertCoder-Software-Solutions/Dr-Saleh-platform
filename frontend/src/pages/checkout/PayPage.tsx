@@ -17,6 +17,7 @@ import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { confirmAction } from '@/lib/confirm'
+import { loc, tx } from '@/lib/i18n'
 
 type Method = PaymobChannel | 'PAYPAL'
 
@@ -31,23 +32,32 @@ const METHODS: {
   {
     id: 'APPLE_PAY',
     title: 'Apple Pay',
-    note: 'ادفع بلمسة من الآيفون أو الماك، وأكّد بـ Face ID أو Touch ID.',
+    note: tx(
+      'ادفع بلمسة من الآيفون أو الماك، وأكّد بـ Face ID أو Touch ID.',
+      'Pay with a tap on iPhone or Mac and confirm with Face ID or Touch ID.',
+    ),
     icon: 'phone',
     logos: ['applePay'],
     currency: 'EGP',
   },
   {
     id: 'CARD',
-    title: 'كارت بنكي',
-    note: 'فيزا أو ماستركارد أو ميزة. بيانات الكارت بتتكتب في صفحة الدفع الآمنة.',
+    title: tx('كارت بنكي', 'Bank card'),
+    note: tx(
+      'فيزا أو ماستركارد أو ميزة. بيانات الكارت بتتكتب في صفحة الدفع الآمنة.',
+      'Visa, Mastercard or Meeza. Card details are entered on the secure payment page.',
+    ),
     icon: 'card',
     logos: ['visa', 'mastercard', 'meeza', 'amex'],
     currency: 'EGP',
   },
   {
     id: 'WALLET',
-    title: 'محفظة إلكترونية',
-    note: 'فودافون كاش أو اتصالات كاش أو أورانج كاش أو WE Pay. هيوصلك كود تأكيد على الموبايل.',
+    title: tx('محفظة إلكترونية', 'Mobile wallet'),
+    note: tx(
+      'فودافون كاش أو اتصالات كاش أو أورانج كاش أو WE Pay. هيوصلك كود تأكيد على الموبايل.',
+      "Vodafone Cash, Etisalat Cash, Orange Cash or WE Pay. You'll get a confirmation code on your phone.",
+    ),
     icon: 'wallet',
     logos: ['vodafone', 'etisalat', 'orange', 'we'],
     currency: 'EGP',
@@ -55,7 +65,10 @@ const METHODS: {
   {
     id: 'PAYPAL',
     title: 'PayPal',
-    note: 'هتتحوّل لـ PayPal تأكد الدفع وترجع هنا تلقائيًا.',
+    note: tx(
+      'هتتحوّل لـ PayPal تأكد الدفع وترجع هنا تلقائيًا.',
+      "You'll go to PayPal to confirm, then come back here automatically.",
+    ),
     icon: 'globe',
     logos: ['paypal'],
     currency: 'USD',
@@ -67,7 +80,7 @@ const card = 'rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,
 /** Step 2b: pay for an existing pending order (coupon + payment method). */
 export function PayPage() {
   const { orderId = '' } = useParams()
-  usePageTitle('الدفع')
+  usePageTitle(tx('الدفع', 'Payment'))
   const order = useQuery({
     queryKey: ['me', 'orders', orderId],
     queryFn: () => ordersApi.get(orderId),
@@ -84,20 +97,24 @@ export function PayPage() {
       <PageHero
         portrait={false}
         crumbs={[
-          { label: 'الرئيسية', to: routes.home },
-          { label: 'السلة', to: routes.cart },
-          { label: 'الدفع' },
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          { label: tx('السلة', 'Cart'), to: routes.cart },
+          { label: tx('الدفع', 'Payment') },
         ]}
         title={
           <>
-            اختار <span className="text-sheen">طريقة الدفع</span>
+            {tx('اختار', 'Choose a')}{' '}
+            <span className="text-sheen">{tx('طريقة الدفع', 'payment method')}</span>
           </>
         }
-        body="طلبك محفوظ. اختار الطريقة اللي تريحك، والدورات والنسخ الرقمية بتتفتح فور تأكيد الدفع."
+        body={tx(
+          'طلبك محفوظ. اختار الطريقة اللي تريحك، والدورات والنسخ الرقمية بتتفتح فور تأكيد الدفع.',
+          'Your order is saved. Choose how you’d like to pay — courses and digital editions open as soon as payment is confirmed.',
+        )}
       >
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-card bg-white px-6 py-4 shadow-[0_30px_60px_-30px_rgba(5,20,40,.6)]">
           <b className="font-head text-2xl text-ink">
-            طلب رقم <span dir="ltr">#{order.data?.orderNumber ?? '…'}</span>
+            {tx('طلب رقم', 'Order')} <span dir="ltr">#{order.data?.orderNumber ?? '…'}</span>
           </b>
           <CheckoutSteps current={2} />
         </div>
@@ -112,7 +129,8 @@ export function PayPage() {
             </div>
           ) : order.data.status !== 'PENDING' ? (
             <Alert tone="error">
-              الطلب ده مبقاش متاح للدفع ({order.data.status === 'CANCELLED' ? 'اتلغى' : 'اتقفل'}).
+              {tx('الطلب ده مبقاش متاح للدفع', 'This order can no longer be paid')} (
+              {order.data.status === 'CANCELLED' ? tx('اتلغى', 'cancelled') : tx('اتقفل', 'closed')}).
             </Alert>
           ) : (
             <Pay order={order.data} />
@@ -212,11 +230,11 @@ function Pay({ order }: { order: Order }) {
     <div className="grid grid-cols-[1fr_340px] items-start gap-6 max-lg:grid-cols-1">
       <div className="flex min-w-0 flex-col gap-5">
         <div className={card}>
-          <h2 className="mb-4 text-2xl">طريقة الدفع</h2>
+          <h2 className="mb-4 text-2xl">{tx('طريقة الدفع', 'Payment method')}</h2>
           <div
             className="grid grid-cols-2 gap-3 max-sm:grid-cols-1"
             role="radiogroup"
-            aria-label="طريقة الدفع"
+            aria-label={tx('طريقة الدفع', 'Payment method')}
           >
             {methods.map((m) => (
               <button
@@ -256,18 +274,18 @@ function Pay({ order }: { order: Order }) {
             aria-live="polite"
           >
             {switchCurrency.isPending
-              ? 'بنحدّث الأسعار…'
+              ? tx('بنحدّث الأسعار…', 'Updating prices…')
               : chosen.currency === 'USD'
-                ? `${chosen.note} الدفع بالدولار.`
+                ? `${chosen.note} ${tx('الدفع بالدولار.', 'Paid in US dollars.')}`
                 : region.isEgypt
                   ? chosen.note
-                  : `${chosen.note} المبلغ بيتخصم بالجنيه المصري.`}
+                  : `${chosen.note} ${tx('المبلغ بيتخصم بالجنيه المصري.', 'Charged in Egyptian pounds.')}`}
           </p>
           {switchCurrency.isError && <Alert tone="error">{(switchCurrency.error as Error).message}</Alert>}
         </div>
 
         <div className={card}>
-          <h2 className="mb-1 text-2xl">محتوى الطلب</h2>
+          <h2 className="mb-1 text-2xl">{tx('محتوى الطلب', "What's in your order")}</h2>
           <ul>
             {order.items.map((it) => (
               <li
@@ -275,7 +293,7 @@ function Pay({ order }: { order: Order }) {
                 className="flex justify-between gap-3 border-t border-divider py-3 text-[15px] first:border-t-0"
               >
                 <span className="text-ink">
-                  {it.titleAr}
+                  {loc(it.titleAr, it.titleEn)}
                   {it.quantity > 1 && <span className="text-muted"> × {it.quantity}</span>}
                 </span>
                 <b className="text-ink">{money(it.totalPrice)}</b>
@@ -285,18 +303,18 @@ function Pay({ order }: { order: Order }) {
           {order.shippingAddress && (
             <p className="mt-2 flex items-start gap-2 rounded-tile bg-surface p-3 text-sm text-text-2">
               <Icon name="mapPin" size={16} className="mt-0.5 flex-none text-blue-600" />
-              هيوصل على: {formatAddress(order.shippingAddress)}
+              {tx('هيوصل على:', 'Delivering to:')} {formatAddress(order.shippingAddress)}
             </p>
           )}
         </div>
       </div>
 
       <aside className={cn(card, 'sticky top-27 flex flex-col gap-3 max-lg:static')}>
-        <h2 className="text-xl">ملخص الطلب</h2>
+        <h2 className="text-xl">{tx('ملخص الطلب', 'Order summary')}</h2>
         {hasCoupon ? (
           <div className="flex items-center justify-between rounded-xl bg-green-50 px-3 py-2.5 text-sm">
             <span className="font-bold text-green-800">
-              <Icon name="check" size={14} className="inline" /> اتطبق كوبون الخصم
+              <Icon name="check" size={14} className="inline" /> {tx('اتطبق كوبون الخصم', 'Coupon applied')}
             </span>
             <button
               type="button"
@@ -304,13 +322,13 @@ function Pay({ order }: { order: Order }) {
               onClick={() => removeCoupon.mutate()}
               disabled={removeCoupon.isPending}
             >
-              شيله
+              {tx('شيله', 'Remove')}
             </button>
           </div>
         ) : (
           <form onSubmit={applyCoupon} className="flex flex-col gap-2">
             <label className="text-sm font-bold text-ink" htmlFor="coupon">
-              كود الخصم
+              {tx('كود الخصم', 'Coupon code')}
             </label>
             <div className="flex gap-2">
               <input
@@ -318,7 +336,7 @@ function Pay({ order }: { order: Order }) {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 dir="ltr"
-                className={cn(inputClass, 'min-h-11 text-right uppercase')}
+                className={cn(inputClass, 'min-h-11 text-start uppercase')}
                 placeholder="WELCOME10"
               />
               <button
@@ -326,30 +344,30 @@ function Pay({ order }: { order: Order }) {
                 className={buttonClass({ variant: 'outline', size: 'sm' })}
                 disabled={coupon.isPending || !code.trim()}
               >
-                {coupon.isPending ? <Spinner /> : 'تطبيق'}
+                {coupon.isPending ? <Spinner /> : tx('تطبيق', 'Apply')}
               </button>
             </div>
             {coupon.isError && <span className="text-sm text-danger">{couponError(coupon.error)}</span>}
           </form>
         )}
         <div className="flex justify-between text-[15px]">
-          <span className="text-muted">المجموع الفرعي</span>
+          <span className="text-muted">{tx('المجموع الفرعي', 'Subtotal')}</span>
           <b className="text-ink">{money(order.subtotal)}</b>
         </div>
         {order.discountAmount > 0 && (
           <div className="flex justify-between text-[15px]">
-            <span className="text-muted">الخصم</span>
+            <span className="text-muted">{tx('الخصم', 'Discount')}</span>
             <b className="text-success">− {money(order.discountAmount)}</b>
           </div>
         )}
         {order.hasPhysicalItems && (
           <div className="flex justify-between text-[15px]">
-            <span className="text-muted">الشحن</span>
+            <span className="text-muted">{tx('الشحن', 'Shipping')}</span>
             <b className="text-ink">{money(order.shippingCost)}</b>
           </div>
         )}
         <div className="flex items-baseline justify-between border-t border-divider pt-3">
-          <b className="text-ink">الإجمالي</b>
+          <b className="text-ink">{tx('الإجمالي', 'Total')}</b>
           <b className="font-head text-[28px] text-ink">{money(order.totalAmount)}</b>
         </div>
         {pay.isError && <Alert tone="error">{payError(pay.error)}</Alert>}
@@ -364,13 +382,20 @@ function Pay({ order }: { order: Order }) {
           onClick={() => pay.mutate()}
         >
           {pay.isPending || pay.isSuccess ? (
-            <Spinner label="بنحوّلك لصفحة الدفع" />
+            <Spinner label={tx('بنحوّلك لصفحة الدفع', 'Taking you to the payment page')} />
           ) : (
-            `ادفع ${money(order.totalAmount)} بـ ${chosen.title}`
+            tx(
+              `ادفع ${money(order.totalAmount)} بـ ${chosen.title}`,
+              `Pay ${money(order.totalAmount)} with ${chosen.title}`,
+            )
           )}
         </button>
         <p className="flex items-center justify-center gap-1.5 text-xs text-muted">
-          <Icon name="lock" size={13} /> دفع آمن ومشفّر، بيانات الكارت مش بتتحفظ عندنا
+          <Icon name="lock" size={13} />{' '}
+          {tx(
+            'دفع آمن ومشفّر، بيانات الكارت مش بتتحفظ عندنا',
+            "Secure, encrypted payment. We don't store card details",
+          )}
         </p>
         <button
           type="button"
@@ -379,19 +404,22 @@ function Pay({ order }: { order: Order }) {
           onClick={async () => {
             if (
               await confirmAction({
-                title: 'تلغي الطلب؟',
-                body: 'الطلب هيتلغي والحاجات هترجع للسلة لو حبيت تطلبها تاني.',
-                confirmLabel: 'أيوه، الغيه',
-                cancelLabel: 'لأ، كمّل الدفع',
+                title: tx('تلغي الطلب؟', 'Cancel the order?'),
+                body: tx(
+                  'الطلب هيتلغي والحاجات هترجع للسلة لو حبيت تطلبها تاني.',
+                  'The order will be cancelled; you can add the items to your cart again.',
+                ),
+                confirmLabel: tx('أيوه، الغيه', 'Yes, cancel it'),
+                cancelLabel: tx('لأ، كمّل الدفع', 'No, continue paying'),
               })
             )
               cancel.mutate()
           }}
         >
-          إلغاء الطلب والرجوع للسلة
+          {tx('إلغاء الطلب والرجوع للسلة', 'Cancel the order and return to cart')}
         </button>
         <Link to={routes.orders} className="text-center text-sm">
-          ادفع بعدين من «طلباتي»
+          {tx('ادفع بعدين من «طلباتي»', 'Pay later from “My orders”')}
         </Link>
       </aside>
     </div>
@@ -400,15 +428,20 @@ function Pay({ order }: { order: Order }) {
 
 function couponError(e: unknown) {
   if (e instanceof ApiClientError) {
-    if (e.statusCode === 404) return 'الكود ده مش موجود.'
+    if (e.statusCode === 404) return tx('الكود ده مش موجود.', "That code doesn't exist.")
     if (/expired|not active|inactive|usage limit|minimum/i.test(e.rawMessage))
-      return 'الكود ده مش صالح للطلب ده.'
+      return tx('الكود ده مش صالح للطلب ده.', "That code isn't valid for this order.")
   }
-  return e instanceof Error ? e.message : 'مقدرناش نطبّق الكود.'
+  return e instanceof Error ? e.message : tx('مقدرناش نطبّق الكود.', "We couldn't apply the code.")
 }
 
 function payError(e: unknown) {
   if (e instanceof ApiClientError && e.statusCode === 503)
-    return 'طريقة الدفع دي مش متاحة دلوقتي. جرّب طريقة تانية.'
-  return e instanceof Error ? e.message : 'حصلت مشكلة، حاول تاني.'
+    return tx(
+      'طريقة الدفع دي مش متاحة دلوقتي. جرّب طريقة تانية.',
+      "This payment method isn't available right now. Try another one.",
+    )
+  return e instanceof Error
+    ? e.message
+    : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.')
 }

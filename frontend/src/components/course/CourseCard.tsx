@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { coursePrice, durationLabel, formatMoney, lessonsLabel } from '@/lib/format'
 import { CourseCover } from './CourseCover'
 import { useRegion } from '@/lib/region'
+import { loc, tx } from '@/lib/i18n'
 
 const NEW_DAYS = 30
 // Captured once per page load; precise enough for a "new" badge.
@@ -24,19 +25,24 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
   const catalog = variant === 'catalog'
   const price = coursePrice(course, currency)
   const isNew = LOADED_AT - new Date(course.createdAt).getTime() < NEW_DAYS * 86_400_000
-  const badge = price.discountPercent > 0 ? `خصم ${price.discountPercent}%` : isNew ? 'جديد' : null
-  const category = course.category?.nameAr ?? null
+  const badge =
+    price.discountPercent > 0
+      ? tx(`خصم ${price.discountPercent}%`, `${price.discountPercent}% off`)
+      : isNew
+        ? tx('جديد', 'New')
+        : null
+  const category = loc(course.category?.nameAr, course.category?.nameEn) ?? null
 
   return (
     <article className="glow-card relative flex flex-col overflow-hidden rounded-card border border-line bg-white text-text">
       {/* Whole-card link sits under the wishlist button (no buttons nested inside <a>). */}
       <Link to={routes.course(course.slug || course.id)} className="absolute inset-0 z-1 rounded-[inherit]">
-        <span className="sr-only">{course.titleAr}</span>
+        <span className="sr-only">{loc(course.titleAr, course.titleEn)}</span>
       </Link>
       <div className="relative overflow-hidden rounded-t-card">
         <CourseCover
           seed={course.categoryId || course.id}
-          word={category ?? course.titleAr}
+          word={category ?? loc(course.titleAr, course.titleEn)}
           tag={category}
           badge={badge}
           image={course.thumbnailImage}
@@ -47,11 +53,15 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
           <button
             type="button"
             className={cn(
-              'absolute bottom-3.5 left-3.5 z-2 flex size-10 items-center justify-center rounded-full border-0 bg-white shadow-[0_8px_18px_-8px_rgba(5,20,40,.5)] transition-transform duration-200 hover:scale-108',
+              'absolute end-3.5 bottom-3.5 z-2 flex size-10 items-center justify-center rounded-full border-0 bg-white shadow-[0_8px_18px_-8px_rgba(5,20,40,.5)] transition-transform duration-200 hover:scale-108',
               wishlisted ? 'text-danger-dot' : 'text-ink',
             )}
             aria-pressed={wishlisted}
-            aria-label={wishlisted ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+            aria-label={
+              wishlisted
+                ? tx('إزالة من المفضلة', 'Remove from wishlist')
+                : tx('إضافة للمفضلة', 'Add to wishlist')
+            }
             onClick={() => onToggleWishlist(course.id)}
           >
             <Icon name="heart" size={18} filled={wishlisted} />
@@ -66,7 +76,7 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
       >
         {catalog && category && <span className="text-[13px] font-bold text-blue-600">{category}</span>}
         <h3 className={cn('leading-normal font-semibold', catalog ? 'text-lg' : 'text-[21px]')}>
-          {course.titleAr}
+          {loc(course.titleAr, course.titleEn)}
         </h3>
         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
           {!!course.lessonsCount && (
@@ -84,14 +94,14 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
           {course.certificateEnabled && (
             <span className="inline-flex items-center gap-1.5">
               <Icon name="award" size={16} />
-              شهادة
+              {tx('شهادة', 'Certificate')}
             </span>
           )}
         </div>
         <div className="mt-auto flex items-center justify-between border-t border-divider pt-3.5">
           <span className="flex items-baseline gap-2">
             <span className={cn('text-ink-grad font-bold', catalog ? 'text-xl' : 'text-[23px]')}>
-              {price.isFree ? 'مجانًا' : formatMoney(price.current, currency)}
+              {price.isFree ? tx('مجانًا', 'Free') : formatMoney(price.current, currency)}
             </span>
             {price.old !== null && (
               <s className="text-[15px] text-muted-2">{formatMoney(price.old, currency)}</s>
@@ -100,7 +110,10 @@ export function CourseCard({ course, variant = 'home', wishlisted, onToggleWishl
           {course.ratingAverage != null && (
             <span
               className="text-[15px] font-semibold text-ink"
-              aria-label={`التقييم ${course.ratingAverage} من 5`}
+              aria-label={tx(
+                `التقييم ${course.ratingAverage} من 5`,
+                `Rated ${course.ratingAverage} out of 5`,
+              )}
             >
               <span aria-hidden="true" className="text-gold">
                 ★

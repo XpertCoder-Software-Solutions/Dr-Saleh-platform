@@ -6,6 +6,7 @@ import { routes } from '@/app/routes'
 import { useAuth } from '@/auth/hooks'
 import type { IconName } from '@/components/ui/Icon'
 import { dateTile } from './consult-status'
+import { loc, tx } from '@/lib/i18n'
 
 export interface ActivityItem {
   id: string
@@ -128,7 +129,10 @@ export function useActivity(limit = 8) {
         items.push({
           id: `o-${o.id}`,
           icon: 'card',
-          text: o.paymentStatus === 'FAILED' ? `الدفع مكملش لطلب ${n}، جرّب تاني` : `طلب ${n} مستني الدفع`,
+          text:
+            o.paymentStatus === 'FAILED'
+              ? tx(`الدفع مكملش لطلب ${n}، جرّب تاني`, `Payment for order ${n} didn't go through. Try again`)
+              : tx(`طلب ${n} مستني الدفع`, `Order ${n} is awaiting payment`),
           to: routes.checkoutPay(o.id),
           at: o.createdAt,
           tone: o.paymentStatus === 'FAILED' ? 'red' : 'gold',
@@ -140,10 +144,13 @@ export function useActivity(limit = 8) {
           id: `o-${o.id}-${o.shippingStatus ?? 'paid'}`,
           icon: delivered || shipped ? 'truck' : 'check',
           text: delivered
-            ? `طلب ${n} اتسلّم`
+            ? tx(`طلب ${n} اتسلّم`, `Order ${n} was delivered`)
             : shipped
-              ? `طلب ${n} خرج للشحن${o.trackingNumber ? ` · رقم الشحنة ${o.trackingNumber}` : ''}`
-              : `تم دفع طلب ${n}`,
+              ? tx(
+                  `طلب ${n} خرج للشحن${o.trackingNumber ? ` · رقم الشحنة ${o.trackingNumber}` : ''}`,
+                  `Order ${n} is on its way${o.trackingNumber ? ` · tracking ${o.trackingNumber}` : ''}`,
+                )
+              : tx(`تم دفع طلب ${n}`, `Order ${n} is paid`),
           to: routes.orders,
           at: (delivered ? o.deliveredAt : shipped ? o.shippedAt : o.paidAt) ?? o.createdAt,
           tone: 'green',
@@ -154,7 +161,10 @@ export function useActivity(limit = 8) {
       items.push({
         id: `c-${c.id}`,
         icon: 'award',
-        text: `شهادتك في «${c.course.titleAr}» جاهزة`,
+        text: tx(
+          `شهادتك في «${loc(c.course.titleAr, c.course.titleEn)}» جاهزة`,
+          `Your certificate for “${loc(c.course.titleAr, c.course.titleEn)}” is ready`,
+        ),
         to: routes.certificates,
         at: c.issuedAt,
         tone: 'gold',
@@ -166,7 +176,10 @@ export function useActivity(limit = 8) {
         items.push({
           id: `s-${c.id}-${c.scheduledAt}`,
           icon: 'calendar',
-          text: `ميعاد استشارتك ${d.weekday} ${d.day} ${d.month} الساعة ${d.time}`,
+          text: tx(
+            `ميعاد استشارتك ${d.weekday} ${d.day} ${d.month} الساعة ${d.time}`,
+            `Your consultation: ${d.weekday}, ${d.month} ${d.day} at ${d.time}`,
+          ),
           to: routes.myConsultations,
           at: c.updatedAt ?? c.createdAt,
           tone: 'blue',

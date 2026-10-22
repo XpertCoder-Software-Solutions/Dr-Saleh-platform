@@ -1,13 +1,14 @@
 import { Fragment } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
+import { tx } from '@/lib/i18n'
 
-const STEPS = ['السلة', 'الشحن والدفع', 'التأكيد']
+const STEPS = [tx('السلة', 'Cart'), tx('الشحن والدفع', 'Shipping & payment'), tx('التأكيد', 'Confirmation')]
 
 /** "السلة ✓ — الشحن والدفع — التأكيد" progress bar under the checkout hero. */
 export function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
   return (
-    <ol className="flex items-center gap-2" aria-label="خطوات الطلب">
+    <ol className="flex items-center gap-2" aria-label={tx('خطوات الطلب', 'Order steps')}>
       {STEPS.map((label, i) => {
         const n = i + 1
         const done = n < current

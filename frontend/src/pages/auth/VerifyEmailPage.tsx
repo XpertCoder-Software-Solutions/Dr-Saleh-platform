@@ -10,11 +10,12 @@ import { buttonClass } from '@/components/ui/button'
 import { Alert } from '@/components/ui/States'
 import { OtpInput } from '@/components/ui/fields'
 import { pendingSignup } from './pending'
+import { tx } from '@/lib/i18n'
 
 const RESEND_SECONDS = 60
 
 export function VerifyEmailPage() {
-  usePageTitle('تفعيل الحساب')
+  usePageTitle(tx('تفعيل الحساب', 'Activate account'))
   const location = useLocation()
   const navigate = useNavigate()
   const { login } = useAuth()
@@ -50,7 +51,7 @@ export function VerifyEmailPage() {
         navigate(routes.login, { replace: true, state: { from: state.from } })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'الكود مش صحيح.')
+      setError(err instanceof Error ? err.message : tx('الكود مش صحيح.', "That code isn't correct."))
       setOtp('')
     } finally {
       setBusy(false)
@@ -62,19 +63,20 @@ export function VerifyEmailPage() {
     setNotice(null)
     try {
       await authApi.resendVerification(email)
-      setNotice('بعتنالك كود جديد.')
+      setNotice(tx('بعتنالك كود جديد.', "We've sent you a new code."))
       setWait(RESEND_SECONDS)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'مقدرناش نبعت الكود.')
+      setError(err instanceof Error ? err.message : tx('مقدرناش نبعت الكود.', "We couldn't send the code."))
     }
   }
 
   return (
     <AuthShell
-      title="فعّل حسابك"
+      title={tx('فعّل حسابك', 'Activate your account')}
       sub={
         <>
-          بعتنا كود من 6 أرقام على <b dir="ltr">{email}</b>. اكتبه هنا عشان تفعّل حسابك.
+          {tx('بعتنا كود من 6 أرقام على', 'We sent a 6-digit code to')} <b dir="ltr">{email}</b>.{' '}
+          {tx('اكتبه هنا عشان تفعّل حسابك.', 'Enter it here to activate your account.')}
         </>
       }
     >
@@ -87,22 +89,26 @@ export function VerifyEmailPage() {
           className={buttonClass({ variant: 'navy', size: 'lg', block: true })}
           disabled={busy || otp.length !== 6}
         >
-          {busy ? <Spinner label="جاري التفعيل" /> : 'تفعيل الحساب'}
+          {busy ? (
+            <Spinner label={tx('جاري التفعيل', 'Activating')} />
+          ) : (
+            tx('تفعيل الحساب', 'Activate account')
+          )}
         </button>
       </form>
       <AuthSwitch>
-        موصلكش الكود؟{' '}
+        {tx('موصلكش الكود؟', "Didn't get the code?")}{' '}
         <button
           type="button"
           className="border-0 bg-transparent p-0 font-bold text-blue-500 disabled:cursor-default disabled:text-muted-2"
           disabled={wait > 0}
           onClick={resend}
         >
-          {wait > 0 ? `ابعته تاني بعد ${wait} ثانية` : 'ابعته تاني'}
+          {wait > 0 ? tx(`ابعته تاني بعد ${wait} ثانية`, `Resend in ${wait}s`) : tx('ابعته تاني', 'Resend')}
         </button>
       </AuthSwitch>
       <AuthSwitch>
-        <Link to={routes.register}>غيّر البريد الإلكتروني</Link>
+        <Link to={routes.register}>{tx('غيّر البريد الإلكتروني', 'Change email')}</Link>
       </AuthSwitch>
     </AuthShell>
   )

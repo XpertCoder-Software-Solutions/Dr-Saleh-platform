@@ -136,6 +136,12 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
     titleEn: article?.titleEn ?? '',
     shortContentAr: article?.shortContentAr ?? '',
     contentAr: article?.contentAr ?? '',
+    // The English text used to default to a copy of the Arabic; show it empty in that case.
+    shortContentEn:
+      article?.shortContentEn && article.shortContentEn !== article.shortContentAr
+        ? article.shortContentEn
+        : '',
+    contentEn: article?.contentEn && article.contentEn !== article.contentAr ? article.contentEn : '',
     tagIds: (article?.tags ?? []).map((t) => t.id),
     relatedCourseIds: article?.relatedCourseIds ?? [],
     isActive: article?.isActive ?? true,
@@ -143,6 +149,8 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
     isHomeDisplay: article?.isHomeDisplay ?? false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Open the English section on load when the article already has English text.
+  const [hasEnglish] = useState(() => Boolean(f.shortContentEn || f.contentEn) || undefined)
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }))
 
   const save = useMutation({
@@ -152,9 +160,10 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
         titleAr: f.titleAr.trim(),
         titleEn: f.titleEn.trim(),
         shortContentAr: f.shortContentAr.trim(),
-        shortContentEn: article?.shortContentEn || f.shortContentAr.trim(),
+        // No English text: the English site shows the Arabic.
+        shortContentEn: isRichEmpty(f.shortContentEn) ? f.shortContentAr.trim() : f.shortContentEn.trim(),
         contentAr: f.contentAr.trim(),
-        contentEn: article?.contentEn || f.contentAr.trim(),
+        contentEn: isRichEmpty(f.contentEn) ? f.contentAr.trim() : f.contentEn.trim(),
         tagIds: article || f.tagIds.length ? JSON.stringify(f.tagIds) : undefined,
         relatedCourseIds: JSON.stringify(f.relatedCourseIds),
         isActive: f.isActive,
@@ -279,6 +288,31 @@ function ArticleModal({ article, onClose }: { article?: AdminArticle; onClose: (
             onChange={(v) => set('contentAr', v)}
             error={errors.contentAr}
           />
+          <details className="group rounded-tile border border-line p-4" open={hasEnglish}>
+            <summary className="cursor-pointer text-[15px] font-semibold text-ink">
+              النسخة الإنجليزية{' '}
+              <span className="text-sm font-normal text-muted">
+                (اختياري — لو سبتها فاضية، الموقع الإنجليزي هيعرض المقال بالعربي)
+              </span>
+            </summary>
+            <div className="mt-4 flex flex-col gap-4">
+              <RichTextEditor
+                label="مقدمة المقال بالإنجليزي"
+                compact
+                dir="ltr"
+                minHeight={110}
+                value={f.shortContentEn}
+                onChange={(v) => set('shortContentEn', v)}
+              />
+              <RichTextEditor
+                label="المقال بالإنجليزي"
+                dir="ltr"
+                minHeight={300}
+                value={f.contentEn}
+                onChange={(v) => set('contentEn', v)}
+              />
+            </div>
+          </details>
           <div className="flex flex-col gap-2 rounded-tile border border-line p-4">
             <span className="text-[15px] font-semibold text-ink">
               دورات ذات صلة{' '}

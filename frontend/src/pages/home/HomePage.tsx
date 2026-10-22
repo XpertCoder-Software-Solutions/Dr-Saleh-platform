@@ -20,7 +20,9 @@ import { BookCard } from '@/components/catalog/BookCard'
 import { ArticleCard } from '@/components/catalog/ArticleCard'
 import { articlesGridClass, booksGridClass } from '@/components/catalog/grids'
 import { useTypewriter } from '@/lib/useTypewriter'
+import { isEn, loc, tx } from '@/lib/i18n'
 
+const HERO_WORDS_EN = ['understanding your child', 'your child’s heart', 'your own calm']
 const HERO_WORDS = {
   guest: ['فهم أولادكم', 'قلب ابنكم', 'هدوءكم إنتم'],
   male: ['فهم طفلك', 'قلب ابنك', 'هدوءك إنت'],
@@ -30,32 +32,44 @@ const HERO_WORDS = {
 const PILLARS: { to: string; title: string; body: string; icon: IconName; grad: string; glow: string }[] = [
   {
     to: routes.courses,
-    title: 'الدورات المسجلة',
-    body: 'فيديوهات وملفات PDF وشهادة بعد الإتمام، وتقدر تكمل من أي جهاز.',
+    title: tx('الدورات المسجلة', 'Recorded courses'),
+    body: tx(
+      'فيديوهات وملفات PDF وشهادة بعد الإتمام، وتقدر تكمل من أي جهاز.',
+      'Videos, PDFs and a certificate on completion. Continue from any device.',
+    ),
     icon: 'video',
     grad: 'linear-gradient(135deg, #0B2E52 0%, #1E5F96 55%, #3D9BD8 100%)',
     glow: '#1E5F96',
   },
   {
     to: routes.library,
-    title: 'المكتبة',
-    body: 'كتب ورقية بتوصل لحد باب البيت، ونسخ رقمية وصوتية فورية.',
+    title: tx('المكتبة', 'The library'),
+    body: tx(
+      'كتب ورقية بتوصل لحد باب البيت، ونسخ رقمية وصوتية فورية.',
+      'Paperbacks delivered to your door, plus instant digital and audio editions.',
+    ),
     icon: 'book',
     grad: 'linear-gradient(135deg, #1E5F96 0%, #3D9BD8 50%, #7CD3FF 100%)',
     glow: '#3D9BD8',
   },
   {
     to: routes.consultation,
-    title: 'استشارات خاصة',
-    body: 'جلسة فردية تناقش فيها مشكلة ابنك بالتفصيل، بسرية تامة.',
+    title: tx('استشارات خاصة', 'Private consultations'),
+    body: tx(
+      'جلسة فردية تناقش فيها مشكلة ابنك بالتفصيل، بسرية تامة.',
+      "A one-to-one session to discuss your child's situation in detail, in full confidence.",
+    ),
     icon: 'chat',
     grad: 'linear-gradient(135deg, #E8A33D 0%, #F2B856 50%, #F7CF7E 100%)',
     glow: '#E8A33D',
   },
   {
     to: routes.blog,
-    title: 'مقالات مجانية',
-    body: 'نصائح عملية قصيرة في التربية وعلم النفس، تتجدد كل أسبوع.',
+    title: tx('مقالات مجانية', 'Free articles'),
+    body: tx(
+      'نصائح عملية قصيرة في التربية وعلم النفس، تتجدد كل أسبوع.',
+      'Short, practical tips on parenting and psychology, new every week.',
+    ),
     icon: 'pen',
     grad: 'linear-gradient(135deg, #3B3A8F 0%, #5B5BD6 50%, #4BA9DE 100%)',
     glow: '#5B5BD6',
@@ -74,8 +88,8 @@ function useTestimonials() {
     rating: r.rating,
     head: r.title || firstSentence(r.comment ?? ''),
     body: r.comment ?? '',
-    name: r.user?.fullName ?? 'متدرب',
-    course: r.course.titleAr,
+    name: r.user?.fullName ?? tx('متدرب', 'Learner'),
+    course: loc(r.course.titleAr, r.course.titleEn),
   }))
 }
 
@@ -111,7 +125,7 @@ const floatCard = 'absolute flex gap-3 rounded-tile bg-white shadow-float'
 function Hero() {
   const t = useCopy()
   const audience = useAudience()
-  const typed = useTypewriter(HERO_WORDS[audience])
+  const typed = useTypewriter(isEn ? HERO_WORDS_EN : HERO_WORDS[audience])
 
   const { data: home } = useQuery({ queryKey: ['courses', 'home'], queryFn: coursesApi.home })
   const proof = useMemo(() => ratingSummary(home ?? []), [home])
@@ -120,20 +134,23 @@ function Hero() {
   return (
     <section className="relative bg-navy overflow-hidden px-6 pt-42.5 pb-30 max-sm:px-4 max-sm:pt-31 max-sm:pb-24">
       <div className="absolute inset-0 dots opacity-50" aria-hidden="true" />
-      <div className="orb -top-30 -left-20 size-105 bg-blue-300" />
-      <div className="orb -bottom-40 left-[30%] size-90 bg-gold-light opacity-35 [animation-delay:-5s]" />
-      <div className="orb top-[20%] -right-30 size-75 bg-[#7E5BD9] opacity-30 [animation-delay:-8s]" />
+      <div className="orb -end-20 -top-30 size-105 bg-blue-300" />
+      <div className="orb end-[30%] -bottom-40 size-90 bg-gold-light opacity-35 [animation-delay:-5s]" />
+      <div className="orb -start-30 top-[20%] size-75 bg-[#7E5BD9] opacity-30 [animation-delay:-8s]" />
 
       <div className="relative mx-auto flex max-w-site flex-wrap items-center gap-14">
         <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-7">
           <div className="inline-flex animate-rise items-center gap-2.5 self-start rounded-full px-4 py-2 text-[15px] font-semibold text-white glass">
             <span className="size-2.5 flex-none animate-pulse-ring rounded-full bg-sky" />
-            المستشار النفسي والتربوي · دورات · كتب · استشارات
+            {tx(
+              'المستشار النفسي والتربوي · دورات · كتب · استشارات',
+              'Psychological & parenting consultant · Courses · Books · Consultations',
+            )}
           </div>
           <h1 className="animate-rise text-[clamp(40px,6vw,64px)] leading-[1.2] font-bold tracking-[-0.5px] text-white [animation-delay:.1s] max-[400px]:text-[34px]">
-            تربية واعية
+            {tx('تربية واعية', 'Mindful parenting')}
             <br />
-            تبدأ من <span className="sr-only">{typed.word}</span>
+            {tx('تبدأ من', 'starts with')} <span className="sr-only">{typed.word}</span>
             <span className="text-sheen" aria-hidden="true">
               {typed.text}
             </span>
@@ -169,13 +186,16 @@ function Hero() {
                         {proof.average} <span className="text-gold-light">★★★★★</span>
                       </>
                     }
-                    sub={`من ${proof.count} تقييم للمتدربين`}
+                    sub={tx(`من ${proof.count} تقييم للمتدربين`, `from ${proof.count} learner reviews`)}
                   />
                 </div>
                 <span className="h-10 w-px bg-white/25 max-sm:hidden" />
               </>
             )}
-            <ProofText title="شهادة معتمدة" sub="بعد إتمام كل دورة" />
+            <ProofText
+              title={tx('شهادة معتمدة', 'Accredited certificate')}
+              sub={tx('بعد إتمام كل دورة', 'After completing each course')}
+            />
           </div>
         </div>
 
@@ -198,36 +218,42 @@ function Hero() {
             />
           </div>
           {featured && (
-            <div className={cn(floatCard, 'top-75 -right-2.5 w-65 animate-floaty flex-col px-5 py-4.5')}>
+            <div className={cn(floatCard, '-start-2.5 top-75 w-65 animate-floaty flex-col px-5 py-4.5')}>
               <div className="flex items-center gap-2.5">
                 <span className="flex size-10 flex-none bg-navy items-center justify-center rounded-xl text-white">
                   <Icon name="play" size={18} filled />
                 </span>
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-[13px] text-muted">دورة مميزة</span>
-                  <b className="text-[15px] leading-snug text-ink">{featured.titleAr}</b>
+                  <span className="text-[13px] text-muted">{tx('دورة مميزة', 'Featured course')}</span>
+                  <b className="text-[15px] leading-snug text-ink">
+                    {loc(featured.titleAr, featured.titleEn)}
+                  </b>
                 </div>
               </div>
-              <span className="text-[13px] text-muted">فيديو + PDF + شهادة</span>
+              <span className="text-[13px] text-muted">
+                {tx('فيديو + PDF + شهادة', 'Video + PDF + certificate')}
+              </span>
             </div>
           )}
           <div
             className={cn(
               floatCard,
-              'bottom-15 left-0 w-60 animate-floaty items-center gap-3.5 px-4.5 py-4 [animation-delay:-3s]',
+              'end-0 bottom-15 w-60 animate-floaty items-center gap-3.5 px-4.5 py-4 [animation-delay:-3s]',
             )}
           >
             <span className="flex size-12 flex-none bg-gold items-center justify-center rounded-[14px] text-navy">
               <Icon name="bookClosed" size={22} />
             </span>
             <div className="flex flex-col gap-0.5">
-              <b className="text-[15px] text-ink">فن تربية الأبناء</b>
-              <span className="text-[13px] text-muted">ورقي · رقمي · صوتي</span>
+              <b className="text-[15px] text-ink">{tx('فن تربية الأبناء', 'The Art of Parenting')}</b>
+              <span className="text-[13px] text-muted">
+                {tx('ورقي · رقمي · صوتي', 'Paperback · digital · audio')}
+              </span>
             </div>
           </div>
           {proof && (
-            <div className="absolute top-10 left-7.5 flex animate-floaty items-center gap-2 rounded-2xl px-4 py-3 font-bold text-white glass [animation-delay:-1.5s]">
-              <span className="text-gold-light">★</span> {proof.average} تقييم
+            <div className="absolute end-7.5 top-10 flex animate-floaty items-center gap-2 rounded-2xl px-4 py-3 font-bold text-white glass [animation-delay:-1.5s]">
+              <span className="text-gold-light">★</span> {proof.average} {tx('تقييم', 'rating')}
             </div>
           )}
         </div>
@@ -268,7 +294,8 @@ function MediaStrip() {
     <section className="pt-2 pb-12" aria-labelledby="media-title">
       <div className="mx-auto mb-6 flex max-w-site animate-rise justify-center px-6 text-center">
         <h2 id="media-title" className="text-[clamp(26px,3.5vw,34px)] font-bold">
-          ضيف على <span className="uline text-ink-grad">شاشات وإذاعات عربية</span>
+          {tx('ضيف على', 'A guest on')}{' '}
+          <span className="uline text-ink-grad">{tx('شاشات وإذاعات عربية', 'Arab TV and radio')}</span>
         </h2>
       </div>
       <div className="group overflow-hidden mask-fade-x py-2.5">
@@ -306,7 +333,7 @@ function Pillars() {
             className="glow-card relative flex flex-col gap-3.5 overflow-hidden rounded-card border border-line bg-white p-7 text-text hover:text-text"
           >
             <div
-              className="absolute -top-15 -left-15 size-40 rounded-full opacity-14 blur-[10px]"
+              className="absolute -end-15 -top-15 size-40 rounded-full opacity-14 blur-[10px]"
               style={{ background: p.glow }}
               aria-hidden="true"
             />
@@ -319,7 +346,7 @@ function Pillars() {
             <span className="font-head text-[22px] font-semibold text-ink">{p.title}</span>
             <span className="leading-[1.7] text-muted">{p.body}</span>
             <span className="inline-flex items-center gap-1.5 text-[15px] font-bold text-blue-500">
-              اكتشف <Icon name="arrowLeft" size={16} />
+              {tx('اكتشف', 'Explore')} <Icon name="arrowLeft" size={16} />
             </span>
           </Link>
         ))}
@@ -341,7 +368,7 @@ function CoursesSection() {
   const courses = useMemo(() => data ?? [], [data])
   const categories = useMemo(() => {
     const map = new Map<string, string>()
-    for (const c of courses) if (c.category) map.set(c.category.id, c.category.nameAr)
+    for (const c of courses) if (c.category) map.set(c.category.id, loc(c.category.nameAr, c.category.nameEn))
     return [...map]
   }, [courses])
   const shown = courses.filter((c) => tab === 'all' || c.categoryId === tab).slice(0, 3)
@@ -350,15 +377,19 @@ function CoursesSection() {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="الأكثر طلبًا"
+          eyebrow={tx('الأكثر طلبًا', 'Most popular')}
           icon="sparkle"
           title={<Highlight text={t('home.courses.title')} />}
-          more={{ to: routes.courses, label: 'كل الدورات' }}
+          more={{ to: routes.courses, label: tx('كل الدورات', 'All courses') }}
         />
 
         {categories.length > 1 && (
-          <div role="tablist" aria-label="تصنيف الدورات" className="-mt-2 mb-8 flex flex-wrap gap-2.5">
-            {[['all', 'الكل'] as const, ...categories].map(([id, label]) => (
+          <div
+            role="tablist"
+            aria-label={tx('تصنيف الدورات', 'Course categories')}
+            className="-mt-2 mb-8 flex flex-wrap gap-2.5"
+          >
+            {[['all', tx('الكل', 'All')] as const, ...categories].map(([id, label]) => (
               <button
                 key={id}
                 type="button"
@@ -384,8 +415,11 @@ function CoursesSection() {
         ) : shown.length === 0 ? (
           <EmptyState
             icon="video"
-            title="الدورات جاية قريب"
-            body="بنجهّز أول دفعة من الدورات. تابعنا عشان تعرف أول ما تنزل."
+            title={tx('الدورات جاية قريب', 'Courses are coming soon')}
+            body={tx(
+              'بنجهّز أول دفعة من الدورات. تابعنا عشان تعرف أول ما تنزل.',
+              "We're preparing the first courses. Follow us to hear as soon as they're out.",
+            )}
           />
         ) : (
           <div className={cn(courseGridClass, 'stagger')}>
@@ -438,10 +472,27 @@ function StatsBand() {
   if (!ready || (!totalCourses && !totalBooks)) return null
 
   const stats: { n: string; suf?: string; label: string; show: boolean }[] = [
-    { n: nAvg.toFixed(1), suf: '★', label: 'متوسط تقييم الدورات', show: Boolean(rating) },
-    { n: String(Math.round(nReviews)), label: 'تقييم من المتدربين', show: Boolean(rating) },
-    { n: String(Math.round(nCourses)), label: 'دورات مسجّلة بشهادة', show: totalCourses > 0 },
-    { n: String(Math.round(nBooks)), label: 'كتب ورقية ورقمية وصوتية', show: totalBooks > 0 },
+    {
+      n: nAvg.toFixed(1),
+      suf: '★',
+      label: tx('متوسط تقييم الدورات', 'Average course rating'),
+      show: Boolean(rating),
+    },
+    {
+      n: String(Math.round(nReviews)),
+      label: tx('تقييم من المتدربين', 'Reviews from learners'),
+      show: Boolean(rating),
+    },
+    {
+      n: String(Math.round(nCourses)),
+      label: tx('دورات مسجّلة بشهادة', 'Recorded courses with a certificate'),
+      show: totalCourses > 0,
+    },
+    {
+      n: String(Math.round(nBooks)),
+      label: tx('كتب ورقية ورقمية وصوتية', 'Paperback, digital and audio books'),
+      show: totalBooks > 0,
+    },
   ]
 
   return (
@@ -453,7 +504,7 @@ function StatsBand() {
         )}
       >
         <div className="absolute inset-0 dots opacity-50" aria-hidden="true" />
-        <div className="orb -top-30 -right-15 size-65 bg-gold-light opacity-30" />
+        <div className="orb -start-15 -top-30 size-65 bg-gold-light opacity-30" />
         {stats
           .filter((s) => s.show)
           .map((s) => (
@@ -475,9 +526,19 @@ function StatsBand() {
 function AboutDoctor() {
   const t = useCopy()
   const points: { text: string; icon: IconName; gold?: boolean }[] = [
-    { text: 'المستشار النفسي والتربوي', icon: 'check' },
-    { text: 'رئيس مركز السعادة للاستشارات النفسية والتربوية', icon: 'check' },
-    { text: 'مقدّم برنامج «فن التربية» على قناة الرحمة', icon: 'video', gold: true },
+    { text: tx('المستشار النفسي والتربوي', 'Psychological & parenting consultant'), icon: 'check' },
+    {
+      text: tx(
+        'رئيس مركز السعادة للاستشارات النفسية والتربوية',
+        'Head of Al-Saada Center for Psychological & Parenting Consultations',
+      ),
+      icon: 'check',
+    },
+    {
+      text: tx('مقدّم برنامج «فن التربية» على قناة الرحمة', 'Host of “The Art of Parenting” on Al-Rahma TV'),
+      icon: 'video',
+      gold: true,
+    },
   ]
   return (
     <section className={sectionClass}>
@@ -494,7 +555,7 @@ function AboutDoctor() {
           />
           <img
             src="/assets/brand/saleh-cutout.webp"
-            alt="الدكتور صالح عبد الكريم"
+            alt={tx('الدكتور صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
             loading="lazy"
             className="absolute bottom-0 left-1/2 h-[94%] w-auto max-w-none -translate-x-1/2"
           />
@@ -502,21 +563,27 @@ function AboutDoctor() {
         <div className="flex min-w-0 flex-[1.3_1_480px] flex-col gap-6 max-sm:basis-full">
           <span className={eyebrowClass}>
             <Icon name="user" size={16} />
-            عن الدكتور
+            {tx('عن الدكتور', 'About the doctor')}
           </span>
           <img
             className="w-80 max-w-full"
             src="/assets/brand/logo-blue.webp"
-            alt="الدكتور صالح عبد الكريم"
+            alt={tx('الدكتور صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
             loading="lazy"
           />
           <p className="font-head text-[clamp(20px,2.4vw,26px)] leading-[1.7] font-medium text-ink">
-            «مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون{' '}
-            <span className="text-ink-grad">سوي، واثق في نفسه</span>، وقادر يتكيّف مع الدنيا.»
+            {tx(
+              '«مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون',
+              '“Your child doesn’t need to be perfect… they need to be',
+            )}{' '}
+            <span className="text-ink-grad">{tx('سوي، واثق في نفسه', 'balanced and self-confident')}</span>
+            {tx('، وقادر يتكيّف مع الدنيا.»', ', and able to adapt to the world.”')}
           </p>
           <p className="text-[17px] leading-[1.9] text-text-2">
-            مؤلف كتاب «فن تربية الأبناء»، وبيقدّم برامج في التربية الإيجابية والبناء النفسي للأطفال والمراهقين
-            بأسلوب عملي مبسّط تقدر تطبقه في البيت.
+            {tx(
+              'مؤلف كتاب «فن تربية الأبناء»، وبيقدّم برامج في التربية الإيجابية والبناء النفسي للأطفال والمراهقين بأسلوب عملي مبسّط تقدر تطبقه في البيت.',
+              'Author of “The Art of Parenting”, presenting programs on positive parenting and the psychological development of children and teens, in a simple, practical way you can apply at home.',
+            )}
           </p>
           <ul className="flex stagger flex-col gap-2.5">
             {points.map((p) => (
@@ -563,10 +630,10 @@ function BooksSection() {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="من المكتبة"
+          eyebrow={tx('من المكتبة', 'From the library')}
           icon="book"
           title={<Highlight text={t('home.books.title')} />}
-          more={{ to: routes.library, label: 'تصفّح المكتبة' }}
+          more={{ to: routes.library, label: tx('تصفّح المكتبة', 'Browse the library') }}
         />
         {isError ? (
           <ErrorState onRetry={() => refetch()} compact />
@@ -586,7 +653,11 @@ function BooksSection() {
 
 function ConsultBand() {
   const t = useCopy()
-  const steps = [t('home.consult.step1'), t('home.consult.step2'), 'جلسة خاصة مع د. صالح وخطة عملية']
+  const steps = [
+    t('home.consult.step1'),
+    t('home.consult.step2'),
+    tx('جلسة خاصة مع د. صالح وخطة عملية', 'A private session with Dr. Saleh and a practical plan'),
+  ]
   return (
     <section className={sectionClass}>
       <div
@@ -596,15 +667,15 @@ function ConsultBand() {
         )}
       >
         <div className="absolute inset-0 dots opacity-45" aria-hidden="true" />
-        <div className="orb -bottom-40 -left-25 size-85 bg-gold-light opacity-35" />
+        <div className="orb -end-25 -bottom-40 size-85 bg-gold-light opacity-35" />
         <div
-          className="absolute -top-50 -left-45 size-130 animate-spin-slow rounded-full border-2 border-dashed border-white/14"
+          className="absolute -end-45 -top-50 size-130 animate-spin-slow rounded-full border-2 border-dashed border-white/14"
           aria-hidden="true"
         />
         <div className="relative flex min-w-0 flex-[1_1_460px] flex-col gap-5 max-sm:basis-full">
           <span className={cn(eyebrowClass, 'bg-white/10 text-gold-light')}>
             <Icon name="chat" size={16} />
-            استشارة فردية
+            {tx('استشارة فردية', 'One-to-one consultation')}
           </span>
           <h2 className="text-[clamp(30px,4vw,44px)] leading-[1.3] text-white">{t('home.consult.title')}</h2>
           <p className="text-lg leading-[1.85] text-on-dark">{t('home.consult.body')}</p>
@@ -653,13 +724,16 @@ function Testimonials({ list: TESTIMONIALS }: { list: Testimonial[] }) {
       <div className={innerClass}>
         <SectionHeader
           center
-          eyebrow="آراء المتدربين"
+          eyebrow={tx('آراء المتدربين', 'What learners say')}
           icon="quote"
-          title={<Highlight text="فرق *حقيقي* في البيت" />}
+          title={<Highlight text={tx('فرق *حقيقي* في البيت', 'A *real* difference at home')} />}
         />
         <div className="flex flex-wrap items-stretch gap-6">
           <figure className="m-0 flex flex-[1.2_1_420px] flex-col gap-5 rounded-[28px] p-9 gborder">
-            <span className="tracking-[2px] text-gold" aria-label={`${rv.rating} من 5`}>
+            <span
+              className="tracking-[2px] text-gold"
+              aria-label={tx(`${rv.rating} من 5`, `${rv.rating} out of 5`)}
+            >
               {'★'.repeat(rv.rating)}
             </span>
             <span className="font-head text-[26px] font-semibold text-ink">{rv.head}</span>
@@ -672,7 +746,7 @@ function Testimonials({ list: TESTIMONIALS }: { list: Testimonial[] }) {
               <button
                 type="button"
                 className={buttonClass({ variant: 'outline', size: 'sm' })}
-                aria-label="السابق"
+                aria-label={tx('السابق', 'Previous')}
                 onClick={() => setI((i + n - 1) % n)}
               >
                 <Icon name="arrowRight" size={16} />
@@ -680,7 +754,7 @@ function Testimonials({ list: TESTIMONIALS }: { list: Testimonial[] }) {
               <button
                 type="button"
                 className={buttonClass({ variant: 'navy', size: 'sm' })}
-                aria-label="التالي"
+                aria-label={tx('التالي', 'Next')}
                 onClick={() => setI((i + 1) % n)}
               >
                 <Icon name="arrowLeft" size={16} />
@@ -723,10 +797,10 @@ function ArticlesSection() {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="أحدث المقالات"
+          eyebrow={tx('أحدث المقالات', 'Latest articles')}
           icon="pen"
-          title="اقرأ في ٥ دقايق"
-          more={{ to: routes.blog, label: 'كل المقالات' }}
+          title={tx('اقرأ في ٥ دقايق', 'Read in 5 minutes')}
+          more={{ to: routes.blog, label: tx('كل المقالات', 'All articles') }}
         />
         <div className={articlesGridClass}>
           {isLoading

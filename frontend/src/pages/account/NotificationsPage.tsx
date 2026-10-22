@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { useActivity, useReadState, type ActivityItem } from '@/lib/activity'
+import { tx } from '@/lib/i18n'
 
 type Tab = 'all' | 'unread'
 
@@ -17,10 +18,10 @@ function groupByDay(items: ActivityItem[], now: number) {
   start.setHours(0, 0, 0, 0)
   const today = start.getTime()
   const groups: { label: string; items: ActivityItem[] }[] = [
-    { label: 'النهارده', items: [] },
-    { label: 'امبارح', items: [] },
-    { label: 'آخر 7 أيام', items: [] },
-    { label: 'أقدم', items: [] },
+    { label: tx('النهارده', 'Today'), items: [] },
+    { label: tx('امبارح', 'Yesterday'), items: [] },
+    { label: tx('آخر 7 أيام', 'Last 7 days'), items: [] },
+    { label: tx('أقدم', 'Older'), items: [] },
   ]
   for (const item of items) {
     const t = +new Date(item.at)
@@ -42,12 +43,13 @@ export function NotificationsPage() {
   return (
     <AccountShell
       active="notifications"
-      pageTitle="الإشعارات"
-      title={<span className="text-sheen">الإشعارات</span>}
+      pageTitle={tx('الإشعارات', 'Notifications')}
+      title={<span className="text-sheen">{tx('الإشعارات', 'Notifications')}</span>}
       body={g(
         'كل اللي حصل في حسابك: الدفع والشحن والشهادات ومواعيد الاستشارات.',
         'كل اللي حصل في حسابك: الدفع والشحن والشهادات ومواعيد الاستشارات.',
         'كل اللي حصل في الحساب: الدفع والشحن والشهادات ومواعيد الاستشارات.',
+        'Everything in your account: payments, shipping, certificates and consultation times.',
       )}
     >
       <Panel className="flex flex-wrap items-center justify-between gap-3">
@@ -55,8 +57,8 @@ export function NotificationsPage() {
           value={tab}
           onChange={setTab}
           tabs={[
-            { id: 'all', label: 'الكل', count: feed.items.length },
-            { id: 'unread', label: 'غير مقروءة', count: unreadCount },
+            { id: 'all', label: tx('الكل', 'All'), count: feed.items.length },
+            { id: 'unread', label: tx('غير مقروءة', 'Unread'), count: unreadCount },
           ]}
         />
         <button
@@ -65,7 +67,7 @@ export function NotificationsPage() {
           disabled={unreadCount === 0}
           onClick={markAllRead}
         >
-          <Icon name="check" size={15} /> تعليم الكل كمقروء
+          <Icon name="check" size={15} /> {tx('تعليم الكل كمقروء', 'Mark all as read')}
         </button>
       </Panel>
 
@@ -79,11 +81,23 @@ export function NotificationsPage() {
         <Panel>
           <EmptyState
             icon="bell"
-            title={tab === 'unread' ? 'مفيش إشعارات جديدة' : 'لسه مفيش إشعارات'}
+            title={
+              tab === 'unread'
+                ? tx('مفيش إشعارات جديدة', 'No new notifications')
+                : tx('لسه مفيش إشعارات', 'No notifications yet')
+            }
             body={
               tab === 'unread'
-                ? g('قريت كل حاجة 👌', 'قريتي كل حاجة 👌', 'كل الإشعارات مقروءة 👌')
-                : 'أول ما يحصل حاجة في طلباتك أو شهاداتك أو استشاراتك هتلاقيها هنا.'
+                ? g(
+                    'قريت كل حاجة 👌',
+                    'قريتي كل حاجة 👌',
+                    'كل الإشعارات مقروءة 👌',
+                    "You're all caught up 👌",
+                  )
+                : tx(
+                    'أول ما يحصل حاجة في طلباتك أو شهاداتك أو استشاراتك هتلاقيها هنا.',
+                    'Updates about your orders, certificates and consultations will appear here.',
+                  )
             }
           />
         </Panel>

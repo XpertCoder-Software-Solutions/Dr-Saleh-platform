@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { tx } from '@/lib/i18n'
 
 export interface GalleryItem {
   key: string
@@ -43,7 +44,7 @@ export function Gallery({
         <div className="relative flex size-full items-center justify-center">{current?.main}</div>
       </div>
       {items.length > 1 && (
-        <div className="grid grid-cols-4 gap-3" role="tablist" aria-label="الصور">
+        <div className="grid grid-cols-4 gap-3" role="tablist" aria-label={tx('الصور', 'Photos')}>
           {items.map((it, k) => (
             <button
               key={it.key}

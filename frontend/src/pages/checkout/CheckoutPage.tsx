@@ -17,6 +17,7 @@ import { cn } from '@/lib/cn'
 import { formatEGP } from '@/lib/format'
 import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { loc, tx } from '@/lib/i18n'
 
 const card = 'rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-sm:p-4'
 
@@ -26,7 +27,7 @@ const card = 'rounded-card bg-white p-6 shadow-[0_30px_60px_-36px_rgba(12,42,74,
  * once, and the next step pays for that order.
  */
 export function CheckoutPage() {
-  usePageTitle('إتمام الطلب')
+  usePageTitle(tx('إتمام الطلب', 'Checkout'))
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const cart = useQuery({ queryKey: ['me', 'cart'], queryFn: () => cartApi.get('EGP') })
@@ -76,19 +77,23 @@ export function CheckoutPage() {
       <PageHero
         portrait={false}
         crumbs={[
-          { label: 'الرئيسية', to: routes.home },
-          { label: 'السلة', to: routes.cart },
-          { label: 'إتمام الطلب' },
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          { label: tx('السلة', 'Cart'), to: routes.cart },
+          { label: tx('إتمام الطلب', 'Checkout') },
         ]}
         title={
           <>
-            خطوة أخيرة <span className="text-sheen">وتبدأ رحلتك</span>
+            {tx('خطوة أخيرة', 'One last step')}{' '}
+            <span className="text-sheen">{tx('وتبدأ رحلتك', 'and your journey begins')}</span>
           </>
         }
-        body="ادفع بأمان بـ Apple Pay أو محفظتك الإلكترونية أو كارتك البنكي أو PayPal، والدورات والنسخ الرقمية بتتفتح لك فورًا بعد الدفع."
+        body={tx(
+          'ادفع بأمان بـ Apple Pay أو محفظتك الإلكترونية أو كارتك البنكي أو PayPal، والدورات والنسخ الرقمية بتتفتح لك فورًا بعد الدفع.',
+          'Pay securely with Apple Pay, a mobile wallet, a bank card or PayPal. Courses and digital editions open right after payment.',
+        )}
       >
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-card bg-white px-6 py-4 shadow-[0_30px_60px_-30px_rgba(5,20,40,.6)]">
-          <b className="font-head text-2xl text-ink">إتمام الطلب</b>
+          <b className="font-head text-2xl text-ink">{tx('إتمام الطلب', 'Checkout')}</b>
           <CheckoutSteps current={2} />
         </div>
       </PageHero>
@@ -105,9 +110,11 @@ export function CheckoutPage() {
             <div className="flex min-w-0 flex-col gap-5">
               <div className={card}>
                 <div className="mb-1 flex items-center justify-between">
-                  <h2 className="text-2xl">السلة ({lines.length})</h2>
+                  <h2 className="text-2xl">
+                    {tx('السلة', 'Cart')} ({lines.length})
+                  </h2>
                   <Link to={routes.cart} className="font-bold">
-                    تعديل
+                    {tx('تعديل', 'Edit')}
                   </Link>
                 </div>
                 <ul>
@@ -123,7 +130,7 @@ export function CheckoutPage() {
                             ? FORMAT_TYPE_LABEL[l.item.formatType]
                             : TYPE_LABEL[l.itemType]}
                         </span>
-                        <b className="truncate text-ink">{l.item?.nameAr}</b>
+                        <b className="truncate text-ink">{loc(l.item?.nameAr, l.item?.nameEn)}</b>
                       </span>
                       {l.quantity > 1 && <span className="text-sm text-muted">× {l.quantity}</span>}
                       <b className="text-ink">
@@ -139,8 +146,10 @@ export function CheckoutPage() {
               {needsShipping && (
                 <div className={card}>
                   <div className="mb-4 flex items-baseline justify-between">
-                    <h2 className="text-2xl">عنوان الشحن</h2>
-                    <span className="text-sm text-muted">مطلوب للكتب الورقية والمنتجات</span>
+                    <h2 className="text-2xl">{tx('عنوان الشحن', 'Shipping address')}</h2>
+                    <span className="text-sm text-muted">
+                      {tx('مطلوب للكتب الورقية والمنتجات', 'Required for paperbacks and products')}
+                    </span>
                   </div>
                   {addresses.isLoading ? (
                     <Spinner />
@@ -150,7 +159,7 @@ export function CheckoutPage() {
                         <div
                           className="grid grid-cols-2 gap-3 max-sm:grid-cols-1"
                           role="radiogroup"
-                          aria-label="العنوان"
+                          aria-label={tx('العنوان', 'Address')}
                         >
                           {list.map((a) => (
                             <button
@@ -174,7 +183,7 @@ export function CheckoutPage() {
                                 <span className="text-sm text-muted">{formatAddress(a)}</span>
                                 {a.governorate && (
                                   <span className="text-xs font-bold text-blue-600">
-                                    شحن {formatEGP(a.governorate.shippingCost)}
+                                    {tx('شحن', 'Shipping')} {formatEGP(a.governorate.shippingCost)}
                                   </span>
                                 )}
                               </span>
@@ -186,7 +195,7 @@ export function CheckoutPage() {
                               onClick={() => setAdding(true)}
                               className="flex min-h-24 items-center justify-center rounded-tile border-2 border-dashed border-line-2 font-bold text-blue-500 hover:border-blue-300"
                             >
-                              + إضافة عنوان جديد
+                              + {tx('إضافة عنوان جديد', 'Add a new address')}
                             </button>
                           )}
                         </div>
@@ -207,33 +216,37 @@ export function CheckoutPage() {
 
               <div className={card}>
                 <TextAreaField
-                  label="ملاحظات على الطلب (اختياري)"
+                  label={tx('ملاحظات على الطلب (اختياري)', 'Order notes (optional)')}
                   rows={2}
                   maxLength={1000}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder={needsShipping ? 'مثال: التوصيل بعد الساعة 5' : ''}
+                  placeholder={
+                    needsShipping ? tx('مثال: التوصيل بعد الساعة 5', 'e.g. deliver after 5 pm') : ''
+                  }
                 />
               </div>
             </div>
           )}
 
           <aside className={cn(card, 'sticky top-27 flex flex-col gap-3 max-lg:static')}>
-            <h2 className="text-xl">ملخص الطلب</h2>
+            <h2 className="text-xl">{tx('ملخص الطلب', 'Order summary')}</h2>
             <div className="flex justify-between text-[15px]">
-              <span className="text-muted">المجموع الفرعي</span>
+              <span className="text-muted">{tx('المجموع الفرعي', 'Subtotal')}</span>
               <b className="text-ink">
                 {currency === 'USD' && usd.data ? `$${usd.data.summary.total}` : formatEGP(subtotal)}
               </b>
             </div>
             {needsShipping && (
               <div className="flex justify-between text-[15px]">
-                <span className="text-muted">الشحن</span>
-                <b className="text-ink">{selected ? formatEGP(shipping) : 'اختار العنوان'}</b>
+                <span className="text-muted">{tx('الشحن', 'Shipping')}</span>
+                <b className="text-ink">
+                  {selected ? formatEGP(shipping) : tx('اختار العنوان', 'Choose an address')}
+                </b>
               </div>
             )}
             <div className="flex items-baseline justify-between border-t border-divider pt-3">
-              <b className="text-ink">الإجمالي</b>
+              <b className="text-ink">{tx('الإجمالي', 'Total')}</b>
               <b className="font-head text-[28px] text-ink">
                 {currency === 'USD' && usd.data
                   ? `$${usd.data.summary.total}`
@@ -251,12 +264,12 @@ export function CheckoutPage() {
                 <Spinner />
               ) : (
                 <>
-                  متابعة للدفع <Icon name="arrowLeft" />
+                  {tx('متابعة للدفع', 'Continue to payment')} <Icon name="arrowLeft" />
                 </>
               )}
             </button>
             <p className="text-center text-xs leading-relaxed text-muted">
-              كوبون الخصم وطريقة الدفع في الخطوة الجاية.
+              {tx('كوبون الخصم وطريقة الدفع في الخطوة الجاية.', 'Coupon and payment method come next.')}
             </p>
           </aside>
         </div>

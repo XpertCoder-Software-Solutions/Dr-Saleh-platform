@@ -38,6 +38,7 @@ export interface ContinueLesson {
   sectionId: string
   lessonType: Lesson['lessonType']
   titleAr: string
+  titleEn?: string
   completionPercentage: number
 }
 
@@ -73,7 +74,14 @@ export interface OwnedBook {
   audioDuration: number | null
   hasFile: boolean
   isAvailable: boolean
-  book: { id: string; slug: string; titleAr: string; coverImage: string | null; isActive: boolean }
+  book: {
+    id: string
+    slug: string
+    titleAr: string
+    titleEn?: string
+    coverImage: string | null
+    isActive: boolean
+  }
 }
 
 export const myBooksApi = {
@@ -110,6 +118,7 @@ export interface WishlistRow {
     itemType: WishlistItemType
     slug?: string
     nameAr: string
+    nameEn?: string
     image: string | null
     priceEGP: number
     discountPriceEGP: number | null
@@ -137,7 +146,7 @@ export interface MyConsultation {
   scheduledAt: string | null
   createdAt: string
   updatedAt?: string | null
-  category: { id: string; nameAr: string } | null
+  category: { id: string; nameAr: string; nameEn?: string } | null
 }
 
 export const myConsultationsApi = {

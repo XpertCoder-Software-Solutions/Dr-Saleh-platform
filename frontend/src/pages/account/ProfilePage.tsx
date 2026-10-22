@@ -16,6 +16,7 @@ import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
 import { confirmAction } from '@/lib/confirm'
+import { tx } from '@/lib/i18n'
 
 const MAX_IMAGE_MB = 5
 
@@ -26,13 +27,18 @@ export function ProfilePage() {
   return (
     <AccountShell
       active="profile"
-      pageTitle="الملف الشخصي"
+      pageTitle={tx('الملف الشخصي', 'Profile')}
       title={
         <>
-          الملف <span className="text-sheen">الشخصي</span>
+          {tx('الملف', 'My')} <span className="text-sheen">{tx('الشخصي', 'profile')}</span>
         </>
       }
-      body={g('عدّل بياناتك وكلمة المرور.', 'عدّلي بياناتك وكلمة المرور.', 'البيانات الشخصية وكلمة المرور.')}
+      body={g(
+        'عدّل بياناتك وكلمة المرور.',
+        'عدّلي بياناتك وكلمة المرور.',
+        'البيانات الشخصية وكلمة المرور.',
+        'Edit your details and password.',
+      )}
     >
       {profile.isError ? (
         <ErrorState onRetry={() => profile.refetch()} />
@@ -50,12 +56,13 @@ export function ProfilePage() {
               <Icon name="trash" size={18} />
             </span>
             <span className="flex flex-1 flex-col">
-              <b className="text-ink">حذف الحساب</b>
+              <b className="text-ink">{tx('حذف الحساب', 'Delete account')}</b>
               <span className="text-sm text-muted">
                 {g(
                   'هيتمسح كل محتواك وشهاداتك ومش هتقدر ترجعها. كلّمنا ونساعدك.',
                   'هيتمسح كل محتواكي وشهاداتك ومش هتقدري ترجعيها. كلّمينا ونساعدك.',
                   'الحذف بيمسح كل المحتوى والشهادات نهائيًا. كلّمونا ونساعدكم.',
+                  "All your content and certificates will be permanently deleted. Contact us and we'll help.",
                 )}
               </span>
             </span>
@@ -63,7 +70,7 @@ export function ProfilePage() {
               to={routes.contact}
               className={buttonClass({ variant: 'outline', size: 'sm', className: 'text-danger' })}
             >
-              طلب حذف الحساب
+              {tx('طلب حذف الحساب', 'Request account deletion')}
             </Link>
           </Panel>
         </>
@@ -92,9 +99,9 @@ function PhotoCard({ profile }: { profile: Profile }) {
         <Avatar name={name} image={profile.profileImage} size={84} />
         <button
           type="button"
-          aria-label="غيّر الصورة"
+          aria-label={tx('غيّر الصورة', 'Change photo')}
           onClick={() => input.current?.click()}
-          className="absolute -bottom-1 -left-1 flex size-9 bg-navy items-center justify-center rounded-full border-[3px] border-white text-white"
+          className="absolute -end-1 -bottom-1 flex size-9 bg-navy items-center justify-center rounded-full border-[3px] border-white text-white"
         >
           {upload.isPending ? <Spinner /> : <Icon name="pen" size={14} />}
         </button>
@@ -108,7 +115,12 @@ function PhotoCard({ profile }: { profile: Profile }) {
             e.target.value = ''
             if (!file) return
             if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
-              setError(`الصورة لازم تكون أقل من ${MAX_IMAGE_MB} ميجا.`)
+              setError(
+                tx(
+                  `الصورة لازم تكون أقل من ${MAX_IMAGE_MB} ميجا.`,
+                  `The photo must be under ${MAX_IMAGE_MB} MB.`,
+                ),
+              )
               return
             }
             setError(null)
@@ -123,7 +135,7 @@ function PhotoCard({ profile }: { profile: Profile }) {
         </span>
         {profile.emailVerifiedAt && (
           <span className="flex items-center gap-1 text-sm font-bold text-success">
-            <Icon name="shield" size={14} /> الإيميل متأكد
+            <Icon name="shield" size={14} /> {tx('الإيميل متأكد', 'Email verified')}
           </span>
         )}
       </div>
@@ -133,11 +145,17 @@ function PhotoCard({ profile }: { profile: Profile }) {
           className={buttonClass({ variant: 'ghost', size: 'sm' })}
           disabled={remove.isPending}
           onClick={async () => {
-            if (await confirmAction({ title: 'تشيل صورتك؟', confirmLabel: 'أيوه، شيلها', icon: 'trash' }))
+            if (
+              await confirmAction({
+                title: tx('تشيل صورتك؟', 'Remove your photo?'),
+                confirmLabel: tx('أيوه، شيلها', 'Yes, remove it'),
+                icon: 'trash',
+              })
+            )
               remove.mutate()
           }}
         >
-          شيل الصورة
+          {tx('شيل الصورة', 'Remove photo')}
         </button>
       )}
       {(error || upload.isError || remove.isError) && (
@@ -184,8 +202,12 @@ function DetailsForm({ profile }: { profile: Profile }) {
   function submit(e: FormEvent) {
     e.preventDefault()
     const er: Record<string, string> = {}
-    if (f.firstName.trim().length < 2) er.firstName = 'اكتب الاسم الأول.'
-    if (f.phone && !isValidPhone(f.phone)) er.phone = 'اكتب رقم موبايل صحيح للدولة اللي اخترتها.'
+    if (f.firstName.trim().length < 2) er.firstName = tx('اكتب الاسم الأول.', 'Enter your first name.')
+    if (f.phone && !isValidPhone(f.phone))
+      er.phone = tx(
+        'اكتب رقم موبايل صحيح للدولة اللي اخترتها.',
+        'Enter a valid mobile number for the selected country.',
+      )
     setErrors(er)
     warnFormErrors(er)
     if (!Object.keys(er).length) save.mutate()
@@ -194,40 +216,50 @@ function DetailsForm({ profile }: { profile: Profile }) {
   return (
     <Panel>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <h2 className="text-xl">البيانات الشخصية</h2>
+        <h2 className="text-xl">{tx('البيانات الشخصية', 'Personal details')}</h2>
         <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
           <TextField
-            label="الاسم الأول"
+            label={tx('الاسم الأول', 'First name')}
             autoComplete="given-name"
             value={f.firstName}
             onChange={(e) => setF({ ...f, firstName: e.target.value })}
             error={errors.firstName}
           />
           <TextField
-            label="اسم العيلة"
+            label={tx('اسم العيلة', 'Last name')}
             autoComplete="family-name"
             value={f.lastName}
             onChange={(e) => setF({ ...f, lastName: e.target.value })}
           />
-          <TextField label="البريد الإلكتروني" type="email" ltr value={profile.email} disabled readOnly />
+          <TextField
+            label={tx('البريد الإلكتروني', 'Email')}
+            type="email"
+            ltr
+            value={profile.email}
+            disabled
+            readOnly
+          />
           <PhoneField
-            label="رقم الموبايل"
+            label={tx('رقم الموبايل', 'Mobile number')}
             value={f.phone}
             onChange={(v) => setF({ ...f, phone: v })}
             error={errors.phone}
           />
           <ChoiceChips<Gender>
-            label="النوع"
+            label={tx('النوع', 'Gender')}
             value={f.gender}
             onChange={(v) => setF({ ...f, gender: v })}
             options={[
-              { value: 'Male', label: 'ذكر' },
-              { value: 'Female', label: 'أنثى' },
+              { value: 'Male', label: tx('ذكر', 'Male') },
+              { value: 'Female', label: tx('أنثى', 'Female') },
             ]}
-            hint="عشان نكلّمك بالصيغة الصح في المنصة والرسايل"
+            hint={tx(
+              'عشان نكلّمك بالصيغة الصح في المنصة والرسايل',
+              'So we address you correctly on the platform and in messages',
+            )}
           />
           <TextField
-            label="تاريخ الميلاد (اختياري)"
+            label={tx('تاريخ الميلاد (اختياري)', 'Date of birth (optional)')}
             type="date"
             ltr
             value={f.dateOfBirth}
@@ -246,7 +278,7 @@ function DetailsForm({ profile }: { profile: Profile }) {
               <Spinner />
             ) : (
               <>
-                <Icon name="check" size={16} /> حفظ التغييرات
+                <Icon name="check" size={16} /> {tx('حفظ التغييرات', 'Save changes')}
               </>
             )}
           </button>
@@ -256,10 +288,10 @@ function DetailsForm({ profile }: { profile: Profile }) {
               className={buttonClass({ variant: 'outline' })}
               onClick={() => setF(initial)}
             >
-              إلغاء
+              {tx('إلغاء', 'Cancel')}
             </button>
           )}
-          {saved && <span className="text-sm font-bold text-success">اتحفظت</span>}
+          {saved && <span className="text-sm font-bold text-success">{tx('اتحفظت', 'Saved')}</span>}
         </div>
       </form>
     </Panel>
@@ -278,10 +310,11 @@ function PasswordForm() {
   function submit(e: FormEvent) {
     e.preventDefault()
     const er: Record<string, string> = {}
-    if (!f.current) er.current = 'اكتب كلمة المرور الحالية.'
+    if (!f.current) er.current = tx('اكتب كلمة المرور الحالية.', 'Enter your current password.')
     if (!isStrongPassword(f.next)) er.next = PASSWORD_POLICY_TEXT
-    else if (f.next === f.current) er.next = 'اختار كلمة مرور مختلفة عن الحالية.'
-    if (f.confirm !== f.next) er.confirm = 'كلمتين المرور مش زي بعض.'
+    else if (f.next === f.current)
+      er.next = tx('اختار كلمة مرور مختلفة عن الحالية.', 'Choose a password different from the current one.')
+    if (f.confirm !== f.next) er.confirm = tx('كلمتين المرور مش زي بعض.', "The passwords don't match.")
     setErrors(er)
     warnFormErrors(er)
     if (!Object.keys(er).length) change.mutate()
@@ -290,24 +323,24 @@ function PasswordForm() {
   return (
     <Panel>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <h2 className="text-xl">تغيير كلمة المرور</h2>
+        <h2 className="text-xl">{tx('تغيير كلمة المرور', 'Change password')}</h2>
         <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
           <PasswordField
-            label="كلمة المرور الحالية"
+            label={tx('كلمة المرور الحالية', 'Current password')}
             autoComplete="current-password"
             value={f.current}
             onChange={(e) => setF({ ...f, current: e.target.value })}
             error={errors.current}
           />
           <PasswordField
-            label="كلمة المرور الجديدة"
+            label={tx('كلمة المرور الجديدة', 'New password')}
             autoComplete="new-password"
             value={f.next}
             onChange={(e) => setF({ ...f, next: e.target.value })}
             error={errors.next}
           />
           <PasswordField
-            label="تأكيد كلمة المرور"
+            label={tx('تأكيد كلمة المرور', 'Confirm password')}
             autoComplete="new-password"
             placeholder={t('pw.confirm')}
             value={f.confirm}
@@ -317,7 +350,7 @@ function PasswordForm() {
         </div>
         {f.next && <PasswordRules password={f.next} />}
         {change.isError && <Alert tone="error">{(change.error as Error).message}</Alert>}
-        {change.isSuccess && <Alert tone="success">كلمة المرور اتغيّرت.</Alert>}
+        {change.isSuccess && <Alert tone="success">{tx('كلمة المرور اتغيّرت.', 'Password changed.')}</Alert>}
         <button
           type="submit"
           className={buttonClass({ variant: 'navy', className: 'self-start' })}
@@ -327,7 +360,7 @@ function PasswordForm() {
             <Spinner />
           ) : (
             <>
-              <Icon name="lock" size={15} /> تحديث كلمة المرور
+              <Icon name="lock" size={15} /> {tx('تحديث كلمة المرور', 'Update password')}
             </>
           )}
         </button>

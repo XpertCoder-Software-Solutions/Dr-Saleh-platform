@@ -11,9 +11,10 @@ import { buttonClass } from '@/components/ui/button'
 import { Alert } from '@/components/ui/States'
 import { PasswordField, TextField } from '@/components/ui/fields'
 import { pendingSignup } from './pending'
+import { tx } from '@/lib/i18n'
 
 export function LoginPage() {
-  usePageTitle('تسجيل الدخول')
+  usePageTitle(tx('تسجيل الدخول', 'Sign in'))
   const { login } = useAuth()
   const t = useCopy()
   const navigate = useNavigate()
@@ -43,12 +44,15 @@ export function LoginPage() {
       }
       setError(
         err instanceof ApiClientError && err.statusCode === 401
-          ? 'البريد الإلكتروني أو كلمة المرور غلط.'
+          ? tx('البريد الإلكتروني أو كلمة المرور غلط.', 'Incorrect email or password.')
           : err instanceof ApiClientError && err.statusCode === 403
-            ? 'الحساب ده موقوف. تواصل معانا لو محتاج مساعدة.'
+            ? tx(
+                'الحساب ده موقوف. تواصل معانا لو محتاج مساعدة.',
+                'This account is suspended. Contact us if you need help.',
+              )
             : err instanceof Error
               ? err.message
-              : 'حصلت مشكلة، حاول تاني.',
+              : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.'),
       )
     } finally {
       setBusy(false)
@@ -56,11 +60,11 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="مرحبًا بعودتك" sub={t('auth.login.sub')}>
+    <AuthShell title={tx('مرحبًا بعودتك', 'Welcome back')} sub={t('auth.login.sub')}>
       <form className="flex flex-col gap-4.5" onSubmit={onSubmit} noValidate>
         {error && <Alert tone="error">{error}</Alert>}
         <TextField
-          label="البريد الإلكتروني"
+          label={tx('البريد الإلكتروني', 'Email')}
           type="email"
           ltr
           autoComplete="email"
@@ -70,25 +74,25 @@ export function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <PasswordField
-          label="كلمة المرور"
+          label={tx('كلمة المرور', 'Password')}
           autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          labelAside={<Link to={routes.forgotPassword}>نسيت كلمة المرور؟</Link>}
+          labelAside={<Link to={routes.forgotPassword}>{tx('نسيت كلمة المرور؟', 'Forgot password?')}</Link>}
         />
         <button
           type="submit"
           className={buttonClass({ variant: 'navy', size: 'lg', block: true })}
           disabled={busy || !email || !password}
         >
-          {busy ? <Spinner label="جاري تسجيل الدخول" /> : 'تسجيل الدخول'}
+          {busy ? <Spinner label={tx('جاري تسجيل الدخول', 'Signing in')} /> : tx('تسجيل الدخول', 'Sign in')}
         </button>
       </form>
       <AuthSwitch>
-        ليس لديك حساب؟{' '}
+        {tx('ليس لديك حساب؟', "Don't have an account?")}{' '}
         <Link to={routes.register} state={location.state}>
-          سجّل الآن
+          {tx('سجّل الآن', 'Sign up now')}
         </Link>
       </AuthSwitch>
     </AuthShell>

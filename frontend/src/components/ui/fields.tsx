@@ -1,14 +1,9 @@
-import {
-  useId,
-  useState,
-  type InputHTMLAttributes,
-  type ReactNode,
-  type TextareaHTMLAttributes,
-} from 'react'
+import { useId, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { Icon } from '@/components/ui/Icon'
 import { inputClass } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { PASSWORD_RULES } from '@/lib/password'
+import { tx } from '@/lib/i18n'
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
@@ -64,7 +59,7 @@ export function TextField({ label, error, hint, labelAside, ltr, className, ...i
     <FieldFrame id={id} label={label} labelAside={labelAside} error={error} hint={hint}>
       <input
         id={id}
-        className={cn(inputClass, ltr && 'text-right [direction:ltr]', className)}
+        className={cn(inputClass, ltr && '[direction:ltr] rtl:text-right', className)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
         {...input}
@@ -88,15 +83,17 @@ export function PasswordField({
         <input
           id={id}
           type={show ? 'text' : 'password'}
-          className={cn(inputClass, 'pl-12 text-right [direction:ltr]')}
+          className={cn(inputClass, '[direction:ltr] ltr:pr-12 rtl:pl-12 rtl:text-right')}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
           {...input}
         />
         <button
           type="button"
-          className="absolute top-1/2 left-1.5 flex size-10 -translate-y-1/2 items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-hover"
-          aria-label={show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+          className="absolute end-1.5 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-[10px] border-0 bg-transparent text-muted hover:bg-hover"
+          aria-label={
+            show ? tx('إخفاء كلمة المرور', 'Hide password') : tx('إظهار كلمة المرور', 'Show password')
+          }
           aria-pressed={show}
           onClick={() => setShow((s) => !s)}
         >
@@ -126,14 +123,18 @@ export function OtpInput({
   }
 
   return (
-    <div className="flex justify-center gap-2.5 [direction:ltr]" role="group" aria-label="كود التفعيل">
+    <div
+      className="flex justify-center gap-2.5 [direction:ltr]"
+      role="group"
+      aria-label={tx('كود التفعيل', 'Verification code')}
+    >
       {digits.map((d, i) => (
         <input
           key={i}
           data-otp={i}
           inputMode="numeric"
           autoComplete={i === 0 ? 'one-time-code' : 'off'}
-          aria-label={`الرقم ${i + 1}`}
+          aria-label={tx(`الرقم ${i + 1}`, `Digit ${i + 1}`)}
           maxLength={length}
           value={d}
           className="h-16 w-14 rounded-field border-[1.5px] border-line-2 bg-white text-center font-head text-[26px] font-bold text-ink focus:border-blue-400 focus:shadow-[0_0_0_4px_rgba(61,155,216,.15)] focus:outline-none max-[480px]:h-14 max-[480px]:w-11 max-[480px]:text-[22px]"
@@ -248,7 +249,7 @@ export function CheckField({
       <span className="relative mt-0.5 flex size-5.5 flex-none">
         <input
           type="checkbox"
-          className="peer size-full cursor-pointer appearance-none rounded-md border-[1.5px] border-line-2 bg-white transition-colors checked:border-navy checked:bg-navy focus-visible:shadow-[0_0_0_4px_rgba(61,155,216,.25)] focus-visible:outline-none"
+          className="peer size-full cursor-pointer appearance-none rounded-md border-[1.5px] border-line-2 bg-white transition-colors checked:bg-navy checked:border-navy focus-visible:shadow-[0_0_0_4px_rgba(61,155,216,.25)] focus-visible:outline-none"
           {...rest}
         />
         <Icon
@@ -266,14 +267,14 @@ export function CheckField({
 /** Live checklist under a new-password field. */
 export function PasswordRules({ password }: { password: string }) {
   return (
-    <ul className="-mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px] max-[420px]:grid-cols-1" aria-label="شروط كلمة المرور">
+    <ul
+      className="-mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px] max-[420px]:grid-cols-1"
+      aria-label={tx('شروط كلمة المرور', 'Password requirements')}
+    >
       {PASSWORD_RULES.map((r) => {
         const ok = r.test(password)
         return (
-          <li
-            key={r.id}
-            className={cn('flex items-center gap-1.5', ok ? 'text-green-700' : 'text-muted')}
-          >
+          <li key={r.id} className={cn('flex items-center gap-1.5', ok ? 'text-green-700' : 'text-muted')}>
             <span
               className={cn(
                 'flex size-4.5 flex-none items-center justify-center rounded-full',
@@ -284,7 +285,7 @@ export function PasswordRules({ password }: { password: string }) {
               {ok ? <Icon name="check" size={11} /> : <span className="size-1.5 rounded-full bg-line-2" />}
             </span>
             {r.label}
-            <span className="sr-only">{ok ? ' (متحقق)' : ' (ناقص)'}</span>
+            <span className="sr-only">{ok ? tx(' (متحقق)', ' (met)') : tx(' (ناقص)', ' (missing)')}</span>
           </li>
         )
       })}

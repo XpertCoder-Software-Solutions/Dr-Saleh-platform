@@ -7,8 +7,11 @@ import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { POLICIES, POLICIES_UPDATED, type Policy } from './policies'
+import { POLICIES_EN, POLICIES_UPDATED_EN } from './policies.en'
+import { isEn, tx } from '@/lib/i18n'
 
-const DOCS: Record<string, Policy> = POLICIES
+const DOCS: Record<string, Policy> = isEn ? POLICIES_EN : POLICIES
+const UPDATED = isEn ? POLICIES_UPDATED_EN : POLICIES_UPDATED
 
 export function LegalPage() {
   const { doc = 'terms' } = useParams()
@@ -20,18 +23,21 @@ export function LegalPage() {
     <>
       <PageHero
         portrait={false}
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'السياسات' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('السياسات', 'Policies') }]}
         title={
           <>
-            الشروط <span className="text-sheen">والسياسات</span>
+            {tx('الشروط', 'Terms')} <span className="text-sheen">{tx('والسياسات', '& policies')}</span>
           </>
         }
-        body="كل اللي محتاج تعرفه عن استخدام المنصة، والشحن، والاستبدال والاسترجاع، وخصوصية بياناتك، بكلام واضح."
+        body={tx(
+          'كل اللي محتاج تعرفه عن استخدام المنصة، والشحن، والاستبدال والاسترجاع، وخصوصية بياناتك، بكلام واضح.',
+          'Everything you need to know about using the platform, shipping, exchanges and returns, and your data privacy, in plain words.',
+        )}
       />
       <section className={cn(sectionClass, 'relative z-2 -mt-12')}>
         <div className={cn(innerClass, 'grid grid-cols-[260px_1fr] items-start gap-7 max-md:grid-cols-1')}>
           <nav
-            aria-label="السياسات"
+            aria-label={tx('السياسات', 'Policies')}
             className="sticky top-27 flex flex-col gap-1 rounded-card bg-white p-2.5 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-md:static"
           >
             {Object.entries(DOCS).map(([id, d]) => (
@@ -52,13 +58,16 @@ export function LegalPage() {
               </NavLink>
             ))}
             <p className="m-1.5 mt-2 rounded-xl bg-surface p-3 text-xs leading-relaxed text-muted">
-              عندك سؤال؟ <Link to={routes.contact}>كلّمنا</Link>
+              {tx('عندك سؤال؟', 'Have a question?')}{' '}
+              <Link to={routes.contact}>{tx('كلّمنا', 'Contact us')}</Link>
             </p>
           </nav>
           <article className="rounded-card bg-white p-8 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-sm:p-5">
             <h2 className="text-[30px]">{current.title}</h2>
             <p className="mt-2 leading-relaxed text-text-2">{current.summary}</p>
-            <p className="mt-2 mb-2 text-sm text-muted">آخر تحديث: {POLICIES_UPDATED}</p>
+            <p className="mt-2 mb-2 text-sm text-muted">
+              {tx('آخر تحديث:', 'Last updated:')} {UPDATED}
+            </p>
             <ol className="flex flex-col">
               {current.sections.map((sec, i) => (
                 <li key={sec.title} className="border-t border-divider py-5">

@@ -15,13 +15,14 @@ import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
 import { formatMoney } from '@/lib/format'
 import { useRegion } from '@/lib/region'
 import { productPrice } from '@/lib/catalog'
+import { loc, tx } from '@/lib/i18n'
 
 type Filter = 'all' | WishlistItemType
 
 const KIND: Record<WishlistItemType, { label: string; icon: IconName }> = {
-  COURSE: { label: 'دورة', icon: 'video' },
-  BOOK: { label: 'كتاب', icon: 'book' },
-  PRODUCT: { label: 'منتج', icon: 'box' },
+  COURSE: { label: tx('دورة', 'Course'), icon: 'video' },
+  BOOK: { label: tx('كتاب', 'Book'), icon: 'book' },
+  PRODUCT: { label: tx('منتج', 'Product'), icon: 'box' },
 }
 
 function itemLink(row: WishlistRow) {
@@ -44,12 +45,13 @@ export function WishlistPage() {
   return (
     <AccountShell
       active="wishlist"
-      pageTitle="المفضلة"
-      title={<span className="text-sheen">المفضلة</span>}
+      pageTitle={tx('المفضلة', 'Wishlist')}
+      title={<span className="text-sheen">{tx('المفضلة', 'Wishlist')}</span>}
       body={g(
         'الدورات والكتب والمنتجات اللي حفظتها عشان ترجعلها.',
         'الدورات والكتب والمنتجات اللي حفظتيها عشان ترجعيلها.',
         'الدورات والكتب والمنتجات المحفوظة.',
+        'Courses, books and products you saved for later.',
       )}
     >
       <Panel className="p-4">
@@ -57,10 +59,10 @@ export function WishlistPage() {
           value={filter}
           onChange={setFilter}
           tabs={[
-            { id: 'all', label: 'الكل', count: rows.length },
-            { id: 'COURSE', label: 'دورات', count: count('COURSE') },
-            { id: 'BOOK', label: 'كتب', count: count('BOOK') },
-            { id: 'PRODUCT', label: 'منتجات', count: count('PRODUCT') },
+            { id: 'all', label: tx('الكل', 'All'), count: rows.length },
+            { id: 'COURSE', label: tx('دورات', 'Courses'), count: count('COURSE') },
+            { id: 'BOOK', label: tx('كتب', 'Books'), count: count('BOOK') },
+            { id: 'PRODUCT', label: tx('منتجات', 'Products'), count: count('PRODUCT') },
           ]}
         />
       </Panel>
@@ -75,15 +77,16 @@ export function WishlistPage() {
         <Panel>
           <EmptyState
             icon="heart"
-            title="المفضلة فاضية"
+            title={tx('المفضلة فاضية', 'Your wishlist is empty')}
             body={g(
               'دوس على القلب في أي دورة أو كتاب عشان تحفظه هنا.',
               'دوسي على القلب في أي دورة أو كتاب عشان تحفظيه هنا.',
               'القلب في أي دورة أو كتاب بيحفظه هنا.',
+              'Tap the heart on any course or book to save it here.',
             )}
             action={
               <Link to={routes.courses} className={buttonClass({ variant: 'gold' })}>
-                تصفّح الدورات
+                {tx('تصفّح الدورات', 'Browse courses')}
               </Link>
             }
           />
@@ -126,15 +129,15 @@ function WishCard({ row }: { row: WishlistRow }) {
         ) : (
           <Icon name={kind.icon} size={40} />
         )}
-        <span className="absolute top-2.5 right-2.5 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-ink">
+        <span className="absolute start-2.5 top-2.5 rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-ink">
           {kind.label}
         </span>
         <button
           type="button"
-          aria-label={`شيل ${item.nameAr} من المفضلة`}
+          aria-label={`شيل ${loc(item.nameAr, item.nameEn)} من المفضلة`}
           disabled={remove.isPending}
           onClick={() => remove.mutate()}
-          className="absolute top-2.5 left-2.5 flex size-10 items-center justify-center rounded-full border-0 bg-white text-danger-dot shadow-md disabled:opacity-60"
+          className="absolute end-2.5 top-2.5 flex size-10 items-center justify-center rounded-full border-0 bg-white text-danger-dot shadow-md disabled:opacity-60"
         >
           <Icon name="heart" size={18} className="fill-current" />
         </button>
@@ -142,23 +145,25 @@ function WishCard({ row }: { row: WishlistRow }) {
       <div className="flex flex-1 flex-col gap-1 px-2.5 pt-3.5">
         <h3 className="text-[17px] leading-snug">
           <Link to={itemLink(row)} className="text-ink">
-            {item.nameAr}
+            {loc(item.nameAr, item.nameEn)}
           </Link>
         </h3>
-        {!item.isActive && <span className="text-xs text-danger">مش متاح حاليًا</span>}
+        {!item.isActive && (
+          <span className="text-xs text-danger">{tx('مش متاح حاليًا', 'Not available right now')}</span>
+        )}
       </div>
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-divider px-2.5 pt-3 pb-1.5">
         <span className="flex flex-col">
           <b className="font-head text-lg text-ink">{formatMoney(price, currency)}</b>
           {listPrice !== null && (
             <span className="text-xs font-bold text-success">
-              السعر نزل {formatMoney((listPrice ?? price) - price, currency)}
+              {tx('السعر نزل', 'Price dropped by')} {formatMoney((listPrice ?? price) - price, currency)}
             </span>
           )}
         </span>
         {row.itemType === 'BOOK' ? (
           <Link to={itemLink(row)} className={buttonClass({ variant: 'navy', size: 'sm' })}>
-            اختار النسخة
+            {tx('اختار النسخة', 'Choose an edition')}
           </Link>
         ) : (
           <button
@@ -171,13 +176,13 @@ function WishCard({ row }: { row: WishlistRow }) {
           >
             {added ? (
               <>
-                <Icon name="check" size={14} /> في السلة
+                <Icon name="check" size={14} /> {tx('في السلة', 'In cart')}
               </>
             ) : outOfStock ? (
-              'نفد'
+              tx('نفد', 'Sold out')
             ) : (
               <>
-                <Icon name="plus" size={14} /> للسلة
+                <Icon name="plus" size={14} /> {tx('للسلة', 'Add to cart')}
               </>
             )}
           </button>
