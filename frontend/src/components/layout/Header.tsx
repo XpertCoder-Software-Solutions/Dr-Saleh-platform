@@ -163,9 +163,6 @@ export function Header() {
         </nav>
 
         <div className="flex flex-none items-center gap-1.5">
-          <Link to={routes.search} aria-label={tx('بحث', 'Search')} className={iconBtn}>
-            <Icon name="search" />
-          </Link>
           <button
             type="button"
             className={cn(iconBtn, 'font-head text-[13px] font-bold')}
