@@ -1694,6 +1694,7 @@ export class CoursesService {
           select: {
             titleAr: true,
             titleEn: true,
+            certificateEnabled: true,
           },
         },
       },
@@ -1707,6 +1708,8 @@ export class CoursesService {
       userId: userCourse.user.id,
       email: userCourse.user.email,
       fullName: userCourse.user.fullName,
+      courseId,
+      hasCertificate: userCourse.course.certificateEnabled,
       courseTitleAr: userCourse.course.titleAr,
       courseTitleEn: userCourse.course.titleEn,
     });

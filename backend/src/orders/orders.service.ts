@@ -19,6 +19,7 @@ import {
   getPaginationParams,
 } from '../common/utils/pagination';
 import { PrismaService } from '../database/prisma.service';
+import { formatAddressAr } from '../notifications/format-address';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -367,9 +368,26 @@ export class OrdersService {
       userId: order.user.id,
       email: order.user.email,
       fullName: order.user.fullName,
+      orderId: order.id,
       orderNumber: order.orderNumber,
       totalAmount: this.toNumberFromDecimal(order.totalAmount),
       currency: order.currency,
+      subtotal: this.toNumberFromDecimal(order.subtotal),
+      discountAmount: this.toNumberFromDecimal(order.discountAmount),
+      shippingCost: this.toNumberFromDecimal(order.shippingCost),
+      createdAt: order.createdAt,
+      shippingAddress: formatAddressAr(order.shippingAddress),
+      items: order.items.map((item) => ({
+        itemType: item.itemType,
+        titleAr: item.titleAr,
+        quantity: item.quantity,
+        unitPrice: this.toNumberFromDecimal(item.unitPrice),
+        discountPrice:
+          item.discountPrice === null
+            ? null
+            : this.toNumberFromDecimal(item.discountPrice),
+        totalPrice: this.toNumberFromDecimal(item.totalPrice),
+      })),
     });
 
     return {

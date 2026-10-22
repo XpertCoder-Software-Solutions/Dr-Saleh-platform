@@ -16,9 +16,18 @@ import {
 } from './notifications.constants';
 import { NotificationJobData } from './notification-job.types';
 import {
+  EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES,
+  PASSWORD_RESET_OTP_EXPIRY_MINUTES,
+} from '../auth/constants/email-verification.constants';
+import {
   BuiltNotificationEmail,
+  EmailBlock,
+  EmailInvoice,
+  EmailTone,
   buildNotificationEmailTemplate,
 } from './templates/notification-email.template';
+
+const WHATSAPP_URL = 'https://wa.me/201025733523';
 
 type NotificationDispatchOptions = {
   critical?: boolean;
@@ -34,10 +43,31 @@ type OtpNotificationInput = RecipientNotificationInput & {
   otp: string;
 };
 
+/** One line of an order, as stored on the order (prices already in the order currency). */
+export type NotificationOrderItem = {
+  /** COURSE, BOOK or PRODUCT. */
+  itemType: string;
+  titleAr: string;
+  quantity: number;
+  unitPrice: number | string;
+  discountPrice?: number | string | null;
+  totalPrice: number | string;
+};
+
 type OrderNotificationInput = RecipientNotificationInput & {
+  orderId?: string;
   orderNumber: string;
   totalAmount: number | string;
   currency: string;
+  /** With these the email carries the full invoice; without them, a short summary. */
+  items?: NotificationOrderItem[];
+  subtotal?: number | string;
+  discountAmount?: number | string;
+  shippingCost?: number | string;
+  createdAt?: Date;
+  paidAt?: Date | null;
+  paymentMethod?: string | null;
+  shippingAddress?: string | null;
 };
 
 type PaymentNotificationInput = OrderNotificationInput & {
@@ -45,6 +75,9 @@ type PaymentNotificationInput = OrderNotificationInput & {
 };
 
 type CourseNotificationInput = RecipientNotificationInput & {
+  courseId?: string;
+  /** Course completed: whether a certificate was issued. */
+  hasCertificate?: boolean;
   courseTitleAr: string;
   courseTitleEn?: string | null;
 };
@@ -57,11 +90,16 @@ type ContactNotificationInput = RecipientNotificationInput;
 
 type NotificationTemplateInput = {
   subject: string;
+  preheader?: string;
+  badge?: string;
+  tone?: EmailTone;
   title: string;
   greeting?: string;
-  bodyLines: string[];
+  blocks: EmailBlock[];
   ctaLabel?: string;
   ctaUrl?: string;
+  secondaryLabel?: string;
+  secondaryUrl?: string;
   footerNote?: string;
 };
 
@@ -435,27 +473,52 @@ export class NotificationsService {
       logoUrl: this.logoUrl,
       platformUrl: this.platformUrl,
       supportEmail: this.supportEmail,
+      whatsappUrl: WHATSAPP_URL,
+      preheader: input.preheader,
+      badge: input.badge,
+      tone: input.tone,
       title: input.title,
       greeting: input.greeting,
-      bodyLines: input.bodyLines,
+      blocks: input.blocks,
       ctaLabel: input.ctaLabel,
       ctaUrl: input.ctaUrl,
+      secondaryLabel: input.secondaryLabel,
+      secondaryUrl: input.secondaryUrl,
       footerNote: input.footerNote,
     });
+  }
+
+  private url(path: string): string {
+    return `${this.platformUrl.replace(/\/+$/, '')}${path}`;
   }
 
   private buildEmailVerificationOtp(
     input: OtpNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: 'رمز تفعيل البريد الإلكتروني',
-      title: 'رمز تفعيل البريد الإلكتروني',
+      subject: `${input.otp} كود تفعيل حسابك`,
+      preheader: `كود التفعيل: ${input.otp} — صالح ${EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES} دقايق`,
+      badge: 'تفعيل الحساب',
+      title: 'خطوة واحدة وحسابك يبقى جاهز',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `رمز التفعيل الخاص بك هو: ${input.otp}`,
-        'يرجى استخدام هذا الرمز لإكمال تفعيل حسابك.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'اكتب الكود ده في صفحة التفعيل عشان نتأكد إن الإيميل ده بتاعك:',
+        },
+        {
+          type: 'code',
+          code: input.otp,
+          caption: `الكود صالح لمدة ${EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES} دقايق`,
+        },
+        {
+          type: 'note',
+          tone: 'info',
+          text: 'متشاركش الكود ده مع أي حد، حتى لو قال إنه من فريق المنصة.',
+        },
       ],
-      footerNote: 'إذا لم تقم بإنشاء حساب على المنصة، يمكنك تجاهل هذه الرسالة.',
+      footerNote:
+        'لو مش انت اللي عملت الحساب ده، تجاهل الرسالة ومفيش حاجة هتحصل.',
     };
   }
 
@@ -463,15 +526,24 @@ export class NotificationsService {
     input: OtpNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: 'رمز إعادة تعيين كلمة المرور',
-      title: 'إعادة تعيين كلمة المرور',
+      subject: `${input.otp} كود تغيير كلمة المرور`,
+      preheader: `كود تغيير كلمة المرور: ${input.otp}`,
+      badge: 'كلمة المرور',
+      title: 'نسيت كلمة المرور؟ ولا يهمك',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `رمز إعادة تعيين كلمة المرور هو: ${input.otp}`,
-        'استخدم هذا الرمز لإكمال تغيير كلمة المرور.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'اكتب الكود ده في صفحة استرجاع كلمة المرور، وبعدها اختار كلمة مرور جديدة:',
+        },
+        {
+          type: 'code',
+          code: input.otp,
+          caption: `الكود صالح لمدة ${PASSWORD_RESET_OTP_EXPIRY_MINUTES} دقايق`,
+        },
       ],
       footerNote:
-        'إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة.',
+        'لو مش انت اللي طلبت تغيير كلمة المرور، تجاهل الرسالة وحسابك هيفضل زي ما هو.',
     };
   }
 
@@ -479,47 +551,117 @@ export class NotificationsService {
     input: RecipientNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: 'تم تغيير كلمة المرور بنجاح',
-      title: 'تم تغيير كلمة المرور',
+      subject: 'كلمة المرور بتاعتك اتغيّرت',
+      preheader: 'تأكيد تغيير كلمة المرور لحسابك',
+      badge: 'أمان الحساب',
+      tone: 'success',
+      title: 'كلمة المرور اتغيّرت بنجاح',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        'تم تغيير كلمة مرور حسابك بنجاح.',
-        'إذا لم تقم بهذا الإجراء، يرجى التواصل مع الدعم فوراً.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'بنأكدلك إن كلمة مرور حسابك على المنصة اتغيّرت دلوقتي.',
+        },
+        {
+          type: 'note',
+          tone: 'danger',
+          text: 'لو مش انت اللي غيّرتها، كلّمنا فورًا وغيّر كلمة المرور من "نسيت كلمة المرور".',
+        },
       ],
+      ctaLabel: 'الدخول لحسابي',
+      ctaUrl: this.url('/login'),
     };
   }
 
   private buildOrderCreated(
     input: OrderNotificationInput,
   ): NotificationTemplateInput {
+    const invoice = this.buildInvoice(input, 'في انتظار الدفع');
     return {
-      subject: `تم إنشاء الطلب ${input.orderNumber}`,
-      title: 'تم إنشاء طلبك بنجاح',
+      subject: `طلبك رقم ${input.orderNumber} اتسجّل`,
+      preheader: `الإجمالي ${this.formatAmount(input.totalAmount, input.currency)} — كمّل الدفع في أي وقت`,
+      badge: 'طلب جديد',
+      title: 'طلبك اتسجّل',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `رقم الطلب: ${input.orderNumber}`,
-        `الإجمالي: ${this.formatAmount(input.totalAmount, input.currency)}`,
-        'سنرسل لك تحديثاً عند اكتمال الدفع أو تغير حالة الطلب.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'شكرًا إنك اخترت المنصة! طلبك محفوظ، ولما الدفع يتم هيوصلك إيميل بالفاتورة النهائية.',
+        },
+        invoice
+          ? { type: 'invoice', invoice }
+          : {
+              type: 'details',
+              rows: [
+                ['رقم الطلب', input.orderNumber],
+                [
+                  'الإجمالي',
+                  this.formatAmount(input.totalAmount, input.currency),
+                ],
+              ],
+            },
       ],
-      ctaLabel: 'عرض الطلبات',
-      ctaUrl: `${this.platformUrl}/orders`,
+      ctaLabel: 'كمّل الدفع',
+      ctaUrl: input.orderId
+        ? this.url(`/checkout/pay/${input.orderId}`)
+        : this.url('/account/orders'),
+      secondaryLabel: 'طلباتي',
+      secondaryUrl: this.url('/account/orders'),
     };
   }
 
   private buildPaymentSuccess(
     input: OrderNotificationInput,
   ): NotificationTemplateInput {
+    const invoice = this.buildInvoice(input, 'مدفوعة');
+    const items = input.items ?? [];
+    const hasCourse = items.some((i) => i.itemType === 'COURSE');
+    const blocks: EmailBlock[] = [
+      {
+        type: 'text',
+        text: 'الدفع تم بنجاح، وده إيصال طلبك. احتفظ بالإيميل ده كفاتورة.',
+      },
+      invoice
+        ? { type: 'invoice', invoice }
+        : {
+            type: 'details',
+            rows: [
+              ['رقم الطلب', input.orderNumber],
+              [
+                'المبلغ المدفوع',
+                this.formatAmount(input.totalAmount, input.currency),
+              ],
+            ],
+          },
+    ];
+    if (input.shippingAddress) {
+      blocks.push({
+        type: 'note',
+        tone: 'info',
+        text: 'المنتجات الورقية بتتجهّز وهتوصلك خلال 2 لـ 4 أيام عمل، وهنبعتلك رقم الشحنة أول ما تخرج.',
+      });
+    }
+    if (hasCourse || items.length === 0) {
+      blocks.push({
+        type: 'note',
+        tone: 'success',
+        text: 'الدورات والنسخ الرقمية اتفتحت في حسابك دلوقتي، تقدر تبدأ على طول.',
+      });
+    }
     return {
-      subject: `تم الدفع بنجاح للطلب ${input.orderNumber}`,
-      title: 'تم الدفع بنجاح',
+      subject: `تم الدفع ✓ فاتورة طلبك ${input.orderNumber}`,
+      preheader: `دفعت ${this.formatAmount(input.totalAmount, input.currency)} — الفاتورة جوه`,
+      badge: 'تم الدفع',
+      tone: 'success',
+      title: 'شكرًا! طلبك اتأكد',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `تم تأكيد الدفع للطلب رقم ${input.orderNumber}.`,
-        `المبلغ: ${this.formatAmount(input.totalAmount, input.currency)}`,
-        'تم تحديث طلبك وتفعيل المحتوى الرقمي المؤهل تلقائياً.',
-      ],
-      ctaLabel: 'الذهاب إلى حسابي',
-      ctaUrl: `${this.platformUrl}/account`,
+      blocks,
+      ctaLabel: hasCourse ? 'ابدأ التعلّم' : 'الذهاب لحسابي',
+      ctaUrl: hasCourse ? this.url('/account/courses') : this.url('/account'),
+      secondaryLabel: input.orderId ? 'طباعة الفاتورة' : undefined,
+      secondaryUrl: input.orderId
+        ? this.url(`/invoice/${input.orderId}`)
+        : undefined,
     };
   }
 
@@ -527,17 +669,41 @@ export class NotificationsService {
     input: PaymentNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: `تعذر إتمام الدفع للطلب ${input.orderNumber}`,
-      title: 'تعذر إتمام الدفع',
+      subject: `الدفع ما كملش لطلب ${input.orderNumber}`,
+      preheader:
+        'طلبك لسه محفوظ، وتقدر تجرّب تاني بنفس الطريقة أو بطريقة تانية',
+      badge: 'الدفع ما كملش',
+      tone: 'danger',
+      title: 'حصلت مشكلة في الدفع',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `لم يتم تأكيد الدفع للطلب رقم ${input.orderNumber}.`,
-        input.failureReason
-          ? `سبب الرفض: ${redactSensitiveText(input.failureReason)}`
-          : 'يمكنك المحاولة مرة أخرى أو اختيار وسيلة دفع أخرى.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'متقلقش، طلبك لسه محفوظ. ولو ظهر خصم مؤقت على حسابك، البنك بيرجّعه تلقائيًا.',
+        },
+        {
+          type: 'details',
+          rows: [
+            ['رقم الطلب', input.orderNumber],
+            ['المبلغ', this.formatAmount(input.totalAmount, input.currency)],
+            [
+              'السبب',
+              input.failureReason
+                ? redactSensitiveText(input.failureReason)
+                : '',
+            ],
+          ],
+        },
+        {
+          type: 'text',
+          muted: true,
+          text: 'جرّب تاني بنفس الطريقة، أو اختار طريقة دفع تانية (كارت، محفظة، Apple Pay أو PayPal).',
+        },
       ],
-      ctaLabel: 'إعادة المحاولة',
-      ctaUrl: `${this.platformUrl}/orders`,
+      ctaLabel: 'جرّب الدفع تاني',
+      ctaUrl: input.orderId
+        ? this.url(`/checkout/pay/${input.orderId}`)
+        : this.url('/account/orders'),
     };
   }
 
@@ -545,14 +711,32 @@ export class NotificationsService {
     input: OrderNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: `تمت معالجة استرداد الطلب ${input.orderNumber}`,
-      title: 'تمت معالجة الاسترداد',
+      subject: `المبلغ اترد لطلب ${input.orderNumber}`,
+      preheader: `رجّعنالك ${this.formatAmount(input.totalAmount, input.currency)}`,
+      badge: 'استرداد',
+      tone: 'info',
+      title: 'فلوسك في الطريق ليك',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `تمت معالجة استرداد المبلغ للطلب رقم ${input.orderNumber}.`,
-        `المبلغ: ${this.formatAmount(input.totalAmount, input.currency)}`,
-        'قد يختلف وقت ظهور المبلغ حسب مزود وسيلة الدفع.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'رجّعنا مبلغ الطلب ده لنفس طريقة الدفع اللي استخدمتها.',
+        },
+        {
+          type: 'details',
+          rows: [
+            ['رقم الطلب', input.orderNumber],
+            ['المبلغ', this.formatAmount(input.totalAmount, input.currency)],
+          ],
+        },
+        {
+          type: 'note',
+          tone: 'info',
+          text: 'المبلغ بيظهر عادةً خلال 7 لـ 14 يوم عمل حسب البنك أو المحفظة.',
+        },
       ],
+      ctaLabel: 'طلباتي',
+      ctaUrl: this.url('/account/orders'),
     };
   }
 
@@ -560,15 +744,30 @@ export class NotificationsService {
     input: CourseNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: `تم تفعيل الوصول إلى دورة ${input.courseTitleAr}`,
-      title: 'تم تفعيل الوصول إلى الدورة',
+      subject: `دورة «${input.courseTitleAr}» اتفتحت في حسابك`,
+      preheader: 'ابدأ أول درس دلوقتي من أي جهاز',
+      badge: 'دورة جديدة',
+      tone: 'success',
+      title: `«${input.courseTitleAr}» بقت في حسابك`,
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `أصبح بإمكانك الآن الوصول إلى دورة: ${input.courseTitleAr}.`,
-        'نتمنى لك تجربة تعليمية موفقة.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'مبروك! الدورة اتفتحت ليك بالكامل. شوية حاجات هتساعدك تستفيد منها:',
+        },
+        {
+          type: 'list',
+          items: [
+            'اتفرج من الموبايل أو الكمبيوتر، والمنصة بتفتكر وقفت فين.',
+            'خلّص كل درس للآخر عشان يتحسب ضمن تقدّمك.',
+            'أول ما تخلّص الدورة، شهادتك بتطلع تلقائيًا في حسابك.',
+          ],
+        },
       ],
-      ctaLabel: 'متابعة الدورة',
-      ctaUrl: `${this.platformUrl}/my-courses`,
+      ctaLabel: 'ابدأ الدورة',
+      ctaUrl: input.courseId
+        ? this.url(`/learn/${input.courseId}`)
+        : this.url('/account/courses'),
     };
   }
 
@@ -576,15 +775,36 @@ export class NotificationsService {
     input: CourseNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: `تهانينا بإكمال دورة ${input.courseTitleAr}`,
-      title: 'تهانينا بإكمال الدورة',
+      subject: `مبروك! خلّصت دورة «${input.courseTitleAr}»`,
+      preheader: input.hasCertificate
+        ? 'شهادتك جاهزة في حسابك'
+        : 'خطوة جديدة في رحلتك مع ولادك',
+      badge: 'مبروك',
+      tone: 'success',
+      title: 'خلّصت الدورة… برافو عليك!',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        `أكملت دورة: ${input.courseTitleAr}.`,
-        'تم حفظ حالة الإكمال في حسابك، وسيتم استخدام هذه الحالة لاحقاً عند تفعيل الشهادات.',
+      blocks: [
+        {
+          type: 'text',
+          text: `خلّصت كل دروس «${input.courseTitleAr}». ده مجهود يستاهل نحتفل بيه.`,
+        },
+        input.hasCertificate
+          ? {
+              type: 'note',
+              tone: 'success',
+              text: 'شهادة الإتمام بتاعتك جاهزة في حسابك، وليها رقم أي حد يقدر يتحقق منه.',
+            }
+          : {
+              type: 'text',
+              text: 'تقدر ترجع لأي درس في أي وقت من صفحة دوراتي.',
+            },
       ],
-      ctaLabel: 'عرض دوراتي',
-      ctaUrl: `${this.platformUrl}/my-courses`,
+      ctaLabel: input.hasCertificate ? 'شهاداتي' : 'دوراتي',
+      ctaUrl: this.url(
+        input.hasCertificate ? '/account/certificates' : '/account/courses',
+      ),
+      secondaryLabel: 'دورات تانية',
+      secondaryUrl: this.url('/courses'),
     };
   }
 
@@ -592,14 +812,33 @@ export class NotificationsService {
     input: ConsultationNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: 'تم استلام طلب الاستشارة',
-      title: 'تم استلام طلب الاستشارة',
+      subject: 'وصلنا طلب الاستشارة بتاعك',
+      preheader: 'هنتواصل معاك على واتساب عشان نحدد الميعاد',
+      badge: 'استشارة',
+      title: 'طلبك وصل للدكتور صالح',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        'تم استلام طلب الاستشارة الخاص بكم بنجاح.',
-        input.topic ? `موضوع الاستشارة: ${input.topic}` : '',
-        'سيتم مراجعة الطلب والتواصل معكم في أقرب وقت ممكن.',
+      blocks: [
+        {
+          type: 'details',
+          rows: [['موضوع الاستشارة', input.topic ?? '']],
+        },
+        { type: 'text', text: 'الخطوات الجاية:' },
+        {
+          type: 'list',
+          items: [
+            'فريقنا بيراجع طلبك.',
+            'هنكلّمك على واتساب نحدد الميعاد المناسب ليك.',
+            'لو الجلسة أونلاين، اللينك بيوصلك قبل الميعاد.',
+          ],
+        },
+        {
+          type: 'text',
+          muted: true,
+          text: 'كل اللي كتبته في الطلب سري ومحدش بيطّلع عليه غير الدكتور والفريق المسؤول عن المواعيد.',
+        },
       ],
+      ctaLabel: 'استشاراتي',
+      ctaUrl: this.url('/account/consultations'),
     };
   }
 
@@ -607,15 +846,21 @@ export class NotificationsService {
     input: ConsultationNotificationInput & { requesterEmail: string },
   ): NotificationTemplateInput {
     return {
-      subject: 'طلب استشارة جديد',
+      subject: `طلب استشارة جديد من ${input.fullName ?? 'زائر'}`,
+      badge: 'لوحة التحكم',
       title: 'طلب استشارة جديد',
-      bodyLines: [
-        `تم استلام طلب استشارة جديد من: ${input.fullName ?? 'زائر المنصة'}.`,
-        `البريد الإلكتروني: ${input.requesterEmail}`,
-        input.topic ? `موضوع الاستشارة: ${input.topic}` : '',
+      blocks: [
+        {
+          type: 'details',
+          rows: [
+            ['الاسم', input.fullName ?? 'زائر المنصة'],
+            ['الإيميل', input.requesterEmail],
+            ['الموضوع', input.topic ?? ''],
+          ],
+        },
       ],
-      ctaLabel: 'فتح لوحة الإدارة',
-      ctaUrl: `${this.platformUrl}/admin/consultations`,
+      ctaLabel: 'فتح الطلبات',
+      ctaUrl: this.url('/admin/consult-requests'),
     };
   }
 
@@ -623,14 +868,71 @@ export class NotificationsService {
     input: ContactNotificationInput,
   ): NotificationTemplateInput {
     return {
-      subject: 'تم استلام رسالتكم',
-      title: 'تم استلام رسالتكم',
+      subject: 'رسالتك وصلتنا',
+      preheader: 'هنرد عليك في أقرب وقت',
+      badge: 'تواصل معنا',
+      title: 'شكرًا إنك كلّمتنا',
       greeting: this.buildArabicGreeting(input.fullName),
-      bodyLines: [
-        'نشكر تواصلكم معنا.',
-        'تم استلام رسالتكم بنجاح وسيتم مراجعتها من قبل فريقنا.',
+      blocks: [
+        {
+          type: 'text',
+          text: 'رسالتك وصلت لفريقنا، وهنرد عليك في أقرب وقت (عادةً خلال يوم عمل).',
+        },
+        {
+          type: 'text',
+          muted: true,
+          text: 'لو الموضوع مستعجل، كلّمنا على واتساب من اللينك اللي تحت.',
+        },
       ],
+      ctaLabel: 'تصفّح الدورات',
+      ctaUrl: this.url('/courses'),
     };
+  }
+
+  /** Full invoice when the order lines came with the notification. */
+  private buildInvoice(
+    input: OrderNotificationInput,
+    status: string,
+  ): EmailInvoice | undefined {
+    if (!input.items?.length) return undefined;
+    const money = (v: number | string | null | undefined) =>
+      this.formatAmount(v ?? 0, input.currency);
+    const num = (v: number | string | null | undefined) =>
+      typeof v === 'number' ? v : Number.parseFloat(v ?? '0') || 0;
+    const kind: Record<string, string> = {
+      COURSE: 'دورة',
+      BOOK: 'كتاب',
+      PRODUCT: 'منتج',
+    };
+    return {
+      number: input.orderNumber,
+      date: this.formatDate(input.paidAt ?? input.createdAt ?? new Date()),
+      status,
+      paymentMethod: input.paymentMethod ?? undefined,
+      lines: input.items.map((item) => ({
+        title: item.titleAr,
+        kind: kind[item.itemType],
+        quantity: item.quantity,
+        unitPrice: money(item.discountPrice ?? item.unitPrice),
+        total: money(item.totalPrice),
+      })),
+      subtotal: money(input.subtotal ?? input.totalAmount),
+      discount:
+        num(input.discountAmount) > 0 ? money(input.discountAmount) : undefined,
+      shipping:
+        num(input.shippingCost) > 0 ? money(input.shippingCost) : undefined,
+      total: money(input.totalAmount),
+      shippingAddress: input.shippingAddress ?? undefined,
+    };
+  }
+
+  private formatDate(date: Date): string {
+    return new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Africa/Cairo',
+    }).format(date);
   }
 
   private buildLogWhere(
@@ -664,7 +966,8 @@ export class NotificationsService {
   }
 
   private buildArabicGreeting(fullName?: string): string | undefined {
-    return fullName ? `مرحباً ${fullName}` : undefined;
+    const firstName = fullName?.trim().split(/\s+/)[0];
+    return firstName ? `أهلًا يا ${firstName}،` : 'أهلًا بيك،';
   }
 
   private formatAmount(amount: number | string, currency: string): string {
@@ -675,7 +978,10 @@ export class NotificationsService {
       return `${amount} ${currency}`;
     }
 
-    return `${numericAmount.toFixed(2)} ${currency}`;
+    const fixed = numericAmount.toFixed(2).replace(/\.00$/, '');
+    if (currency === 'EGP') return `${fixed} ج.م`;
+    if (currency === 'USD') return `$${numericAmount.toFixed(2)}`;
+    return `${fixed} ${currency}`;
   }
 
   private normalizeEmail(email: string): string {
