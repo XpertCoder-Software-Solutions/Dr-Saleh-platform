@@ -181,5 +181,8 @@ export const paymentsApi = {
     api.post<{ payment: Payment; approvalUrl: string }>('/payments/paypal/create', { orderId }),
   paypalStatus: (orderId: string) => api.get<{ payment: Payment }>(`/payments/paypal/status/${orderId}`),
   /** Which providers have their keys set on the server. */
-  methods: () => api.get<{ paypal: boolean; paymob: boolean }>('/payments/methods'),
+  methods: () =>
+    api.get<{ paypal: boolean; paymob: boolean; paymobChannels?: Partial<Record<PaymobChannel, boolean>> }>(
+      '/payments/methods',
+    ),
 }

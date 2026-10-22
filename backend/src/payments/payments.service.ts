@@ -79,6 +79,17 @@ const orderPaymentSelect = {
       phoneNumber: true,
     },
   },
+  shippingAddress: {
+    select: {
+      phoneNumber: true,
+      street: true,
+      buildingNumber: true,
+      floor: true,
+      apartment: true,
+      city: true,
+      governorate: { select: { nameEn: true } },
+    },
+  },
   items: {
     select: {
       id: true,
@@ -937,10 +948,16 @@ export class PaymentsService {
       throw new BadRequestException('Paymob merchant reference is missing.');
     }
 
-    const payment = await this.prisma.payment.findUnique({
-      where: { merchantRefNumber },
-      select: paymentSelect,
-    });
+    // Each attempt gets its own reference ("<order>-PAYMOB-<attempt>") and the payment row
+    // keeps the latest one; a payment finished in an older tab still belongs to the order.
+    const payment =
+      (await this.prisma.payment.findUnique({
+        where: { merchantRefNumber },
+        select: paymentSelect,
+      })) ??
+      (await this.findPaymobPaymentByOrderNumber(
+        merchantRefNumber.split('-PAYMOB-')[0],
+      ));
 
     if (!payment || payment.provider !== PaymentProvider.PAYMOB) {
       throw new NotFoundException('Paymob payment not found.');
@@ -1053,6 +1070,19 @@ export class PaymentsService {
     return updatedPayment;
   }
 
+  private async findPaymobPaymentByOrderNumber(
+    orderNumber: string,
+  ): Promise<PaymentRecord | null> {
+    if (!orderNumber) return null;
+    return this.prisma.payment.findFirst({
+      where: {
+        provider: PaymentProvider.PAYMOB,
+        order: { orderNumber },
+      },
+      select: paymentSelect,
+    });
+  }
+
   private mapPaymobStatus(transaction: PaymobTransaction): PaymentStatus {
     const flag = (value: unknown) => this.toStringValue(value) === 'true';
 
@@ -1128,6 +1158,9 @@ export class PaymentsService {
       this.toNumberFromDecimal(order.totalAmount) * 100,
     );
     const [firstName, ...rest] = order.user.fullName.trim().split(/\s+/);
+    const address = order.shippingAddress;
+    // Paymob needs every billing field; "NA" is its documented placeholder.
+    const na = (value?: string | null) => value?.trim() || 'NA';
 
     return {
       amount: amountCents,
@@ -1150,13 +1183,13 @@ export class PaymentsService {
         first_name: firstName || 'Customer',
         last_name: rest.join(' ') || 'NA',
         email: order.user.email,
-        phone_number: order.user.phoneNumber,
-        apartment: 'NA',
-        floor: 'NA',
-        street: 'NA',
-        building: 'NA',
-        city: 'NA',
-        state: 'NA',
+        phone_number: na(address?.phoneNumber ?? order.user.phoneNumber),
+        apartment: na(address?.apartment),
+        floor: na(address?.floor),
+        street: na(address?.street),
+        building: na(address?.buildingNumber),
+        city: na(address?.city),
+        state: na(address?.governorate?.nameEn),
         country: 'EG',
       },
       special_reference: merchantRefNumber,
@@ -2754,17 +2787,21 @@ export class PaymentsService {
     );
   }
 
+  /** Paymob channels that can take payments: keys set and the channel's integration id. */
+  paymobChannels(): Record<PaymobChannel, boolean> {
+    const c = this.paymobConfiguration;
+    const keys = Boolean(c.secretKey && c.publicKey && c.hmacSecret);
+    const has = (id?: string) => keys && Boolean(id && /^\d+$/.test(id));
+    return {
+      [PaymobChannel.CARD]: has(c.integrationIdCard),
+      [PaymobChannel.WALLET]: has(c.integrationIdWallet),
+      [PaymobChannel.APPLE_PAY]: has(c.integrationIdApplePay),
+    };
+  }
+
   /** True once the Paymob keys and at least one integration are set. */
   isPaymobConfigured(): boolean {
-    const c = this.paymobConfiguration;
-    return Boolean(
-      c.secretKey &&
-      c.publicKey &&
-      c.hmacSecret &&
-      c.notificationUrl &&
-      c.redirectionUrl &&
-      (c.integrationIdCard || c.integrationIdWallet || c.integrationIdApplePay),
-    );
+    return Object.values(this.paymobChannels()).some(Boolean);
   }
 
   private getRequiredPaypalConfig(

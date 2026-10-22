@@ -280,6 +280,29 @@ export function validateEnv(
     errors.push('PAYPAL_MODE must be "live" or "sandbox".');
   }
 
+  for (const key of [
+    'PAYMOB_INTEGRATION_ID_CARD',
+    'PAYMOB_INTEGRATION_ID_WALLET',
+    'PAYMOB_INTEGRATION_ID_APPLE_PAY',
+  ] as const) {
+    const value = optionalString(config[key]).trim();
+    if (value.length > 0 && !/^\d+$/.test(value)) {
+      errors.push(`${key} must be the numeric integration id from Paymob.`);
+    }
+  }
+
+  for (const key of [
+    'PAYMOB_BASE_URL',
+    'PAYMOB_CHECKOUT_URL',
+    'PAYMOB_NOTIFICATION_URL',
+    'PAYMOB_REDIRECTION_URL',
+  ] as const) {
+    const value = optionalString(config[key]);
+    if (value.length > 0 && !isUrlLike(value)) {
+      errors.push(`${key} must be a valid URL.`);
+    }
+  }
+
   for (const key of ['PAYPAL_RETURN_URL', 'PAYPAL_CANCEL_URL'] as const) {
     const value = optionalString(config[key]);
     if (value.length > 0 && !isUrlLike(value)) {

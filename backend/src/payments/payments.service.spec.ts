@@ -39,6 +39,7 @@ type MockPrismaClient = {
   payment: {
     update: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
   };
   paymentTransaction: {
     upsert: jest.Mock;
@@ -293,6 +294,117 @@ describe('PaymentsService Paymob callback', () => {
       }),
     );
   });
+
+  it('applies a payment finished from an older attempt of the same order', async () => {
+    prisma.payment.findUnique.mockResolvedValueOnce(null);
+    prisma.payment.findFirst.mockResolvedValueOnce({
+      ...createPendingPayment(),
+      provider: PaymentProvider.PAYMOB,
+      method: PaymentMethod.PAYMOB_CHECKOUT,
+      merchantRefNumber: 'DS-2026-000001-PAYMOB-NEWER',
+    });
+    const t = transaction({
+      order: { id: 999, merchant_order_id: 'DS-2026-000001-PAYMOB-OLDER' },
+    });
+    await service.handlePaymobWebhook({ type: 'TRANSACTION', obj: t }, sign(t));
+
+    expect(prisma.payment.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          order: { orderNumber: 'DS-2026-000001' },
+        }) as unknown,
+      }),
+    );
+    expect(prisma.order.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: OrderStatus.PAID,
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('offers only the channels that have an integration id', () => {
+    const partial = new PaymentsService(
+      prisma as unknown as PrismaService,
+      {} as FawryConfig,
+      {} as PaypalConfig,
+      { ...paymobConfig, integrationIdApplePay: undefined },
+      {} as ReferralsService,
+      {} as NotificationsService,
+      {} as AuditLogService,
+    );
+    expect(partial.paymobChannels()).toEqual({
+      CARD: true,
+      WALLET: true,
+      APPLE_PAY: false,
+    });
+    expect(partial.isPaymobConfigured()).toBe(true);
+
+    const noKeys = new PaymentsService(
+      prisma as unknown as PrismaService,
+      {} as FawryConfig,
+      {} as PaypalConfig,
+      { ...paymobConfig, secretKey: undefined },
+      {} as ReferralsService,
+      {} as NotificationsService,
+      {} as AuditLogService,
+    );
+    expect(noKeys.isPaymobConfigured()).toBe(false);
+  });
+
+  it('fills Paymob billing data from the shipping address, with NA for blanks', () => {
+    const body = (
+      service as unknown as {
+        buildPaymobIntentionRequest(
+          order: Record<string, unknown>,
+          ref: string,
+          integrationId: number,
+          configuration: Record<string, string>,
+        ): { amount: number; billing_data: Record<string, string> };
+      }
+    ).buildPaymobIntentionRequest(
+      {
+        id: orderId,
+        orderNumber: 'DS-2026-000001',
+        currency: 'EGP',
+        totalAmount: new Prisma.Decimal(699),
+        user: {
+          fullName: 'Ahmed Mohamed Ali',
+          email: 'a@example.com',
+          phoneNumber: null,
+        },
+        shippingAddress: {
+          phoneNumber: '01012345678',
+          street: 'Makram Ebeid',
+          buildingNumber: '12',
+          floor: null,
+          apartment: '',
+          city: 'Nasr City',
+          governorate: { nameEn: 'Cairo' },
+        },
+        items: [],
+      },
+      'DS-2026-000001-PAYMOB-X',
+      1,
+      paymobConfig as Record<string, string>,
+    );
+
+    expect(body.amount).toBe(69900);
+    expect(body.billing_data).toEqual(
+      expect.objectContaining({
+        first_name: 'Ahmed',
+        last_name: 'Mohamed Ali',
+        phone_number: '01012345678',
+        street: 'Makram Ebeid',
+        building: '12',
+        floor: 'NA',
+        apartment: 'NA',
+        city: 'Nasr City',
+        state: 'Cairo',
+      }),
+    );
+  });
 });
 
 function createPrismaMock(): MockPrismaClient {
@@ -311,6 +423,7 @@ function createPrismaMock(): MockPrismaClient {
     payment: {
       update: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     paymentTransaction: {
       upsert: jest.fn(),
