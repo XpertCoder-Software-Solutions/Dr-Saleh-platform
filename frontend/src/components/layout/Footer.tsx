@@ -153,9 +153,15 @@ export function Footer() {
       </div>
       <p className="relative mx-auto mt-4 max-w-site px-6 text-center text-[13px] text-on-dark-muted max-sm:px-4">
         {tx('صُمّم وطُوّر بواسطة شركة', 'Designed and developed by')}{' '}
-        <b className="font-semibold text-white" dir="ltr">
+        <a
+          href="https://xpertcodersolutions.com"
+          target="_blank"
+          rel="noopener"
+          dir="ltr"
+          className="font-semibold text-white underline-offset-4 hover:text-white hover:underline"
+        >
           XpertCoder Software Solutions
-        </b>
+        </a>
       </p>
     </footer>
   )
