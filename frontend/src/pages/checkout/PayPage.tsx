@@ -148,7 +148,9 @@ export function PayPage() {
   )
 }
 
-function Pay({ order, providers }: { order: Order; providers?: { paypal: boolean; paymob: boolean } }) {
+type Providers = Awaited<ReturnType<typeof paymentsApi.methods>>
+
+function Pay({ order, providers }: { order: Order; providers?: Providers }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const usd = order.currency === 'USD'
@@ -161,7 +163,9 @@ function Pay({ order, providers }: { order: Order; providers?: { paypal: boolean
   // Without the server's answer (or if nothing is set up yet) keep every method listed,
   // so the buyer still gets the provider's own error rather than an empty page.
   const configured = providers
-    ? usable.filter((m) => (m.id === 'PAYPAL' ? providers.paypal : providers.paymob))
+    ? usable.filter((m) =>
+        m.id === 'PAYPAL' ? providers.paypal : (providers.paymobChannels?.[m.id] ?? providers.paymob),
+      )
     : usable
   const methods = configured.length ? configured : usable
   const [method, setMethod] = useState<Method>(

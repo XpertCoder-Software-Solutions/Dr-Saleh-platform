@@ -18,7 +18,11 @@ export class PaymentMethodsController {
     schema: {
       example: {
         message: 'Payment methods',
-        data: { paypal: true, paymob: true },
+        data: {
+          paypal: true,
+          paymob: true,
+          paymobChannels: { CARD: true, WALLET: true, APPLE_PAY: false },
+        },
       },
     },
   })
@@ -28,6 +32,7 @@ export class PaymentMethodsController {
       data: {
         paypal: this.paymentsService.isPaypalConfigured(),
         paymob: this.paymentsService.isPaymobConfigured(),
+        paymobChannels: this.paymentsService.paymobChannels(),
       },
     };
   }
