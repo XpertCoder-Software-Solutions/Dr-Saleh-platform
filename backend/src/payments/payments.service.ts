@@ -30,6 +30,7 @@ import fawryConfig, { type FawryConfig } from '../config/fawry.config';
 import paypalConfig, { type PaypalConfig } from '../config/paypal.config';
 import paymobConfig, { type PaymobConfig } from '../config/paymob.config';
 import { PrismaService } from '../database/prisma.service';
+import { formatAddressAr } from '../notifications/format-address';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReferralsService } from '../referrals/referrals.service';
 import { CreateFawryPaymentDto } from './dto/create-fawry-payment.dto';
@@ -103,7 +104,12 @@ const paymentNotificationOrderSelect = {
   id: true,
   orderNumber: true,
   currency: true,
+  subtotal: true,
+  discountAmount: true,
+  shippingCost: true,
   totalAmount: true,
+  createdAt: true,
+  paidAt: true,
   user: {
     select: {
       id: true,
@@ -111,15 +117,38 @@ const paymentNotificationOrderSelect = {
       email: true,
     },
   },
+  shippingAddress: {
+    select: {
+      fullName: true,
+      phoneNumber: true,
+      street: true,
+      buildingNumber: true,
+      floor: true,
+      apartment: true,
+      city: true,
+      governorate: { select: { nameAr: true } },
+    },
+  },
   items: {
     select: {
       itemType: true,
+      itemId: true,
       titleAr: true,
       titleEn: true,
+      quantity: true,
+      unitPrice: true,
+      discountPrice: true,
+      totalPrice: true,
     },
     orderBy: {
       createdAt: 'asc' as const,
     },
+  },
+  payments: {
+    where: { status: PaymentStatus.PAID },
+    select: { provider: true, providerResponse: true },
+    orderBy: { updatedAt: 'desc' as const },
+    take: 1,
   },
 } satisfies Prisma.OrderSelect;
 
@@ -2137,9 +2166,27 @@ export class PaymentsService {
       userId: order.user.id,
       email: order.user.email,
       fullName: order.user.fullName,
+      orderId: order.id,
       orderNumber: order.orderNumber,
       totalAmount: this.toNumberFromDecimal(order.totalAmount),
       currency: order.currency,
+      subtotal: this.toNumberFromDecimal(order.subtotal),
+      discountAmount: this.toNumberFromDecimal(order.discountAmount),
+      shippingCost: this.toNumberFromDecimal(order.shippingCost),
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      paymentMethod: this.describePaymentMethod(order.payments[0]),
+      shippingAddress: formatAddressAr(order.shippingAddress),
+      items: order.items.map((item) => ({
+        itemType: item.itemType,
+        titleAr: item.titleAr,
+        quantity: item.quantity,
+        unitPrice: this.toNumberFromDecimal(item.unitPrice),
+        discountPrice: item.discountPrice
+          ? this.toNumberFromDecimal(item.discountPrice)
+          : null,
+        totalPrice: this.toNumberFromDecimal(item.totalPrice),
+      })),
     };
 
     if (status === PaymentStatus.PAID) {
@@ -2152,6 +2199,7 @@ export class PaymentsService {
               userId: order.user.id,
               email: order.user.email,
               fullName: order.user.fullName,
+              courseId: item.itemId,
               courseTitleAr: item.titleAr,
               courseTitleEn: item.titleEn,
             }),
@@ -2169,6 +2217,35 @@ export class PaymentsService {
     }
 
     await this.notificationsService.sendRefundProcessed(input);
+  }
+
+  /** "PayPal", "Visa •••• 4242", "محفظة إلكترونية"... for the emailed invoice. */
+  private describePaymentMethod(payment?: {
+    provider: PaymentProvider;
+    providerResponse: Prisma.JsonValue;
+  }): string | null {
+    if (!payment) return null;
+    if (payment.provider === PaymentProvider.PAYPAL) return 'PayPal';
+    if (payment.provider === PaymentProvider.FAWRY) return 'فوري';
+    const response = this.toRecord(payment.providerResponse);
+    const source = this.toRecord(
+      response?.source_data ?? this.toRecord(response?.obj)?.source_data,
+    );
+    // Webhooks nest the card details under obj.source_data; the browser redirect
+    // carries them as flat "source_data.*" query keys.
+    const flat = (key: string) => response?.[`source_data.${key}`];
+    const type = this.toStringValue(source?.type ?? flat('type')).toLowerCase();
+    const channel = this.toStringValue(response?.channel).toUpperCase();
+    if (type === 'wallet' || channel === 'WALLET') return 'محفظة إلكترونية';
+    if (type.includes('apple') || channel === 'APPLE_PAY') return 'Apple Pay';
+    const brand = this.toStringValue(source?.sub_type ?? flat('sub_type'));
+    const last4 = this.toStringValue(source?.pan ?? flat('pan'))
+      .replace(/\D/g, '')
+      .slice(-4);
+    if (!brand && !last4) return 'كارت بنكي';
+    return [brand || 'Card', last4 ? `•••• ${last4}` : '']
+      .filter(Boolean)
+      .join(' ');
   }
 
   private async findPaymentNotificationOrder(

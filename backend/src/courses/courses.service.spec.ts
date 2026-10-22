@@ -232,6 +232,8 @@ describe('CoursesService progress', () => {
       /^DS-\d{4}-[0-9A-F]{8}$/,
     );
     expect(notificationsService.sendCourseCompleted).toHaveBeenCalledWith({
+      courseId: expect.any(String) as unknown,
+      hasCertificate: undefined,
       courseTitleAr: 'دورة اختبار',
       courseTitleEn: 'Test Course',
       email: 'student@example.com',

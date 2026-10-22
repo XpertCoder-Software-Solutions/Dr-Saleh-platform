@@ -65,7 +65,7 @@ describe('NotificationsService', () => {
       expect.objectContaining({
         email: 'student@example.com',
         logId: 'notification-log-id',
-        subject: 'تم إنشاء الطلب ORD-1001',
+        subject: 'طلبك رقم ORD-1001 اتسجّل',
         type: NotificationType.ORDER_CREATED,
       }),
       expect.objectContaining({
