@@ -10,6 +10,7 @@ import { CONTACT } from '@/content/contact'
 import { CONSULT_STATUS, PREFERRED_TIME, SESSION_TYPE, dateTile, nextSession } from '@/lib/consult-status'
 import { cn } from '@/lib/cn'
 import { formatDate } from '@/lib/format'
+import { loc, tx } from '@/lib/i18n'
 
 /** Google Calendar "add event" link for a scheduled session (45 minutes). */
 function calendarLink(c: MyConsultation) {
@@ -22,7 +23,7 @@ function calendarLink(c: MyConsultation) {
       .replace(/\.\d{3}/, '')
   const q = new URLSearchParams({
     action: 'TEMPLATE',
-    text: `استشارة ${c.category?.nameAr ?? ''} مع د. صالح عبد الكريم`,
+    text: `استشارة ${loc(c.category?.nameAr, c.category?.nameEn) ?? ''} مع د. صالح عبد الكريم`,
     dates: `${fmt(start)}/${fmt(end)}`,
     details: c.consultationTopic,
   })
@@ -39,17 +40,25 @@ export function MyConsultationsPage() {
   return (
     <AccountShell
       active="consults"
-      pageTitle="استشاراتي"
-      title={<span className="text-sheen">استشاراتي</span>}
-      body="مواعيد استشاراتك مع الدكتور صالح وحالة كل طلب."
+      pageTitle={tx('استشاراتي', 'My consultations')}
+      title={<span className="text-sheen">{tx('استشاراتي', 'My consultations')}</span>}
+      body={tx(
+        'مواعيد استشاراتك مع الدكتور صالح وحالة كل طلب.',
+        'Your consultation times with Dr. Saleh and the status of each request.',
+      )}
     >
       {next?.scheduledAt && <NextCard c={next} />}
 
       <Panel className="flex flex-col gap-2">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl">كل استشاراتي</h2>
+          <h2 className="text-xl">{tx('كل استشاراتي', 'All my consultations')}</h2>
           <Link to={routes.consultRequest} className="flex items-center gap-1 text-sm font-bold">
-            {g('اطلب استشارة جديدة', 'اطلبي استشارة جديدة', 'طلب استشارة جديدة')}{' '}
+            {g(
+              'اطلب استشارة جديدة',
+              'اطلبي استشارة جديدة',
+              'طلب استشارة جديدة',
+              'Request a new consultation',
+            )}{' '}
             <Icon name="arrowLeft" size={14} />
           </Link>
         </div>
@@ -62,8 +71,11 @@ export function MyConsultationsPage() {
         ) : list.length === 0 ? (
           <EmptyState
             icon="chat"
-            title="لسه مفيش استشارات"
-            body="اكتب الموقف اللي محتاج فيه رأي متخصص، وهنكلمك على واتساب نحدد ميعاد."
+            title={tx('لسه مفيش استشارات', 'No consultations yet')}
+            body={tx(
+              'اكتب الموقف اللي محتاج فيه رأي متخصص، وهنكلمك على واتساب نحدد ميعاد.',
+              "Describe the situation you need expert advice on, and we'll message you on WhatsApp to set a time.",
+            )}
             action={
               <Link to={routes.consultRequest} className={buttonClass({ variant: 'gold' })}>
                 {t('cta.book')}
@@ -77,7 +89,7 @@ export function MyConsultationsPage() {
               const when =
                 c.scheduledAt && c.status !== 'NEW'
                   ? `${dateTile(c.scheduledAt).weekday} ${formatDate(c.scheduledAt)} · ${dateTile(c.scheduledAt).time}`
-                  : `طلب جديد · ${formatDate(c.createdAt)}`
+                  : `${tx('طلب جديد', 'New request')} · ${formatDate(c.createdAt)}`
               return (
                 <li
                   key={c.id}
@@ -96,13 +108,19 @@ export function MyConsultationsPage() {
                     <Icon name="chat" size={18} />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <b className="text-ink">استشارة {c.category?.nameAr}</b>
+                    <b className="text-ink">استشارة {loc(c.category?.nameAr, c.category?.nameEn)}</b>
                     <span className="text-sm text-muted">{when}</span>
-                    <span className="truncate text-sm text-text-2">الموضوع: {c.consultationTopic}</span>
+                    <span className="truncate text-sm text-text-2">
+                      {tx('الموضوع:', 'Topic:')} {c.consultationTopic}
+                    </span>
                   </span>
                   <span className="flex flex-col items-end gap-1.5 max-sm:w-full max-sm:flex-row max-sm:justify-between">
                     <StatusPill tone={st.tone}>{st.label}</StatusPill>
-                    {c.status === 'NEW' && <span className="text-xs text-muted">هنكلمك على واتساب</span>}
+                    {c.status === 'NEW' && (
+                      <span className="text-xs text-muted">
+                        {tx('هنكلمك على واتساب', "We'll message you on WhatsApp")}
+                      </span>
+                    )}
                   </span>
                 </li>
               )
@@ -117,7 +135,7 @@ export function MyConsultationsPage() {
 function NextCard({ c }: { c: MyConsultation }) {
   const g = useGender()
   const d = dateTile(c.scheduledAt!)
-  const type = SESSION_TYPE[c.sessionType ?? ''] ?? 'أونلاين'
+  const type = SESSION_TYPE[c.sessionType ?? ''] ?? tx('أونلاين', 'Online')
   return (
     <div className="relative flex bg-navy flex-wrap items-center gap-5 overflow-hidden rounded-card p-6 text-white max-sm:p-5">
       <div className="absolute inset-0 dots opacity-40" aria-hidden="true" />
@@ -127,18 +145,23 @@ function NextCard({ c }: { c: MyConsultation }) {
         <span className="text-xs text-muted">{d.weekday}</span>
       </span>
       <span className="relative flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-xs font-bold text-gold">استشارتك القادمة</span>
-        <b className="text-xl">استشارة {c.category?.nameAr} مع د. صالح</b>
+        <span className="text-xs font-bold text-gold">
+          {tx('استشارتك القادمة', 'Your next consultation')}
+        </span>
+        <b className="text-xl">استشارة {loc(c.category?.nameAr, c.category?.nameEn)} مع د. صالح</b>
         <span className="flex flex-wrap items-center gap-x-3 text-sm text-on-dark">
           <span className="flex items-center gap-1">
             <Icon name="clock" size={14} /> {d.time}
           </span>
           <span className="flex items-center gap-1">
-            <Icon name="video" size={14} /> {type}، اللينك هيوصلك على واتساب
+            <Icon name="video" size={14} /> {type}
+            {tx('، اللينك هيوصلك على واتساب', ", you'll get the link on WhatsApp")}
           </span>
         </span>
         {c.preferredTime && PREFERRED_TIME[c.preferredTime] && (
-          <span className="text-xs text-on-dark-muted">الوقت المفضّل: {PREFERRED_TIME[c.preferredTime]}</span>
+          <span className="text-xs text-on-dark-muted">
+            {tx('الوقت المفضّل:', 'Preferred time:')} {PREFERRED_TIME[c.preferredTime]}
+          </span>
         )}
       </span>
       <span className="relative flex flex-wrap gap-2.5">
@@ -148,7 +171,8 @@ function NextCard({ c }: { c: MyConsultation }) {
           rel="noreferrer"
           className={buttonClass({ variant: 'gold', size: 'sm' })}
         >
-          <Icon name="calendar" size={15} /> {g('ضيفها للتقويم', 'ضيفيها للتقويم', 'إضافة للتقويم')}
+          <Icon name="calendar" size={15} />{' '}
+          {g('ضيفها للتقويم', 'ضيفيها للتقويم', 'إضافة للتقويم', 'Add to calendar')}
         </a>
         <a
           href={CONTACT.whatsapp.href}
@@ -156,7 +180,7 @@ function NextCard({ c }: { c: MyConsultation }) {
           rel="noreferrer"
           className={buttonClass({ variant: 'glass', size: 'sm' })}
         >
-          <Icon name="whatsapp" size={15} /> تعديل الميعاد
+          <Icon name="whatsapp" size={15} /> {tx('تعديل الميعاد', 'Change the time')}
         </a>
       </span>
     </div>

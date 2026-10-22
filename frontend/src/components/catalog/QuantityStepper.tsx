@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/Icon'
+import { tx } from '@/lib/i18n'
 
 export function QuantityStepper({
   value,
@@ -15,12 +16,12 @@ export function QuantityStepper({
     <div
       className="inline-flex items-center rounded-xl border border-line bg-white p-0.5"
       role="group"
-      aria-label="الكمية"
+      aria-label={tx('الكمية', 'Quantity')}
     >
       <button
         type="button"
         className={btn}
-        aria-label="زوّد"
+        aria-label={tx('زوّد', 'Increase')}
         disabled={value >= max}
         onClick={() => onChange(value + 1)}
       >
@@ -32,7 +33,7 @@ export function QuantityStepper({
       <button
         type="button"
         className={btn}
-        aria-label="قلّل"
+        aria-label={tx('قلّل', 'Decrease')}
         disabled={value <= 1}
         onClick={() => onChange(value - 1)}
       >

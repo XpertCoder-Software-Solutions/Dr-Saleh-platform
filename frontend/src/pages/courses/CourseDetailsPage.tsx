@@ -22,6 +22,7 @@ import { useRegion } from '@/lib/region'
 import { usePageTitle } from '@/lib/usePageTitle'
 import type { Course, CourseReview, CourseSection } from '@/types/api'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { loc, tx } from '@/lib/i18n'
 
 type Tab = 'info' | 'content' | 'reviews'
 
@@ -44,7 +45,7 @@ export function CourseDetailsPage() {
     enabled: Boolean(id),
     retry: (count, err) => !(err instanceof ApiClientError && err.statusCode === 404) && count < 2,
   })
-  usePageTitle(course?.titleAr ?? 'الدورة')
+  usePageTitle(loc(course?.titleAr, course?.titleEn) ?? 'الدورة')
 
   // Old id links move to the readable slug URL.
   useEffect(() => {
@@ -110,13 +111,13 @@ function CourseDetails({ course }: { course: Course }) {
   const seconds =
     course.totalDurationSeconds ??
     sections.reduce((n, s) => n + s.lessons.reduce((m, l) => m + (l.videoDurationSeconds ?? 0), 0), 0)
-  const category = course.category?.nameAr
-  const [titleHead, ...titleTail] = course.titleAr.split(' ')
+  const category = loc(course.category?.nameAr, course.category?.nameEn)
+  const [titleHead, ...titleTail] = loc(course.titleAr, course.titleEn).split(' ')
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'info', label: 'معلومات الدورة' },
-    { id: 'content', label: 'محتوى الدورة' },
-    { id: 'reviews', label: 'التقييمات' },
+    { id: 'info', label: tx('معلومات الدورة', 'Course info') },
+    { id: 'content', label: tx('محتوى الدورة', 'Course content') },
+    { id: 'reviews', label: tx('التقييمات', 'Reviews') },
   ]
 
   function goTo(t: Tab) {
@@ -132,15 +133,15 @@ function CourseDetails({ course }: { course: Course }) {
         <div className="relative mx-auto flex max-w-site flex-col gap-4 lg:*:max-w-[calc(100%-320px)]">
           <Breadcrumbs
             crumbs={[
-              { label: 'الرئيسية', to: routes.home },
-              { label: 'الدورات', to: routes.courses },
-              { label: course.titleAr },
+              { label: tx('الرئيسية', 'Home'), to: routes.home },
+              { label: tx('الدورات', 'Courses'), to: routes.courses },
+              { label: loc(course.titleAr, course.titleEn) },
             ]}
           />
           {category && (
             <span className="inline-flex items-center gap-2 self-start rounded-full px-3.5 py-1.5 text-sm font-bold glass">
               <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-              {course.isFeatured ? 'الأكثر طلبًا · ' : ''}
+              {course.isFeatured ? tx('الأكثر طلبًا · ', 'Most popular · ') : ''}
               {category}
             </span>
           )}
@@ -148,7 +149,7 @@ function CourseDetails({ course }: { course: Course }) {
             {titleHead} <span className="text-sheen">{titleTail.join(' ')}</span>
           </h1>
           <p className="max-w-180 animate-rise text-lg leading-[1.85] text-on-dark [animation-delay:.1s]">
-            {richToPlain(course.shortDescriptionAr)}
+            {richToPlain(loc(course.shortDescriptionAr, course.shortDescriptionEn))}
           </p>
           <div className="flex animate-rise flex-wrap gap-x-5.5 gap-y-2.5 text-[15px] text-on-dark-muted [animation-delay:.2s] *:inline-flex *:items-center *:gap-1.5">
             {course.ratingAverage != null && (
@@ -159,7 +160,7 @@ function CourseDetails({ course }: { course: Course }) {
                   className="text-gold-light"
                   dim="text-white/25"
                 />
-                <span>({course.ratingCount} تقييم)</span>
+                <span>({tx(`${course.ratingCount} تقييم`, `${course.ratingCount} reviews`)})</span>
               </span>
             )}
             {lessonsCount > 0 && (
@@ -182,8 +183,10 @@ function CourseDetails({ course }: { course: Course }) {
               />
             </span>
             <span className="flex flex-col">
-              <b>د. صالح عبد الكريم</b>
-              <small className="text-on-dark-muted">المستشار النفسي والتربوي</small>
+              <b>{tx('د. صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}</b>
+              <small className="text-on-dark-muted">
+                {tx('المستشار النفسي والتربوي', 'Psychological & parenting consultant')}
+              </small>
             </span>
           </div>
         </div>
@@ -195,7 +198,7 @@ function CourseDetails({ course }: { course: Course }) {
           <div className="flex min-w-0 flex-col gap-5">
             <div
               role="tablist"
-              aria-label="أقسام الدورة"
+              aria-label={tx('أقسام الدورة', 'Course sections')}
               className="sticky top-26 z-5 grid grid-cols-3 gap-1.5 rounded-[18px] border border-line bg-white p-1.5"
             >
               {tabs.map((t) => (
@@ -213,14 +216,21 @@ function CourseDetails({ course }: { course: Course }) {
             </div>
 
             <Card id="cd-info">
-              <h2 className="text-[26px]">عن الدورة</h2>
-              <RichText value={course.descriptionAr || course.shortDescriptionAr} />
+              <h2 className="text-[26px]">{tx('عن الدورة', 'About the course')}</h2>
+              <RichText
+                value={
+                  loc(course.descriptionAr, course.descriptionEn) ||
+                  loc(course.shortDescriptionAr, course.shortDescriptionEn)
+                }
+              />
               {course.certificateEnabled && (
                 <>
-                  <h3 className="mt-1.5 text-[19px]">نتائج الدورة</h3>
+                  <h3 className="mt-1.5 text-[19px]">{tx('نتائج الدورة', 'Course outcome')}</h3>
                   <p className="text-[15px] leading-[1.8] text-muted">
-                    تحصل على شهادة معتمدة من المنصة بعد إتمام كل محتوى الدورة، تقدر تشاركها وتتحقق منها
-                    برقمها.
+                    {tx(
+                      'تحصل على شهادة معتمدة من المنصة بعد إتمام كل محتوى الدورة، تقدر تشاركها وتتحقق منها برقمها.',
+                      'Get an accredited certificate from the platform after completing the whole course. You can share it, and anyone can verify it by its number.',
+                    )}
                   </p>
                 </>
               )}
@@ -228,9 +238,10 @@ function CourseDetails({ course }: { course: Course }) {
 
             <Card id="cd-content">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-[26px]">محتوى الدورة</h2>
+                <h2 className="text-[26px]">{tx('محتوى الدورة', 'Course content')}</h2>
                 <span className="text-[15px] text-muted">
-                  {sections.length} أقسام · {lessonsLabel(lessonsCount)}
+                  {tx(`${sections.length} أقسام`, `${sections.length} sections`)} ·{' '}
+                  {lessonsLabel(lessonsCount)}
                   {seconds > 0 && <> · {durationLabel(seconds)}</>}
                 </span>
               </div>
@@ -238,8 +249,11 @@ function CourseDetails({ course }: { course: Course }) {
                 <EmptyState
                   compact
                   icon="list"
-                  title="المحتوى بيتجهّز"
-                  body="الدروس هتظهر هنا أول ما تنزل."
+                  title={tx('المحتوى بيتجهّز', 'Content is being prepared')}
+                  body={tx(
+                    'الدروس هتظهر هنا أول ما تنزل.',
+                    "Lessons will appear here as soon as they're published.",
+                  )}
                 />
               ) : (
                 <Curriculum
@@ -262,12 +276,19 @@ function CourseDetails({ course }: { course: Course }) {
       </section>
 
       <CTABand
-        title="ابنك يستاهل بداية صح"
-        body="لو محتار تبدأ بأنهي دورة، احكيلنا عن ابنك ونرشّحلك المسار المناسب."
+        title={tx('ابنك يستاهل بداية صح', 'Your child deserves the right start')}
+        body={tx(
+          'لو محتار تبدأ بأنهي دورة، احكيلنا عن ابنك ونرشّحلك المسار المناسب.',
+          "Not sure which course to start with? Tell us about your child and we'll recommend the right path.",
+        )}
       />
 
       {showPromo && course.promoVideoUrl && (
-        <PromoModal url={course.promoVideoUrl} title={course.titleAr} onClose={() => setShowPromo(false)} />
+        <PromoModal
+          url={course.promoVideoUrl}
+          title={loc(course.titleAr, course.titleEn)}
+          onClose={() => setShowPromo(false)}
+        />
       )}
     </>
   )
@@ -305,7 +326,7 @@ function Curriculum({
               className="flex w-full items-center justify-between gap-3 border-0 bg-white px-4 py-3.5 text-start aria-expanded:bg-surface"
             >
               <span className="flex flex-col">
-                <b className="text-ink">{s.titleAr}</b>
+                <b className="text-ink">{loc(s.titleAr, s.titleEn)}</b>
                 <small className="text-[13px] text-muted">
                   {lessonsLabel(s.lessons.length)}
                   {secs > 0 && <> · {durationLabel(secs)}</>}
@@ -332,14 +353,14 @@ function Curriculum({
                         filled={l.lessonType !== 'PDF'}
                       />
                     </span>
-                    <span className="flex-1 text-ink">{l.titleAr}</span>
+                    <span className="flex-1 text-ink">{loc(l.titleAr, l.titleEn)}</span>
                     {l.isPreview && onPreview && (
                       <button
                         type="button"
                         className="border-0 bg-transparent text-[13px] font-bold text-blue-500"
                         onClick={onPreview}
                       >
-                        معاينة مجانية
+                        {tx('معاينة مجانية', 'Free preview')}
                       </button>
                     )}
                     {!!l.videoDurationSeconds && (
@@ -412,7 +433,11 @@ function BuyCard({
     } catch (e) {
       // Already in the cart is fine; anything else is shown.
       if (!(e instanceof ApiClientError && e.statusCode === 409)) {
-        setError(e instanceof Error ? e.message : 'حصلت مشكلة، حاول تاني.')
+        setError(
+          e instanceof Error
+            ? e.message
+            : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.'),
+        )
         return
       }
     }
@@ -422,35 +447,55 @@ function BuyCard({
   const includes: { icon: IconName; text: string; show: boolean }[] = [
     {
       icon: 'video',
-      text: `${seconds ? durationLabel(seconds) + ' فيديو في ' : ''}${lessonsLabel(lessonsCount)}`,
+      text: `${seconds ? durationLabel(seconds) + tx(' فيديو في ', ' of video in ') : ''}${lessonsLabel(lessonsCount)}`,
       show: lessonsCount > 0,
     },
-    { icon: 'file', text: 'موارد وملفات PDF قابلة للتنزيل', show: true },
-    { icon: 'refresh', text: 'تتبّع التقدم وكمّل من حيث وقفت', show: true },
-    { icon: 'phone', text: 'الوصول من الموبايل ومدى الحياة', show: true },
-    { icon: 'award', text: 'شهادة قابلة للمشاركة', show: Boolean(course.certificateEnabled) },
+    {
+      icon: 'file',
+      text: tx('موارد وملفات PDF قابلة للتنزيل', 'Downloadable resources and PDFs'),
+      show: true,
+    },
+    {
+      icon: 'refresh',
+      text: tx('تتبّع التقدم وكمّل من حيث وقفت', 'Track progress and resume where you left off'),
+      show: true,
+    },
+    {
+      icon: 'phone',
+      text: tx('الوصول من الموبايل ومدى الحياة', 'Lifetime access, including on mobile'),
+      show: true,
+    },
+    {
+      icon: 'award',
+      text: tx('شهادة قابلة للمشاركة', 'Shareable certificate'),
+      show: Boolean(course.certificateEnabled),
+    },
   ]
   const wished = wishlist.has(course.id)
 
   return (
     <aside
-      aria-label="الاشتراك في الدورة"
+      aria-label={tx('الاشتراك في الدورة', 'Enroll in the course')}
       className="sticky top-26 -mt-65 flex flex-col gap-4 rounded-[28px] border border-line bg-white px-6 pt-3.5 pb-5.5 shadow-[0_30px_60px_-36px_rgba(12,42,74,.5)] max-lg:static max-lg:order-first max-lg:mt-0"
     >
       <div className="relative -mx-2.5 overflow-hidden rounded-tile">
         <CourseCover
           seed={course.categoryId || course.id}
-          word={course.category?.nameAr ?? course.titleAr}
+          word={loc(course.category?.nameAr, course.category?.nameEn) ?? loc(course.titleAr, course.titleEn)}
           image={course.thumbnailImage}
-          tag={course.promoVideoUrl ? 'معاينة مجانية' : null}
-          badge={price.discountPercent ? `خصم ${price.discountPercent}%` : null}
+          tag={course.promoVideoUrl ? tx('معاينة مجانية', 'Free preview') : null}
+          badge={
+            price.discountPercent
+              ? tx(`خصم ${price.discountPercent}%`, `${price.discountPercent}% off`)
+              : null
+          }
           height={210}
           wordSize={24}
         />
         {course.promoVideoUrl && (
           <button
             type="button"
-            aria-label="شغّل فيديو المعاينة"
+            aria-label={tx('شغّل فيديو المعاينة', 'Play the preview video')}
             onClick={onPreview}
             className="absolute top-1/2 left-1/2 flex size-18 -translate-1/2 items-center justify-center rounded-full border-0 bg-white text-navy shadow-[0_16px_34px_-12px_rgba(5,20,40,.6)] transition-transform duration-250 hover:scale-108"
           >
@@ -461,7 +506,7 @@ function BuyCard({
 
       {isOwned ? (
         <div className="flex flex-col gap-3">
-          <Alert tone="success">الدورة دي في حسابك بالفعل.</Alert>
+          <Alert tone="success">{tx('الدورة دي في حسابك بالفعل.', 'You already have this course.')}</Alert>
           <Link
             to={routes.learn(course.id)}
             className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
@@ -473,12 +518,12 @@ function BuyCard({
         <>
           <div className="flex flex-wrap items-baseline gap-2.5">
             <b className="font-head text-[34px] text-ink">
-              {price.isFree && currency === 'EGP' ? 'مجانًا' : fmt(shown.current)}
+              {price.isFree && currency === 'EGP' ? tx('مجانًا', 'Free') : fmt(shown.current)}
             </b>
             {shown.old != null && <s className="text-muted-2">{fmt(shown.old)}</s>}
             {price.discountPercent > 0 && (
               <span className="rounded-full bg-gold-soft px-2.5 py-1 text-[13px] font-bold text-gold-ink">
-                خصم {price.discountPercent}%
+                {tx(`خصم ${price.discountPercent}%`, `${price.discountPercent}% off`)}
               </span>
             )}
           </div>
@@ -489,7 +534,7 @@ function BuyCard({
             disabled={addToCart.isPending}
             onClick={() => buy(true)}
           >
-            {addToCart.isPending ? <Spinner /> : 'اشتري الآن'}
+            {addToCart.isPending ? <Spinner /> : tx('اشتري الآن', 'Buy now')}
           </button>
           <div className="flex gap-2.5">
             <button
@@ -499,7 +544,11 @@ function BuyCard({
                 className: cn('w-13 flex-none px-0', wished && 'text-danger-dot hover:text-danger-dot'),
               })}
               aria-pressed={wished}
-              aria-label={wished ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+              aria-label={
+                wished
+                  ? tx('إزالة من المفضلة', 'Remove from wishlist')
+                  : tx('إضافة للمفضلة', 'Add to wishlist')
+              }
               onClick={() => wishlist.toggle(course.id)}
             >
               <Icon name="heart" size={18} filled={wished} />
@@ -512,7 +561,7 @@ function BuyCard({
             >
               {addToCart.isSuccess ? (
                 <>
-                  <Icon name="check" size={18} /> اتضافت للسلة
+                  <Icon name="check" size={18} /> {tx('اتضافت للسلة', 'Added to cart')}
                 </>
               ) : (
                 t('cta.addToCart')
@@ -521,7 +570,7 @@ function BuyCard({
           </div>
           <div
             className="flex flex-wrap items-center justify-center gap-3 *:h-5.5 *:w-auto *:object-contain"
-            aria-label="طرق الدفع"
+            aria-label={tx('طرق الدفع', 'Payment methods')}
           >
             <img src="/assets/payments/apple-pay.png" alt="Apple Pay" />
             <img src="/assets/payments/visa.svg" alt="Visa" />
@@ -533,7 +582,7 @@ function BuyCard({
       )}
 
       <div className="flex flex-col gap-3 border-t border-divider pt-4">
-        <b className="text-ink">الدورة تتضمن:</b>
+        <b className="text-ink">{tx('الدورة تتضمن:', 'This course includes:')}</b>
         <ul className="flex flex-col gap-2.5 text-[15px] text-text-2">
           {includes
             .filter((i) => i.show)
@@ -555,7 +604,10 @@ function BuyCard({
 
 function Stars({ value, className, dim }: { value: number; className?: string; dim?: string }) {
   return (
-    <span className={cn('tracking-[1px] text-gold', className)} aria-label={`${value} من 5`}>
+    <span
+      className={cn('tracking-[1px] text-gold', className)}
+      aria-label={tx(`${value} من 5`, `${value} out of 5`)}
+    >
       {'★'.repeat(value)}
       <span className={dim ?? 'text-line-2'}>{'★'.repeat(5 - value)}</span>
     </span>
@@ -595,7 +647,7 @@ function Reviews({ course }: { course: Course }) {
 
   return (
     <Card id="cd-reviews">
-      <h2 className="text-[26px]">التقييمات</h2>
+      <h2 className="text-[26px]">{tx('التقييمات', 'Reviews')}</h2>
       {isError ? (
         <ErrorState compact onRetry={() => refetch()} />
       ) : isLoading ? (
@@ -606,7 +658,7 @@ function Reviews({ course }: { course: Course }) {
             <div className="flex flex-col items-center gap-1 rounded-[18px] bg-surface px-6.5 py-4.5">
               <b className="font-head text-[44px] leading-none text-ink">{total ? avg.toFixed(1) : '—'}</b>
               <Stars value={total ? Math.round(avg) : 0} />
-              <small className="text-muted">{total} تقييم</small>
+              <small className="text-muted">{tx(`${total} تقييم`, `${total} reviews`)}</small>
             </div>
             <div className="flex flex-[1_1_240px] flex-col gap-1.5">
               {dist.map((d) => (
@@ -626,11 +678,12 @@ function Reviews({ course }: { course: Course }) {
                 className={buttonClass({ variant: 'navy' })}
                 onClick={() => navigate(routes.login, { state: { from: routes.course(course.id) } })}
               >
-                اكتب تقييم
+                {tx('اكتب تقييم', 'Write a review')}
               </button>
             ) : mine ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E7F6EC] px-3.5 py-2 text-sm font-bold text-success">
-                <Icon name="check" size={15} /> قيّمت الدورة دي، شكرًا
+                <Icon name="check" size={15} />{' '}
+                {tx('قيّمت الدورة دي، شكرًا', 'You reviewed this course. Thank you!')}
               </span>
             ) : owns ? (
               <button
@@ -638,12 +691,12 @@ function Reviews({ course }: { course: Course }) {
                 className={buttonClass({ variant: 'navy' })}
                 onClick={() => setWriting((w) => !w)}
               >
-                اكتب تقييم
+                {tx('اكتب تقييم', 'Write a review')}
               </button>
             ) : (
               myCourses.isSuccess && (
                 <span className="max-w-55 text-sm leading-relaxed text-muted">
-                  التقييم متاح للي مشتركين في الدورة.
+                  {tx('التقييم متاح للي مشتركين في الدورة.', 'Reviews are open to enrolled learners.')}
                 </span>
               )
             )}
@@ -652,7 +705,9 @@ function Reviews({ course }: { course: Course }) {
           {writing && canWrite && <ReviewForm courseId={course.id} onDone={() => setWriting(false)} />}
 
           {reviews.length === 0 ? (
-            <p className="py-2 text-[15px] text-muted">لسه مفيش تقييمات للدورة دي.</p>
+            <p className="py-2 text-[15px] text-muted">
+              {tx('لسه مفيش تقييمات للدورة دي.', 'No reviews for this course yet.')}
+            </p>
           ) : (
             <ul>
               {reviews.slice(0, 6).map((r) => (
@@ -667,7 +722,7 @@ function Reviews({ course }: { course: Course }) {
 }
 
 function ReviewItem({ review }: { review: CourseReview }) {
-  const name = review.user?.fullName ?? 'متدرب'
+  const name = review.user?.fullName ?? tx('متدرب', 'Learner')
   return (
     <li className="flex gap-3.5 border-t border-divider py-4.5">
       <span
@@ -691,8 +746,10 @@ function ReviewItem({ review }: { review: CourseReview }) {
 
 function reviewError(error: unknown): string {
   if (error instanceof ApiClientError) {
-    if (error.statusCode === 409) return 'إنت قيّمت الدورة دي قبل كده.'
-    if (error.statusCode === 403) return 'التقييم متاح بعد الاشتراك في الدورة.'
+    if (error.statusCode === 409)
+      return tx('إنت قيّمت الدورة دي قبل كده.', "You've already reviewed this course.")
+    if (error.statusCode === 403)
+      return tx('التقييم متاح بعد الاشتراك في الدورة.', 'You can review after enrolling in the course.')
   }
   return (error as Error).message
 }
@@ -718,14 +775,14 @@ function ReviewForm({ courseId, onDone }: { courseId: string; onDone: () => void
 
   return (
     <form className="flex flex-col gap-3.5 rounded-[18px] bg-surface p-4.5" onSubmit={submit}>
-      <div className="flex gap-1" role="radiogroup" aria-label="التقييم">
+      <div className="flex gap-1" role="radiogroup" aria-label={tx('التقييم', 'Rating')}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
             role="radio"
             aria-checked={rating === n}
-            aria-label={`${n} نجوم`}
+            aria-label={tx(`${n} نجوم`, `${n} stars`)}
             onClick={() => setRating(n)}
             className="border-0 bg-transparent p-0.5 text-gold"
           >
@@ -734,7 +791,9 @@ function ReviewForm({ courseId, onDone }: { courseId: string; onDone: () => void
         ))}
       </div>
       <label className="flex flex-col gap-2">
-        <span className="text-[15px] font-semibold text-ink">رأيك في الدورة (اختياري)</span>
+        <span className="text-[15px] font-semibold text-ink">
+          {tx('رأيك في الدورة (اختياري)', 'Your thoughts on the course (optional)')}
+        </span>
         <textarea
           className={cn(inputClass, 'min-h-24 resize-y')}
           rows={3}
@@ -746,10 +805,10 @@ function ReviewForm({ courseId, onDone }: { courseId: string; onDone: () => void
       {mutation.isError && <Alert tone="error">{reviewError(mutation.error)}</Alert>}
       <div className="flex gap-2.5">
         <button type="submit" className={buttonClass({ variant: 'navy' })} disabled={mutation.isPending}>
-          {mutation.isPending ? <Spinner /> : 'نشر التقييم'}
+          {mutation.isPending ? <Spinner /> : tx('نشر التقييم', 'Post review')}
         </button>
         <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onDone}>
-          إلغاء
+          {tx('إلغاء', 'Cancel')}
         </button>
       </div>
     </form>
@@ -770,7 +829,7 @@ function PromoModal({ url, title, onClose }: { url: string; title: string; onClo
       className="fixed inset-0 z-100 flex items-center justify-center bg-[rgba(5,20,40,.75)] p-5"
       role="dialog"
       aria-modal="true"
-      aria-label={`معاينة: ${title}`}
+      aria-label={tx(`معاينة: ${title}`, `Preview: ${title}`)}
       onClick={onClose}
     >
       <div
@@ -779,10 +838,10 @@ function PromoModal({ url, title, onClose }: { url: string; title: string; onClo
       >
         <button
           type="button"
-          aria-label="إغلاق"
+          aria-label={tx('إغلاق', 'Close')}
           onClick={onClose}
           autoFocus
-          className="absolute top-2.5 left-2.5 z-1 flex size-10 items-center justify-center rounded-full border-0 bg-white/90"
+          className="absolute end-2.5 top-2.5 z-1 flex size-10 items-center justify-center rounded-full border-0 bg-white/90"
         >
           <Icon name="close" />
         </button>

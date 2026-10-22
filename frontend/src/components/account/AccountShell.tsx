@@ -19,6 +19,7 @@ import { cn } from '@/lib/cn'
 import { TONE_CLASS, type Tone } from '@/lib/order-status'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { confirmAction } from '@/lib/confirm'
+import { locale, tx } from '@/lib/i18n'
 
 export type AccountSection =
   | 'dashboard'
@@ -33,19 +34,19 @@ export type AccountSection =
   | 'profile'
 
 const NAV: { id: AccountSection; label: string; to: string; icon: IconName; end?: boolean }[] = [
-  { id: 'dashboard', label: 'نظرة عامة', to: routes.dashboard, icon: 'grid', end: true },
-  { id: 'courses', label: 'دوراتي', to: routes.myCourses, icon: 'video' },
-  { id: 'books', label: 'كتبي', to: routes.myBooks, icon: 'book' },
-  { id: 'certs', label: 'شهاداتي', to: routes.certificates, icon: 'award' },
-  { id: 'orders', label: 'طلباتي', to: routes.orders, icon: 'receipt' },
-  { id: 'wishlist', label: 'المفضلة', to: routes.wishlist, icon: 'heart' },
-  { id: 'consults', label: 'استشاراتي', to: routes.myConsultations, icon: 'chat' },
-  { id: 'notifications', label: 'الإشعارات', to: routes.notifications, icon: 'bell' },
-  { id: 'referral', label: 'ادعُ صديق', to: routes.referral, icon: 'heartHand' },
-  { id: 'profile', label: 'الملف الشخصي', to: routes.profile, icon: 'user' },
+  { id: 'dashboard', label: tx('نظرة عامة', 'Overview'), to: routes.dashboard, icon: 'grid', end: true },
+  { id: 'courses', label: tx('دوراتي', 'My courses'), to: routes.myCourses, icon: 'video' },
+  { id: 'books', label: tx('كتبي', 'My books'), to: routes.myBooks, icon: 'book' },
+  { id: 'certs', label: tx('شهاداتي', 'Certificates'), to: routes.certificates, icon: 'award' },
+  { id: 'orders', label: tx('طلباتي', 'My orders'), to: routes.orders, icon: 'receipt' },
+  { id: 'wishlist', label: tx('المفضلة', 'Wishlist'), to: routes.wishlist, icon: 'heart' },
+  { id: 'consults', label: tx('استشاراتي', 'My consultations'), to: routes.myConsultations, icon: 'chat' },
+  { id: 'notifications', label: tx('الإشعارات', 'Notifications'), to: routes.notifications, icon: 'bell' },
+  { id: 'referral', label: tx('ادعُ صديق', 'Invite a friend'), to: routes.referral, icon: 'heartHand' },
+  { id: 'profile', label: tx('الملف الشخصي', 'Profile'), to: routes.profile, icon: 'user' },
 ]
 
-const monthYear = new Intl.DateTimeFormat('ar-EG', {
+const monthYear = new Intl.DateTimeFormat(locale, {
   month: 'long',
   year: 'numeric',
   numberingSystem: 'latn',
@@ -86,7 +87,7 @@ function Sidebar({ active }: { active: AccountSection }) {
   const since = profile.data?.createdAt ? monthYear.format(new Date(profile.data.createdAt)) : null
 
   return (
-    <aside aria-label="قائمة الحساب" className="flex flex-col gap-4 max-lg:hidden">
+    <aside aria-label={tx('قائمة الحساب', 'Account menu')} className="flex flex-col gap-4 max-lg:hidden">
       <div className="overflow-hidden rounded-card border border-line bg-white shadow-[0_30px_60px_-40px_rgba(12,42,74,.45)]">
         <div className="relative flex bg-navy items-center gap-3.5 overflow-hidden px-5 py-5.5">
           <div className="absolute inset-0 dots opacity-45" aria-hidden="true" />
@@ -97,7 +98,7 @@ function Sidebar({ active }: { active: AccountSection }) {
             <b className="truncate text-[17px] text-white">{user?.fullName}</b>
             {since && (
               <span className="text-[13px] text-on-dark">
-                {g('عضو', 'عضوة', 'عضو')} منذ {since}
+                {tx(`${g('عضو', 'عضوة', 'عضو')} منذ ${since}`, `Member since ${since}`)}
               </span>
             )}
           </span>
@@ -140,10 +141,13 @@ function Sidebar({ active }: { active: AccountSection }) {
             onClick={async () => {
               if (
                 !(await confirmAction({
-                  title: 'تسجّل خروج؟',
-                  body: 'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
-                  confirmLabel: 'تسجيل الخروج',
-                  cancelLabel: 'خليني',
+                  title: tx('تسجّل خروج؟', 'Sign out?'),
+                  body: tx(
+                    'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
+                    "You'll need your email and password to sign in again.",
+                  ),
+                  confirmLabel: tx('تسجيل الخروج', 'Sign out'),
+                  cancelLabel: tx('خليني', 'Stay'),
                   tone: 'warning',
                   icon: 'logout',
                 }))
@@ -155,7 +159,7 @@ function Sidebar({ active }: { active: AccountSection }) {
             className="flex min-h-12 items-center gap-3 rounded-[14px] border-0 bg-transparent px-3.5 text-[15px] font-semibold text-danger hover:bg-red-50"
           >
             <Icon name="logout" size={19} />
-            تسجيل الخروج
+            {tx('تسجيل الخروج', 'Sign out')}
           </button>
         </nav>
       </div>
@@ -167,8 +171,10 @@ function Sidebar({ active }: { active: AccountSection }) {
           <Icon name="heartHand" size={20} />
         </span>
         <span className="flex flex-col gap-0.5">
-          <b className="text-[15px]">ادعُ صديق واكسب</b>
-          <span className="text-[13px] text-[#6B5A3E]">كوبون خصم أول ما صاحبك يشتري</span>
+          <b className="text-[15px]">{tx('ادعُ صديق واكسب', 'Invite a friend & earn')}</b>
+          <span className="text-[13px] text-[#6B5A3E]">
+            {tx('كوبون خصم أول ما صاحبك يشتري', 'A discount coupon when your friend buys')}
+          </span>
         </span>
       </Link>
     </aside>
@@ -179,7 +185,7 @@ function Sidebar({ active }: { active: AccountSection }) {
 function MobileTabs({ active }: { active: AccountSection }) {
   return (
     <nav
-      aria-label="قائمة الحساب"
+      aria-label={tx('قائمة الحساب', 'Account menu')}
       className="-mx-4 mb-5 flex gap-2 overflow-x-auto mask-fade-x px-4 pb-1 lg:hidden"
     >
       {NAV.map((n) => (
@@ -218,9 +224,9 @@ export function AccountShell({ active, title, pageTitle, body, children }: Accou
       <PageHero
         portrait={false}
         crumbs={[
-          { label: 'الرئيسية', to: routes.home },
-          ...(active === 'dashboard' ? [] : [{ label: 'حسابي', to: routes.dashboard }]),
-          { label: active === 'dashboard' ? 'حسابي' : label },
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          ...(active === 'dashboard' ? [] : [{ label: tx('حسابي', 'My account'), to: routes.dashboard }]),
+          { label: active === 'dashboard' ? tx('حسابي', 'My account') : label },
         ]}
         title={title}
         body={body}

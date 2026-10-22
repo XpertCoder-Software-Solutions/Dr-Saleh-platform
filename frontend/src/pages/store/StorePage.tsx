@@ -14,6 +14,7 @@ import { keepScroll, scrollToResults } from '@/lib/scroll'
 import { useRegion } from '@/lib/region'
 import { PricePill } from '@/components/catalog/PricePill'
 import { priceParam } from '@/lib/priceParam'
+import { loc, tx } from '@/lib/i18n'
 
 const PAGE_SIZE = 12
 
@@ -22,7 +23,7 @@ const tabClass =
   'aria-selected:border-transparent aria-selected:bg-navy aria-selected:text-white'
 
 export function StorePage() {
-  usePageTitle('المتجر')
+  usePageTitle(tx('المتجر', 'Store'))
   const [params, setParams] = useSearchParams()
   const categoryId = params.get('cat') ?? ''
   const page = Math.max(1, Number(params.get('page')) || 1)
@@ -80,23 +81,27 @@ export function StorePage() {
   return (
     <>
       <PageHero
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'المتجر' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('المتجر', 'Store') }]}
         eyebrow={
           <>
             <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-            توصيل لحد باب البيت
+            {tx('توصيل لحد باب البيت', 'Delivered to your door')}
           </>
         }
         title={
           <>
-            أدوات تربوية <span className="text-sheen">للبيت</span>
+            {tx('أدوات تربوية', 'Parenting tools')}{' '}
+            <span className="text-sheen">{tx('للبيت', 'for home')}</span>
           </>
         }
-        body="أدوات بسيطة صمّمها الدكتور صالح عشان تساعدك تطبّق اللي بتتعلمه في الدورات مع ولادك كل يوم."
+        body={tx(
+          'أدوات بسيطة صمّمها الدكتور صالح عشان تساعدك تطبّق اللي بتتعلمه في الدورات مع ولادك كل يوم.',
+          'Simple tools designed by Dr. Saleh to help you apply what you learn in the courses with your children every day.',
+        )}
       >
         <div
           role="tablist"
-          aria-label="الأقسام"
+          aria-label={tx('الأقسام', 'Categories')}
           className="flex flex-wrap gap-2 rounded-card bg-white p-2.5 shadow-[0_30px_60px_-30px_rgba(5,20,40,.6)]"
         >
           <button
@@ -106,7 +111,7 @@ export function StorePage() {
             className={tabClass}
             onClick={() => pick('')}
           >
-            الكل
+            {tx('الكل', 'All')}
           </button>
           {(categories.data ?? []).map((c) => (
             <button
@@ -117,7 +122,7 @@ export function StorePage() {
               className={tabClass}
               onClick={() => pick(c.id)}
             >
-              {c.nameAr}
+              {loc(c.nameAr, c.nameEn)}
             </button>
           ))}
         </div>
@@ -129,7 +134,7 @@ export function StorePage() {
             <p className="text-muted" aria-live="polite">
               {pagination && (
                 <>
-                  <b className="text-ink">{pagination.total}</b> منتج
+                  <b className="text-ink">{pagination.total}</b> {tx('منتج', 'products')}
                 </>
               )}
             </p>
@@ -159,9 +164,21 @@ export function StorePage() {
           ) : products.length === 0 ? (
             <EmptyState
               icon="box"
-              title={hasPrice ? 'مفيش منتجات في حدود السعر ده' : 'مفيش منتجات هنا لسه'}
+              title={
+                hasPrice
+                  ? tx('مفيش منتجات في حدود السعر ده', 'No products in this price range')
+                  : tx('مفيش منتجات هنا لسه', 'No products here yet')
+              }
               body={
-                hasPrice ? 'وسّع نطاق السعر أو اختار قسم تاني.' : 'المنتجات الجديدة هتظهر هنا أول ما تنزل.'
+                hasPrice
+                  ? tx(
+                      'وسّع نطاق السعر أو اختار قسم تاني.',
+                      'Widen the price range or choose another category.',
+                    )
+                  : tx(
+                      'المنتجات الجديدة هتظهر هنا أول ما تنزل.',
+                      "New products will appear here as soon as they're added.",
+                    )
               }
             />
           ) : (
@@ -180,7 +197,7 @@ export function StorePage() {
           {pagination && pagination.totalPages > 1 && (
             <Pager
               pagination={pagination}
-              noun="منتج"
+              noun={tx('منتج', 'products')}
               onChange={(p) => {
                 update({ page: p > 1 ? String(p) : null })
                 scrollToResults()

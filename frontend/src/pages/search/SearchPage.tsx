@@ -17,10 +17,13 @@ import { formatMoney, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useRegion } from '@/lib/region'
 import { keepScroll } from '@/lib/scroll'
+import { isEn, loc, tx } from '@/lib/i18n'
 
 type Tab = 'all' | 'courses' | 'articles' | 'shop'
 
-const SUGGESTIONS = ['العناد', 'المراهقة', 'الغضب', 'المذاكرة', 'الثقة بالنفس']
+const SUGGESTIONS = isEn
+  ? ['Stubbornness', 'Adolescence', 'Anger', 'Studying', 'Self-confidence']
+  : ['العناد', 'المراهقة', 'الغضب', 'المذاكرة', 'الثقة بالنفس']
 
 const rowClass =
   'flex items-center gap-3.5 border-t border-divider py-3.5 first:border-t-0 text-text hover:text-text'
@@ -38,7 +41,7 @@ export function SearchPage() {
     setDraft(q)
   }
   const [tab, setTab] = useState<Tab>('all')
-  usePageTitle(q ? `البحث: ${q}` : 'البحث')
+  usePageTitle(q ? tx(`البحث: ${q}`, `Search: ${q}`) : tx('البحث', 'Search'))
 
   const enabled = q.length > 1
   const courses = useQuery({
@@ -61,7 +64,11 @@ export function SearchPage() {
   const bookHits = useMemo(
     () =>
       (books.data ?? [])
-        .filter((b) => b.isActive && (b.titleAr.includes(q) || b.descriptionAr.includes(q)))
+        .filter(
+          (b) =>
+            b.isActive &&
+            (loc(b.titleAr, b.titleEn).includes(q) || loc(b.descriptionAr, b.descriptionEn).includes(q)),
+        )
         .slice(0, 6),
     [books.data, q],
   )
@@ -83,10 +90,10 @@ export function SearchPage() {
   }
 
   const tabs: { id: Tab; label: string; n: number }[] = [
-    { id: 'all', label: 'الكل', n: total },
-    { id: 'courses', label: 'دورات', n: counts.courses },
-    { id: 'articles', label: 'مقالات', n: counts.articles },
-    { id: 'shop', label: 'كتب ومنتجات', n: counts.shop },
+    { id: 'all', label: tx('الكل', 'All'), n: total },
+    { id: 'courses', label: tx('دورات', 'Courses'), n: counts.courses },
+    { id: 'articles', label: tx('مقالات', 'Articles'), n: counts.articles },
+    { id: 'shop', label: tx('كتب ومنتجات', 'Books & products'), n: counts.shop },
   ]
   const show = (x: Tab) => tab === 'all' || tab === x
 
@@ -98,10 +105,12 @@ export function SearchPage() {
           <h1 className="text-[clamp(30px,4.5vw,46px)] text-white">
             {q ? (
               <>
-                نتائج البحث عن «<span className="text-sheen">{q}</span>»
+                {tx('نتائج البحث عن «', 'Results for “')}
+                <span className="text-sheen">{q}</span>
+                {tx('»', '”')}
               </>
             ) : (
-              'بتدوّر على إيه؟'
+              tx('بتدوّر على إيه؟', 'What are you looking for?')
             )}
           </h1>
           <form
@@ -111,7 +120,7 @@ export function SearchPage() {
           >
             <label className="flex min-h-12 flex-1 items-center gap-2.5 px-3 text-muted">
               <Icon name="search" />
-              <span className="sr-only">بحث</span>
+              <span className="sr-only">{tx('بحث', 'Search')}</span>
               <input
                 type="search"
                 autoFocus
@@ -122,11 +131,11 @@ export function SearchPage() {
               />
             </label>
             <button type="submit" className={buttonClass({ variant: 'gold' })}>
-              بحث
+              {tx('بحث', 'Search')}
             </button>
           </form>
           <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-on-dark-muted">
-            الأكثر بحثًا:
+            {tx('الأكثر بحثًا:', 'Popular searches:')}
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
@@ -147,8 +156,11 @@ export function SearchPage() {
           {!enabled ? (
             <EmptyState
               icon="search"
-              title="اكتب كلمتين عن اللي محتاجه"
-              body="هندوّر لك في الدورات والمقالات والكتب والمنتجات مرة واحدة."
+              title={tx('اكتب كلمتين عن اللي محتاجه', 'Type a few words about what you need')}
+              body={tx(
+                'هندوّر لك في الدورات والمقالات والكتب والمنتجات مرة واحدة.',
+                "We'll search courses, articles, books and products at once.",
+              )}
             />
           ) : loading ? (
             <div className="flex justify-center py-16 text-blue-600">
@@ -157,8 +169,11 @@ export function SearchPage() {
           ) : total === 0 ? (
             <EmptyState
               icon="search"
-              title={`مفيش نتائج لـ «${q}»`}
-              body="جرّب كلمة أبسط، أو اختار من الأكثر بحثًا فوق."
+              title={tx(`مفيش نتائج لـ «${q}»`, `No results for “${q}”`)}
+              body={tx(
+                'جرّب كلمة أبسط، أو اختار من الأكثر بحثًا فوق.',
+                'Try a simpler word, or pick one of the popular searches above.',
+              )}
             />
           ) : (
             <>
@@ -178,16 +193,16 @@ export function SearchPage() {
                   ))}
                 </div>
                 <span className="px-2 text-sm text-muted">
-                  <b className="text-ink">{total}</b> نتيجة
+                  <b className="text-ink">{total}</b> {tx('نتيجة', 'results')}
                 </span>
               </div>
 
               {show('courses') && courseHits.length > 0 && (
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-2xl">الدورات</h2>
+                    <h2 className="text-2xl">{tx('الدورات', 'Courses')}</h2>
                     <Link to={`${routes.courses}?q=${encodeURIComponent(q)}`} className="text-sm font-bold">
-                      كل الدورات <Icon name="arrowLeft" size={14} className="inline" />
+                      {tx('كل الدورات', 'All courses')} <Icon name="arrowLeft" size={14} className="inline" />
                     </Link>
                   </div>
                   <div className={courseGridClass}>
@@ -201,7 +216,7 @@ export function SearchPage() {
               <div className="grid grid-cols-2 items-start gap-6 max-lg:grid-cols-1">
                 {show('articles') && articleHits.length > 0 && (
                   <div className="rounded-card border border-line bg-white p-5">
-                    <h2 className="mb-2 text-2xl">مقالات</h2>
+                    <h2 className="mb-2 text-2xl">{tx('مقالات', 'Articles')}</h2>
                     {articleHits.map((a) => (
                       <Link key={a.id} to={routes.article(a.slug)} className={rowClass}>
                         <span className="flex size-12 flex-none bg-navy items-center justify-center rounded-xl text-white">
@@ -219,16 +234,18 @@ export function SearchPage() {
                 )}
                 {show('shop') && (bookHits.length > 0 || productHits.length > 0) && (
                   <div className="rounded-card border border-line bg-white p-5">
-                    <h2 className="mb-2 text-2xl">كتب ومنتجات</h2>
+                    <h2 className="mb-2 text-2xl">{tx('كتب ومنتجات', 'Books & products')}</h2>
                     {bookHits.map((b) => (
                       <Link key={b.id} to={routes.book(b.slug)} className={rowClass}>
                         <BookCoverArt book={b} size="sm" />
                         <span className="flex flex-1 flex-col">
-                          <b className="text-ink">{b.titleAr}</b>
-                          <span className="text-xs text-muted">كتاب</span>
+                          <b className="text-ink">{loc(b.titleAr, b.titleEn)}</b>
+                          <span className="text-xs text-muted">{tx('كتاب', 'Book')}</span>
                         </span>
                         {bookStartPrice(b, currency) != null && (
-                          <b className="text-ink">من {formatMoney(bookStartPrice(b, currency), currency)}</b>
+                          <b className="text-ink">
+                            {tx('من', 'From')} {formatMoney(bookStartPrice(b, currency), currency)}
+                          </b>
                         )}
                       </Link>
                     ))}
@@ -239,7 +256,9 @@ export function SearchPage() {
                         </span>
                         <span className="flex flex-1 flex-col">
                           <b className="text-ink">{p.name}</b>
-                          <span className="text-xs text-muted">منتج · {p.category?.nameAr}</span>
+                          <span className="text-xs text-muted">
+                            منتج · {loc(p.category?.nameAr, p.category?.nameEn)}
+                          </span>
                         </span>
                         <b className="text-ink">{formatMoney(productPrice(p, currency).current, currency)}</b>
                       </Link>

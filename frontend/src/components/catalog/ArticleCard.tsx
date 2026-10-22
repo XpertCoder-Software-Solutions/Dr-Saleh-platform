@@ -23,7 +23,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }) {
           <div className="absolute inset-0 dots opacity-40" />
         )}
         {article.category && (
-          <span className="absolute right-3.5 bottom-3.5 rounded-full px-3 py-1.25 text-[13px] font-bold text-white glass">
+          <span className="absolute start-3.5 bottom-3.5 rounded-full px-3 py-1.25 text-[13px] font-bold text-white glass">
             {article.category.name}
           </span>
         )}

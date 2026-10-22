@@ -21,16 +21,17 @@ import { useRegion } from '@/lib/region'
 import { keepScroll } from '@/lib/scroll'
 import { PricePill } from '@/components/catalog/PricePill'
 import { priceParam } from '@/lib/priceParam'
+import { loc, tx } from '@/lib/i18n'
 
 const FORMAT_TABS: { id: '' | BookFormatType; label: string }[] = [
-  { id: '', label: 'الكل' },
-  { id: 'Physical', label: 'ورقي' },
-  { id: 'Digital', label: 'رقمي' },
-  { id: 'Audio', label: 'صوتي' },
+  { id: '', label: tx('الكل', 'All') },
+  { id: 'Physical', label: tx('ورقي', 'Paperback') },
+  { id: 'Digital', label: tx('رقمي', 'Digital') },
+  { id: 'Audio', label: tx('صوتي', 'Audio') },
 ]
 
 export function LibraryPage() {
-  usePageTitle('المكتبة')
+  usePageTitle(tx('المكتبة', 'Library'))
   const [params, setParams] = useSearchParams()
   const cat = params.get('cat') ?? ''
   const format = (params.get('format') ?? '') as '' | BookFormatType
@@ -80,7 +81,7 @@ export function LibraryPage() {
         (!cat || b.categoryId === cat) &&
         (!format || b.formats.some((f) => f.isActive && f.formatType === format)) &&
         (!hasPrice || inRange(b)) &&
-        (!q || b.titleAr.includes(q) || b.descriptionAr.includes(q)),
+        (!q || loc(b.titleAr, b.titleEn).includes(q) || loc(b.descriptionAr, b.descriptionEn).includes(q)),
     )
   }, [active, cat, format, search, hasPrice, minPrice, maxPrice, currency])
   const usedCategories = (categories.data ?? []).filter((c) => active.some((b) => b.categoryId === c.id))
@@ -102,19 +103,23 @@ export function LibraryPage() {
     <>
       <PageHero
         portrait={false}
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'المكتبة' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('المكتبة', 'Library') }]}
         eyebrow={
           <>
             <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-            ورقي · رقمي PDF · صوتي
+            {tx('ورقي · رقمي PDF · صوتي', 'Paperback · digital PDF · audio')}
           </>
         }
         title={
           <>
-            اقرأ… أو <span className="text-sheen">اسمع وانت في الطريق</span>
+            {tx('اقرأ… أو', 'Read… or')}{' '}
+            <span className="text-sheen">{tx('اسمع وانت في الطريق', 'listen on the go')}</span>
           </>
         }
-        body="كتب الدكتور صالح في التربية وعلم النفس. النسخة الورقية بتوصلك لحد البيت، والرقمية والصوتية فورًا بعد الدفع."
+        body={tx(
+          'كتب الدكتور صالح في التربية وعلم النفس. النسخة الورقية بتوصلك لحد البيت، والرقمية والصوتية فورًا بعد الدفع.',
+          "Dr. Saleh's books on parenting and psychology. Paperbacks are delivered to your door; digital and audio editions are available right after payment.",
+        )}
       >
         {featured && <FeaturedBook book={featured} />}
       </PageHero>
@@ -124,7 +129,7 @@ export function LibraryPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <label className="flex min-h-13 flex-[1_1_320px] items-center gap-2.5 rounded-field border-[1.5px] border-line bg-white px-4 text-muted focus-within:border-blue-400 focus-within:shadow-[0_0_0_4px_rgba(61,155,216,.15)] md:max-w-115">
               <Icon name="search" />
-              <span className="sr-only">ابحث في المكتبة</span>
+              <span className="sr-only">{tx('ابحث في المكتبة', 'Search the library')}</span>
               <input
                 type="search"
                 value={search}
@@ -132,14 +137,17 @@ export function LibraryPage() {
                   setSearch(e.target.value)
                   setParam('q', e.target.value.trim())
                 }}
-                placeholder="ابحث عن كتاب في التربية أو علم النفس…"
+                placeholder={tx(
+                  'ابحث عن كتاب في التربية أو علم النفس…',
+                  'Search parenting or psychology books…',
+                )}
                 className="min-w-0 flex-1 border-0 bg-transparent text-base text-text outline-none"
               />
             </label>
             <div className="flex flex-wrap items-center gap-3">
               <div
                 role="tablist"
-                aria-label="نوع النسخة"
+                aria-label={tx('نوع النسخة', 'Edition type')}
                 className="flex gap-1 rounded-field border border-line bg-white p-1"
               >
                 {FORMAT_TABS.map((t) => (
@@ -174,7 +182,11 @@ export function LibraryPage() {
           </div>
 
           {usedCategories.length > 1 && (
-            <div role="tablist" aria-label="الأقسام" className="mb-8 flex flex-wrap gap-2.5">
+            <div
+              role="tablist"
+              aria-label={tx('الأقسام', 'Categories')}
+              className="mb-8 flex flex-wrap gap-2.5"
+            >
               <button
                 type="button"
                 role="tab"
@@ -182,7 +194,7 @@ export function LibraryPage() {
                 className={pillTabClass}
                 onClick={() => setParam('cat', '')}
               >
-                كل الأقسام
+                {tx('كل الأقسام', 'All categories')}
               </button>
               {usedCategories.map((c) => (
                 <button
@@ -193,7 +205,7 @@ export function LibraryPage() {
                   className={pillTabClass}
                   onClick={() => setParam('cat', c.id)}
                 >
-                  {c.nameAr}
+                  {loc(c.nameAr, c.nameEn)}
                 </button>
               ))}
             </div>
@@ -210,13 +222,20 @@ export function LibraryPage() {
           ) : shown.length === 0 ? (
             <EmptyState
               icon="book"
-              title={active.length ? 'مفيش كتب بالمواصفات دي' : 'المكتبة بتتجهّز'}
+              title={
+                active.length
+                  ? tx('مفيش كتب بالمواصفات دي', 'No books match these filters')
+                  : tx('المكتبة بتتجهّز', 'The library is being prepared')
+              }
               body={
                 active.length
                   ? hasPrice
-                    ? 'وسّع نطاق السعر، أو جرّب كلمة تانية أو نوع نسخة مختلف.'
-                    : 'جرّب كلمة تانية أو نوع نسخة مختلف.'
-                  : 'أول الكتب هتنزل هنا قريب.'
+                    ? tx(
+                        'وسّع نطاق السعر، أو جرّب كلمة تانية أو نوع نسخة مختلف.',
+                        'Widen the price range, or try another word or edition type.',
+                      )
+                    : tx('جرّب كلمة تانية أو نوع نسخة مختلف.', 'Try another word or edition type.')
+                  : tx('أول الكتب هتنزل هنا قريب.', 'The first books will be here soon.')
               }
             />
           ) : (
@@ -237,17 +256,17 @@ export function LibraryPage() {
 function FeaturedBook({ book }: { book: Book }) {
   const { currency } = useRegion()
   const formats = activeFormats(book)
-  const [head, ...tail] = book.titleAr.split(' ')
+  const [head, ...tail] = loc(book.titleAr, book.titleEn).split(' ')
   return (
     <div className="relative flex flex-wrap items-center gap-10 overflow-hidden rounded-panel bg-linear-120 from-[#fffaf0] via-white to-[#fdf3e1] px-14 py-11 text-text shadow-[0_30px_60px_-30px_rgba(5,20,40,.5)] max-md:px-6 max-md:py-8">
       <div className="flex min-w-0 flex-[1_1_380px] flex-col gap-4">
         <span className="bg-gold self-start rounded-full px-3 py-1 text-[13px] font-extrabold text-navy">
-          الكتاب الأكثر مبيعًا
+          {tx('الكتاب الأكثر مبيعًا', 'Best-selling book')}
         </span>
         <h2 className="text-[clamp(28px,3.5vw,40px)]">
           <Highlight text={tail.length ? `${head} *${tail.join(' ')}*` : head} />
         </h2>
-        <p className="line-clamp-3 leading-loose text-muted">{book.descriptionAr}</p>
+        <p className="line-clamp-3 leading-loose text-muted">{loc(book.descriptionAr, book.descriptionEn)}</p>
         <div className="flex flex-wrap gap-2.5">
           {formats.map((f) => {
             const p = formatPrice(f, book, currency).current
@@ -268,7 +287,7 @@ function FeaturedBook({ book }: { book: Book }) {
           to={routes.book(book.slug)}
           className={buttonClass({ variant: 'navy', className: 'self-start' })}
         >
-          اختار النسخة واطلب <Icon name="arrowLeft" />
+          {tx('اختار النسخة واطلب', 'Choose an edition and order')} <Icon name="arrowLeft" />
         </Link>
       </div>
       <div className="relative flex flex-[0_1_340px] justify-center max-md:hidden">
@@ -290,10 +309,10 @@ function StoreTeaser() {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="منتجات المنصة"
+          eyebrow={tx('منتجات المنصة', 'Platform products')}
           icon="box"
-          title={<Highlight text="أدوات تربوية *للبيت*" />}
-          more={{ to: routes.store, label: 'كل المنتجات' }}
+          title={<Highlight text={tx('أدوات تربوية *للبيت*', 'Parenting tools *for home*')} />}
+          more={{ to: routes.store, label: tx('كل المنتجات', 'All products') }}
         />
         <div className={productsGridClass}>
           {products.map((p) => (

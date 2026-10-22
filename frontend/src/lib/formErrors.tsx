@@ -1,4 +1,5 @@
 import { toast } from '@/lib/toast'
+import { tx } from '@/lib/i18n'
 
 /**
  * Pops up the problems found when a form is submitted (fields still show their own message).
@@ -17,7 +18,7 @@ export function warnFormErrors(errors: Record<string, string | null | undefined>
         ))}
       </ul>
     ),
-    { title: 'راجع البيانات دي' },
+    { title: tx('راجع البيانات دي', 'Please check these details') },
   )
   return true
 }

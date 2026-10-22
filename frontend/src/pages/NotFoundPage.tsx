@@ -4,6 +4,7 @@ import { routes } from '@/app/routes'
 import { Icon } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { tx } from '@/lib/i18n'
 
 function SimplePage({
   top,
@@ -30,20 +31,23 @@ function SimplePage({
 }
 
 export function NotFoundPage() {
-  usePageTitle('الصفحة مش موجودة')
+  usePageTitle(tx('الصفحة مش موجودة', 'Page not found'))
   return (
     <SimplePage
       top={
         <span className="text-sheen font-head text-[clamp(90px,18vw,160px)] leading-none font-bold">404</span>
       }
-      title="الصفحة دي مش موجودة"
-      body="يمكن الرابط اتغيّر أو الصفحة اتشالت. جرّب ترجع للرئيسية أو تتصفح الدورات."
+      title={tx('الصفحة دي مش موجودة', "This page doesn't exist")}
+      body={tx(
+        'يمكن الرابط اتغيّر أو الصفحة اتشالت. جرّب ترجع للرئيسية أو تتصفح الدورات.',
+        'The link may have changed or the page was removed. Try the home page or browse the courses.',
+      )}
     >
       <Link to={routes.home} className={buttonClass({ variant: 'gold', size: 'lg' })}>
-        الرئيسية <Icon name="arrowLeft" />
+        {tx('الرئيسية', 'Home')} <Icon name="arrowLeft" />
       </Link>
       <Link to={routes.courses} className={buttonClass({ variant: 'glass', size: 'lg' })}>
-        تصفّح الدورات
+        {tx('تصفّح الدورات', 'Browse courses')}
       </Link>
     </SimplePage>
   )
@@ -54,12 +58,19 @@ export function ComingSoonPage({ title }: { title: string }) {
   usePageTitle(title)
   return (
     <SimplePage
-      top={<span className="rounded-full px-4 py-1.5 font-bold text-gold-light glass">قريبًا</span>}
+      top={
+        <span className="rounded-full px-4 py-1.5 font-bold text-gold-light glass">
+          {tx('قريبًا', 'Coming soon')}
+        </span>
+      }
       title={title}
-      body="الصفحة دي بنشتغل عليها دلوقتي وهتكون جاهزة قريب."
+      body={tx(
+        'الصفحة دي بنشتغل عليها دلوقتي وهتكون جاهزة قريب.',
+        "We're working on this page and it'll be ready soon.",
+      )}
     >
       <Link to={routes.home} className={buttonClass({ variant: 'gold', size: 'lg' })}>
-        الرئيسية <Icon name="arrowLeft" />
+        {tx('الرئيسية', 'Home')} <Icon name="arrowLeft" />
       </Link>
     </SimplePage>
   )

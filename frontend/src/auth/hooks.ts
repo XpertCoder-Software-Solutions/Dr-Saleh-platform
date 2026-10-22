@@ -1,3 +1,4 @@
+import { isEn } from '@/lib/i18n'
 import { useCallback, useContext } from 'react'
 import { AuthContext } from './AuthContext'
 import { strings, type Audience, type CopyKey } from '@/copy/strings'
@@ -21,20 +22,30 @@ export function useCopy() {
   const audience = useAudience()
   const { user } = useAuth()
   return useCallback(
-    (key: CopyKey) => strings[key][audience].replace('{name}', user?.firstName ?? ''),
+    (key: CopyKey) =>
+      (isEn ? strings[key].en : strings[key][audience])
+        .replace('{name}', user?.firstName ?? '')
+        .replace(/,\s*$/, ''),
     [audience, user?.firstName],
   )
 }
 
 /**
- * Inline gendered wording for one-off strings: `g('كمّل', 'كمّلي', 'استكمل')`.
+ * Inline gendered wording for one-off strings: `g('كمّل', 'كمّلي', 'استكمل', 'Continue')`
+ * (the last argument is the English wording).
  * Users without a gender get the neutral form (or the masculine one when none is given).
  */
 export function useGender() {
   const audience = useAudience()
   return useCallback(
-    (male: string, female: string, neutral?: string) =>
-      audience === 'female' ? female : audience === 'male' ? male : (neutral ?? male),
+    (male: string, female: string, neutral?: string, en?: string) =>
+      isEn && en !== undefined
+        ? en
+        : audience === 'female'
+          ? female
+          : audience === 'male'
+            ? male
+            : (neutral ?? male),
     [audience],
   )
 }

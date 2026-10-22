@@ -17,6 +17,7 @@ import { numOrUndef, numToField, slugify } from '@/lib/form'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { warnFormErrors } from '@/lib/formErrors'
 import { confirmAction } from '@/lib/confirm'
+import { VisibilitySwitch } from '@/components/admin/VisibilitySwitch'
 
 type Tab = 'books' | 'products'
 const BOOKS_KEY = ['admin', 'books'] as const
@@ -99,11 +100,13 @@ export function AdminCatalogPage() {
                         : formatEGP(b.discountPriceEGP ?? b.priceEGP)
                     })()}
                   </b>
-                  {b.isActive ? (
-                    <StatusPill tone="success">منشور</StatusPill>
-                  ) : (
-                    <StatusPill tone="muted">مخفي</StatusPill>
-                  )}
+                  <VisibilitySwitch
+                    visible={b.isActive}
+                    name={b.titleAr}
+                    labels={['منشور', 'مخفي']}
+                    save={(isActive) => catalogApi.updateBook(b.id, { isActive })}
+                    invalidate={[BOOKS_KEY]}
+                  />
                   <button
                     type="button"
                     aria-label={`تعديل ${b.titleAr}`}
@@ -139,13 +142,13 @@ export function AdminCatalogPage() {
                   </span>
                 </span>
                 <b className="text-sm text-ink">{formatEGP(p.discountPriceEGP ?? p.priceEGP)}</b>
-                {p.isActive === false ? (
-                  <StatusPill tone="muted">مخفي</StatusPill>
-                ) : p.stock === 0 ? (
-                  <StatusPill tone="danger">نفد</StatusPill>
-                ) : (
-                  <StatusPill tone="success">متاح</StatusPill>
-                )}
+                {p.isActive !== false && p.stock === 0 && <StatusPill tone="danger">نفد</StatusPill>}
+                <VisibilitySwitch
+                  visible={p.isActive !== false}
+                  name={p.nameAr}
+                  save={(isActive) => catalogApi.updateProduct(p.id, { isActive })}
+                  invalidate={[PRODUCTS_KEY]}
+                />
                 <button
                   type="button"
                   aria-label={`تعديل ${p.nameAr}`}

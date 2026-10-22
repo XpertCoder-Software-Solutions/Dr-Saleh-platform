@@ -1,3 +1,4 @@
+import { isEn } from '@/lib/i18n'
 import type { SVGProps } from 'react'
 import type { IconType } from 'react-icons'
 import { FaFacebookF, FaInstagram, FaTiktok, FaWhatsapp, FaYoutube } from 'react-icons/fa6'
@@ -89,7 +90,16 @@ interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   filled?: boolean
 }
 
+const MIRROR = {
+  arrowLeft: 'arrowRight',
+  arrowRight: 'arrowLeft',
+  chevLeft: 'chevRight',
+  chevRight: 'chevLeft',
+} as const
+
 export function Icon({ name, size = 20, strokeWidth = 2, filled = false, ...rest }: IconProps) {
+  // Direction arrows point the other way on the English (left-to-right) site.
+  if (isEn) name = (MIRROR[name as keyof typeof MIRROR] ?? name) as IconName
   if (name in brands) {
     const Brand = brands[name as keyof typeof brands]
     return (

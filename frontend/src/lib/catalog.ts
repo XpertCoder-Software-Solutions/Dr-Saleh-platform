@@ -1,10 +1,11 @@
 import type { Book, BookFormat, BookFormatType, Currency } from '@/types/api'
 import { pricesIn, type Priced } from './format'
+import { tx } from '@/lib/i18n'
 
 export const FORMAT_LABEL: Record<BookFormatType, string> = {
-  Physical: 'ورقي',
-  Digital: 'رقمي',
-  Audio: 'صوتي',
+  Physical: tx('ورقي', 'Paperback'),
+  Digital: tx('رقمي', 'Digital'),
+  Audio: tx('صوتي', 'Audio'),
 }
 export const FORMAT_ORDER: BookFormatType[] = ['Physical', 'Digital', 'Audio']
 

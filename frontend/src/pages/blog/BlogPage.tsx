@@ -16,6 +16,7 @@ import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
 import { formatDate, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { keepScroll, scrollToResults } from '@/lib/scroll'
+import { loc, tx } from '@/lib/i18n'
 
 const PAGE_SIZE = 9
 
@@ -24,7 +25,7 @@ const sideBtn =
   'aria-checked:bg-navy aria-checked:text-white'
 
 export function BlogPage() {
-  usePageTitle('المقالات')
+  usePageTitle(tx('المقالات', 'Articles'))
   const t = useCopy()
   const [params, setParams] = useSearchParams()
   const categoryId = params.get('cat') ?? ''
@@ -57,19 +58,23 @@ export function BlogPage() {
   return (
     <>
       <PageHero
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'المقالات' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('المقالات', 'Articles') }]}
         eyebrow={
           <>
             <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-            مقال جديد كل أسبوع
+            {tx('مقال جديد كل أسبوع', 'A new article every week')}
           </>
         }
         title={
           <>
-            مقالات في التربية <span className="text-sheen">وعلم النفس</span>
+            {tx('مقالات في التربية', 'Articles on parenting')}{' '}
+            <span className="text-sheen">{tx('وعلم النفس', 'and psychology')}</span>
           </>
         }
-        body="نصائح عملية قصيرة تقدر تطبقها النهارده، من غير مصطلحات معقدة."
+        body={tx(
+          'نصائح عملية قصيرة تقدر تطبقها النهارده، من غير مصطلحات معقدة.',
+          'Short, practical tips you can apply today, without jargon.',
+        )}
       />
 
       <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
@@ -85,7 +90,11 @@ export function BlogPage() {
                 ))}
               </div>
             ) : articles.length === 0 && !spotlight ? (
-              <EmptyState icon="pen" title="مفيش مقالات هنا لسه" body="المقالات الجديدة بتنزل كل أسبوع." />
+              <EmptyState
+                icon="pen"
+                title={tx('مفيش مقالات هنا لسه', 'No articles here yet')}
+                body={tx('المقالات الجديدة بتنزل كل أسبوع.', 'New articles are published every week.')}
+              />
             ) : (
               <div
                 className={cn(
@@ -101,7 +110,7 @@ export function BlogPage() {
             {list.data && list.data.pagination.totalPages > 1 && (
               <Pager
                 pagination={list.data.pagination}
-                noun="مقال"
+                noun={tx('مقال', 'articles')}
                 onChange={(p) => {
                   set({ cat: categoryId, tag: tagId, page: p > 1 ? String(p) : '' })
                   scrollToResults()
@@ -112,13 +121,13 @@ export function BlogPage() {
 
           <aside
             className="sticky top-27 flex flex-col gap-4.5 max-lg:static max-lg:order-first"
-            aria-label="تصفية المقالات"
+            aria-label={tx('تصفية المقالات', 'Filter articles')}
           >
             <div className="flex flex-col gap-2 rounded-card border border-line bg-white p-5">
-              <b className="mb-1 font-head text-lg text-ink">الأقسام</b>
+              <b className="mb-1 font-head text-lg text-ink">{tx('الأقسام', 'Categories')}</b>
               <div
                 role="radiogroup"
-                aria-label="الأقسام"
+                aria-label={tx('الأقسام', 'Categories')}
                 className="flex flex-col gap-1.5 max-lg:flex-row max-lg:flex-wrap"
               >
                 <button
@@ -128,7 +137,7 @@ export function BlogPage() {
                   className={sideBtn}
                   onClick={() => set({})}
                 >
-                  الكل
+                  {tx('الكل', 'All')}
                 </button>
                 {(categories.data ?? []).map((c) => (
                   <button
@@ -139,14 +148,14 @@ export function BlogPage() {
                     className={sideBtn}
                     onClick={() => set({ cat: c.id })}
                   >
-                    {c.name ?? c.nameAr}
+                    {c.name ?? loc(c.nameAr, c.nameEn)}
                   </button>
                 ))}
               </div>
             </div>
             {!!tags.data?.length && (
               <div className="flex flex-col gap-3 rounded-card border border-line bg-white p-5">
-                <b className="font-head text-lg text-ink">وسوم شائعة</b>
+                <b className="font-head text-lg text-ink">{tx('وسوم شائعة', 'Popular tags')}</b>
                 <div className="flex flex-wrap gap-2">
                   {tags.data.map((tg) => (
                     <button
@@ -156,16 +165,19 @@ export function BlogPage() {
                       onClick={() => set({ tag: tagId === tg.id ? '' : tg.id })}
                       className="rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-text-2 aria-pressed:border-blue-400 aria-pressed:bg-surface-blue aria-pressed:text-ink"
                     >
-                      #{tg.name ?? tg.nameAr}
+                      #{tg.name ?? loc(tg.nameAr, tg.nameEn)}
                     </button>
                   ))}
                 </div>
               </div>
             )}
             <div className="flex bg-navy flex-col gap-3 rounded-card p-5 text-white max-lg:hidden">
-              <b className="font-head text-lg">عايز تتعمق أكتر؟</b>
+              <b className="font-head text-lg">{tx('عايز تتعمق أكتر؟', 'Want to go deeper?')}</b>
               <p className="text-sm leading-relaxed text-on-dark">
-                الدورات بتشرح كل اللي في المقالات دي خطوة بخطوة.
+                {tx(
+                  'الدورات بتشرح كل اللي في المقالات دي خطوة بخطوة.',
+                  'The courses explain everything in these articles step by step.',
+                )}
               </p>
               <Link
                 to={routes.courses}
@@ -191,7 +203,7 @@ function Spotlight({ article }: { article: ArticleSummary }) {
       <div className="flex flex-col justify-center gap-3.5 p-8 max-md:order-last max-md:p-6">
         <span className="text-sm font-bold text-blue-600">
           {article.category?.name} · {minutesLabel(readingMinutes(article.content ?? article.shortContent))}{' '}
-          قراءة
+          {tx('قراءة', 'read')}
         </span>
         <h2 className="text-[clamp(24px,3vw,32px)] leading-snug">{article.title}</h2>
         {article.shortContent && (
@@ -203,15 +215,15 @@ function Spotlight({ article }: { article: ArticleSummary }) {
           </span>
           {!!article.viewsCount && (
             <span className="inline-flex items-center gap-1.5">
-              <Icon name="eye" size={15} /> {article.viewsCount} مشاهدة
+              <Icon name="eye" size={15} /> {article.viewsCount} {tx('مشاهدة', 'views')}
             </span>
           )}
         </span>
       </div>
       <div className="relative min-h-70" style={{ background: pickBySeed(CARD_GRADS, article.id) }}>
         {cover && <img src={cover} alt="" className="absolute inset-0 size-full cover-photo object-cover" />}
-        <span className="absolute top-4 left-4 bg-gold rounded-full px-3 py-1 text-[13px] font-extrabold text-navy">
-          مقال مميّز
+        <span className="absolute end-4 top-4 bg-gold rounded-full px-3 py-1 text-[13px] font-extrabold text-navy">
+          {tx('مقال مميّز', 'Featured article')}
         </span>
       </div>
     </Link>

@@ -3,6 +3,7 @@ import { Icon, type IconName } from './Icon'
 import { buttonClass } from './button'
 import { cn } from '@/lib/cn'
 import { dismissToast, showToast } from '@/lib/toast'
+import { tx } from '@/lib/i18n'
 
 interface StateProps {
   icon?: IconName
@@ -42,21 +43,22 @@ export function ErrorState({
       <span className="flex size-15 items-center justify-center rounded-[18px] bg-red-50 text-danger">
         <Icon name="alert" size={26} />
       </span>
-      <b className="font-head text-xl text-ink">مقدرناش نحمّل البيانات</b>
+      <b className="font-head text-xl text-ink">{tx('مقدرناش نحمّل البيانات', "We couldn't load this")}</b>
       <p className="max-w-105 leading-loose text-muted">
-        {message ?? 'حصلت مشكلة في الاتصال. حاول تاني بعد شوية.'}
+        {message ??
+          tx('حصلت مشكلة في الاتصال. حاول تاني بعد شوية.', 'Connection problem. Please try again shortly.')}
       </p>
       {onRetry && (
         <button type="button" className={buttonClass({ variant: 'outline', size: 'sm' })} onClick={onRetry}>
           <Icon name="refresh" size={16} />
-          حاول تاني
+          {tx('حاول تاني', 'Try again')}
         </button>
       )}
     </div>
   )
 }
 
-export function Spinner({ label = 'جاري التحميل' }: { label?: string }) {
+export function Spinner({ label = tx('جاري التحميل', 'Loading') }: { label?: string }) {
   return (
     <span
       className="inline-block size-5.5 animate-spin rounded-full border-[2.5px] border-current border-t-transparent align-middle"
@@ -80,13 +82,7 @@ function nodeText(node: ReactNode): string {
  * Errors and warnings show as an on-screen popup (kept while the alert is mounted, closable);
  * success messages stay inline.
  */
-export function Alert({
-  tone,
-  children,
-}: {
-  tone: 'error' | 'warning' | 'success'
-  children: ReactNode
-}) {
+export function Alert({ tone, children }: { tone: 'error' | 'warning' | 'success'; children: ReactNode }) {
   const popup = tone !== 'success'
   const text = nodeText(children)
   useEffect(() => {

@@ -283,6 +283,9 @@ export const adminCoursesApi = {
     })
   },
   removeLesson: (id: string) => api.delete(`/admin/lessons/${id}`),
+  /** Short-lived link to watch a lesson video / open its PDF from the dashboard. */
+  lessonMediaUrl: (id: string, kind: 'video' | 'pdf') =>
+    api.get<{ url: string; expiresAt: string }>(`/admin/lessons/${id}/media-url`, { params: { kind } }),
 }
 
 // ---------- catalog: books, products, articles ----------
@@ -383,6 +386,7 @@ export interface AdminArticle {
   createdAt: string
   category?: NamedCategory | null
   tags?: { id: string; nameAr: string }[]
+  relatedCourseIds?: string[]
 }
 
 export const catalogApi = {

@@ -1,3 +1,4 @@
+import { isEn } from '@/lib/i18n'
 /**
  * The API answers in English; these are the messages people actually see, in Arabic.
  * Unknown English messages fall back to a short message for their HTTP status.
@@ -17,8 +18,7 @@ const MESSAGES: Record<string, string> = {
   'Password reset OTP has expired.': 'الكود انتهت صلاحيته. اطلب كود جديد.',
   'Password reset OTP is missing.': 'مفيش كود متبعت للبريد ده. اطلب كود جديد.',
   'Password reset OTP expiry is missing.': 'مفيش كود متبعت للبريد ده. اطلب كود جديد.',
-  'Maximum password reset OTP attempts exceeded.':
-    'جرّبت الكود مرات كتير. اطلب كود جديد.',
+  'Maximum password reset OTP attempts exceeded.': 'جرّبت الكود مرات كتير. اطلب كود جديد.',
   'Password reset session is invalid or expired.':
     'انتهت مهلة تغيير كلمة المرور. ابدأ من الأول واطلب كود جديد.',
   'Current password is incorrect.': 'كلمة المرور الحالية غلط.',
@@ -79,6 +79,17 @@ const MESSAGES: Record<string, string> = {
   'Provide at least one field to update.': 'مفيش حاجة اتغيرت.',
 }
 
+const EN_BY_STATUS: Record<number, string> = {
+  400: 'Please check the details and try again.',
+  401: 'Please sign in first.',
+  403: "You're not allowed to do this.",
+  404: 'Not found.',
+  409: 'This already exists.',
+  413: 'The file is too large.',
+  429: 'Too many attempts. Wait a minute and try again.',
+  503: 'The service is unavailable right now. Please try again shortly.',
+}
+
 const BY_STATUS: Record<number, string> = {
   400: 'البيانات فيها مشكلة. راجعها وحاول تاني.',
   401: 'لازم تسجّل دخول الأول.',
@@ -97,6 +108,14 @@ const HAS_ARABIC = /[؀-ۿ]/
 /** Arabic text for an API error message (and its validation details). */
 export function translateApiMessage(message: string, statusCode: number, errors: unknown[] = []): string {
   if (HAS_ARABIC.test(message)) return message
+  // English site: the API's own (English) wording, or a short message for the status.
+  if (isEn) {
+    if (message && message !== 'Validation failed') return message
+    const first = errors.find((e): e is string => typeof e === 'string')
+    return first
+      ? first.charAt(0).toUpperCase() + first.slice(1)
+      : (EN_BY_STATUS[statusCode] ?? 'Something went wrong. Please try again.')
+  }
   const known = MESSAGES[message.trim()]
   if (known) return known
 

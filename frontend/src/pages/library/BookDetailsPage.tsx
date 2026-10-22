@@ -23,6 +23,7 @@ import { usePageTitle } from '@/lib/usePageTitle'
 import type { Book, BookFormat, BookFormatType } from '@/types/api'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { useRegion } from '@/lib/region'
+import { loc, tx } from '@/lib/i18n'
 
 const FORMAT_ICON: Record<BookFormatType, IconName> = {
   Physical: 'bookClosed',
@@ -30,9 +31,9 @@ const FORMAT_ICON: Record<BookFormatType, IconName> = {
   Audio: 'headphones',
 }
 const FORMAT_NOTE: Record<BookFormatType, string> = {
-  Physical: 'يوصلك خلال 2 لـ 4 أيام عمل',
-  Digital: 'PDF يتفتح فورًا بعد الدفع',
-  Audio: 'تسمعه فورًا بعد الدفع',
+  Physical: tx('يوصلك خلال 2 لـ 4 أيام عمل', 'Delivered within 2–4 business days'),
+  Digital: tx('PDF يتفتح فورًا بعد الدفع', 'PDF opens right after payment'),
+  Audio: tx('تسمعه فورًا بعد الدفع', 'Listen right after payment'),
 }
 
 export function BookDetailsPage() {
@@ -47,7 +48,7 @@ export function BookDetailsPage() {
     queryKey: ['books', 'slug', slug],
     queryFn: () => booksApi.bySlug(slug),
   })
-  usePageTitle(book?.titleAr ?? 'الكتاب')
+  usePageTitle(loc(book?.titleAr, book?.titleEn) ?? 'الكتاب')
 
   if ((error instanceof ApiClientError && error.statusCode === 404) || (book && !book.isActive))
     return <NotFoundPage />
@@ -87,13 +88,13 @@ function BookDetails({ book }: { book: Book }) {
     : { current: bookStartPrice(book, currency), old: null }
   const physical = format?.formatType === 'Physical'
   const outOfStock = physical && (format?.stock ?? 0) <= 0
-  const [head, ...tail] = book.titleAr.split(' ')
+  const [head, ...tail] = loc(book.titleAr, book.titleEn).split(' ')
 
   const gallery = useMemo(() => {
     const items = [
       {
         key: 'cover',
-        label: 'الغلاف',
+        label: tx('الغلاف', 'Cover'),
         main: <BookCoverArt book={book} className="h-auto max-h-90 w-60 tilt" />,
         thumb: <BookCoverArt book={book} size="sm" />,
       },
@@ -102,7 +103,7 @@ function BookDetails({ book }: { book: Book }) {
       const src = resolveAssetUrl(img.imageUrl)!
       items.push({
         key: img.id,
-        label: 'صورة من الكتاب',
+        label: tx('صورة من الكتاب', 'Inside the book'),
         main: <img src={src} alt="" className="max-h-full max-w-full rounded-xl object-contain" />,
         thumb: <img src={src} alt="" className="size-full object-cover" />,
       })
@@ -120,7 +121,11 @@ function BookDetails({ book }: { book: Book }) {
       setAdded(true)
       if (goToCart) navigate(routes.cart)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'حصلت مشكلة، حاول تاني.')
+      setError(
+        e instanceof Error
+          ? e.message
+          : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.'),
+      )
     }
   }
 
@@ -128,10 +133,11 @@ function BookDetails({ book }: { book: Book }) {
     <>
       <section className="px-6 pt-30 pb-16 max-sm:px-4 max-sm:pt-26">
         <div className={cn(innerClass, 'flex flex-col gap-6')}>
-          <nav aria-label="مسار الصفحة" className="text-sm text-muted">
-            <Link to={routes.home}>الرئيسية</Link> / <Link to={routes.library}>المكتبة</Link> /{' '}
+          <nav aria-label={tx('مسار الصفحة', 'Breadcrumb')} className="text-sm text-muted">
+            <Link to={routes.home}>{tx('الرئيسية', 'Home')}</Link> /{' '}
+            <Link to={routes.library}>{tx('المكتبة', 'Library')}</Link> /{' '}
             <span aria-current="page" className="text-ink">
-              {book.titleAr}
+              {loc(book.titleAr, book.titleEn)}
             </span>
           </nav>
           <div className="grid grid-cols-2 items-start gap-8 max-lg:grid-cols-1">
@@ -139,27 +145,29 @@ function BookDetails({ book }: { book: Book }) {
               <div className="flex flex-wrap gap-2">
                 {book.isFeatured && (
                   <span className="bg-gold rounded-full px-3 py-1 text-[13px] font-extrabold text-navy">
-                    الأكثر مبيعًا
+                    {tx('الأكثر مبيعًا', 'Best seller')}
                   </span>
                 )}
                 {book.category && (
                   <span className="rounded-full bg-surface-blue px-3 py-1 text-[13px] font-bold text-blue-600">
-                    {book.category.nameAr}
+                    {loc(book.category.nameAr, book.category.nameEn)}
                   </span>
                 )}
               </div>
               <h1 className="text-[clamp(32px,4.5vw,48px)] leading-tight">
                 <Highlight text={tail.length ? `${head} *${tail.join(' ')}*` : head} />
               </h1>
-              <p className="text-sm text-muted">تأليف: د. صالح عبد الكريم</p>
+              <p className="text-sm text-muted">
+                {tx('تأليف: د. صالح عبد الكريم', 'By Dr. Saleh Abdelkarim')}
+              </p>
 
               {formats.length > 0 && (
                 <div className="flex flex-col gap-2.5">
-                  <b className="text-ink">اختار النسخة</b>
+                  <b className="text-ink">{tx('اختار النسخة', 'Choose an edition')}</b>
                   <div
                     className="grid grid-cols-3 gap-3 max-sm:grid-cols-1"
                     role="radiogroup"
-                    aria-label="النسخة"
+                    aria-label={tx('النسخة', 'Edition')}
                   >
                     {formats.map((f) => (
                       <FormatOption
@@ -180,12 +188,14 @@ function BookDetails({ book }: { book: Book }) {
                     className={cn('text-[15px] font-semibold', outOfStock ? 'text-danger' : 'text-success')}
                   >
                     ●{' '}
-                    {outOfStock ? 'نفدت النسخة الورقية حاليًا' : `متوفر · ${FORMAT_NOTE[format.formatType]}`}
+                    {outOfStock
+                      ? tx('نفدت النسخة الورقية حاليًا', 'The paperback is out of stock for now')
+                      : `${tx('متوفر', 'In stock')} · ${FORMAT_NOTE[format.formatType]}`}
                   </span>
                 )}
                 {physical && !outOfStock && (
                   <div className="flex items-center justify-between">
-                    <b className="text-ink">الكمية</b>
+                    <b className="text-ink">{tx('الكمية', 'Quantity')}</b>
                     <QuantityStepper value={qty} onChange={setQty} max={format?.stock ?? 99} />
                   </div>
                 )}
@@ -200,7 +210,7 @@ function BookDetails({ book }: { book: Book }) {
                     <Spinner />
                   ) : (
                     <>
-                      اشتري الآن
+                      {tx('اشتري الآن', 'Buy now')}
                       {price.current != null &&
                         ` · ${formatMoney(price.current * (physical ? qty : 1), currency)}`}
                     </>
@@ -218,7 +228,11 @@ function BookDetails({ book }: { book: Book }) {
                       ),
                     })}
                     aria-pressed={wishlist.has(book.id)}
-                    aria-label={wishlist.has(book.id) ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    aria-label={
+                      wishlist.has(book.id)
+                        ? tx('إزالة من المفضلة', 'Remove from wishlist')
+                        : tx('إضافة للمفضلة', 'Add to wishlist')
+                    }
                     onClick={() => wishlist.toggle(book.id)}
                   >
                     <Icon name="heart" filled={wishlist.has(book.id)} />
@@ -233,7 +247,7 @@ function BookDetails({ book }: { book: Book }) {
                       <Spinner />
                     ) : added ? (
                       <>
-                        <Icon name="check" /> اتضاف للسلة
+                        <Icon name="check" /> {tx('اتضاف للسلة', 'Added to cart')}
                       </>
                     ) : (
                       <>
@@ -244,7 +258,7 @@ function BookDetails({ book }: { book: Book }) {
                 </div>
                 {added && (
                   <Link to={routes.cart} className="text-center font-bold">
-                    روح للسلة <Icon name="arrowLeft" size={16} className="inline" />
+                    {tx('روح للسلة', 'Go to cart')} <Icon name="arrowLeft" size={16} className="inline" />
                   </Link>
                 )}
               </div>
@@ -256,16 +270,16 @@ function BookDetails({ book }: { book: Book }) {
               stageClass="bg-linear-135 from-blue-600 to-blue-400"
               badge={
                 formats.some((f) => f.formatType === 'Audio') ? (
-                  <span className="absolute bottom-5 left-5 z-1 flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-float">
+                  <span className="absolute end-5 bottom-5 z-1 flex items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-float">
                     <span className="flex size-9 bg-gold items-center justify-center rounded-xl text-navy">
                       <Icon name="headphones" size={18} />
                     </span>
                     <span className="flex flex-col text-sm">
-                      <b className="text-ink">بصوت الدكتور</b>
+                      <b className="text-ink">{tx('بصوت الدكتور', "In the doctor's voice")}</b>
                       {formats.find((f) => f.formatType === 'Audio')?.audioDuration ? (
                         <span className="text-xs text-muted">
                           {durationLabel(formats.find((f) => f.formatType === 'Audio')!.audioDuration!)}{' '}
-                          استماع
+                          {tx('استماع', 'of listening')}
                         </span>
                       ) : null}
                     </span>
@@ -279,9 +293,9 @@ function BookDetails({ book }: { book: Book }) {
 
       <section className={sectionClass}>
         <div className={cn(innerClass, 'flex flex-col gap-4 rounded-panel p-9 gborder max-sm:p-6')}>
-          <h2 className="text-[26px]">نبذة عن الكتاب</h2>
+          <h2 className="text-[26px]">{tx('نبذة عن الكتاب', 'About the book')}</h2>
           <div className="flex flex-col gap-3 text-[17px] leading-[1.95] text-text-2">
-            {book.descriptionAr
+            {loc(book.descriptionAr, book.descriptionEn)
               .split(/\n+/)
               .filter(Boolean)
               .map((p, i) => (
@@ -294,8 +308,11 @@ function BookDetails({ book }: { book: Book }) {
       <MoreBooks current={book} />
 
       <CTABand
-        title="عايز تطبّق اللي في الكتاب خطوة بخطوة؟"
-        body="الدورات بتحوّل أفكار الكتب لخطوات عملية بالفيديو، مع شهادة في الآخر."
+        title={tx('عايز تطبّق اللي في الكتاب خطوة بخطوة؟', 'Want to apply the book step by step?')}
+        body={tx(
+          'الدورات بتحوّل أفكار الكتب لخطوات عملية بالفيديو، مع شهادة في الآخر.',
+          "The courses turn the books' ideas into practical video steps, with a certificate at the end.",
+        )}
       />
     </>
   )
@@ -345,10 +362,10 @@ function MoreBooks({ current }: { current: Book }) {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="من المكتبة"
+          eyebrow={tx('من المكتبة', 'From the library')}
           icon="book"
-          title={<Highlight text="اطّلع على *المزيد* من الكتب" />}
-          more={{ to: routes.library, label: 'المكتبة' }}
+          title={<Highlight text={tx('اطّلع على *المزيد* من الكتب', 'Discover *more* books')} />}
+          more={{ to: routes.library, label: tx('المكتبة', 'Library') }}
         />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
           {others.map((b) => {
@@ -361,7 +378,7 @@ function MoreBooks({ current }: { current: Book }) {
               >
                 <BookCoverArt book={b} size="sm" className="h-22 w-16" />
                 <span className="flex min-w-0 flex-col gap-1">
-                  <b className="truncate text-ink">{b.titleAr}</b>
+                  <b className="truncate text-ink">{loc(b.titleAr, b.titleEn)}</b>
                   <span className="text-xs text-muted">
                     {activeFormats(b)
                       .map((f) => FORMAT_LABEL[f.formatType])

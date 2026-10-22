@@ -19,6 +19,7 @@ import { useRegion } from '@/lib/region'
 import { PriceFilter } from '@/components/catalog/PriceFilter'
 import { priceParam } from '@/lib/priceParam'
 import { keepScroll, scrollToResults } from '@/lib/scroll'
+import { loc, tx } from '@/lib/i18n'
 
 const PAGE_SIZE = 9
 
@@ -28,7 +29,7 @@ const categoryBtn =
   'aria-checked:bg-navy aria-checked:text-white'
 
 export function CoursesPage() {
-  usePageTitle('الدورات')
+  usePageTitle(tx('الدورات', 'Courses'))
   const t = useCopy()
   const [params, setParams] = useSearchParams()
   const search = params.get('q') ?? ''
@@ -106,18 +107,19 @@ export function CoursesPage() {
   return (
     <>
       <PageHero
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'الدورات' }]}
+        crumbs={[{ label: tx('الرئيسية', 'Home'), to: routes.home }, { label: tx('الدورات', 'Courses') }]}
         eyebrow={
           totalCount ? (
             <>
               <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-              {totalCount} دورات مسجّلة بشهادة
+              {tx(`${totalCount} دورات مسجّلة بشهادة`, `${totalCount} recorded courses with a certificate`)}
             </>
           ) : undefined
         }
         title={
           <>
-            دورات تبني <span className="text-sheen">شخصية ابنك</span>
+            {tx('دورات تبني', 'Courses that build')}{' '}
+            <span className="text-sheen">{tx('شخصية ابنك', "your child's character")}</span>
           </>
         }
         body={t('courses.hero.body')}
@@ -129,51 +131,57 @@ export function CoursesPage() {
         >
           <label className="flex min-h-13 flex-[1_1_320px] items-center gap-2.5 rounded-field border-[1.5px] border-line px-4 text-muted transition-[border-color,box-shadow] focus-within:border-blue-400 focus-within:shadow-[0_0_0_4px_rgba(61,155,216,.15)]">
             <Icon name="search" />
-            <span className="sr-only">ابحث عن دورة</span>
+            <span className="sr-only">{tx('ابحث عن دورة', 'Search for a course')}</span>
             <input
               type="search"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="ابحث عن دورة في التربية أو تطوير الذات…"
+              placeholder={tx(
+                'ابحث عن دورة في التربية أو تطوير الذات…',
+                'Search parenting or self-development courses…',
+              )}
               className="min-w-0 flex-1 border-0 bg-transparent text-base text-text outline-none"
             />
           </label>
           <span className={cn(chip, 'bg-surface-blue text-ink')}>
-            <Icon name="video" size={18} /> فيديو + PDF
+            <Icon name="video" size={18} /> {tx('فيديو + PDF', 'Video + PDF')}
           </span>
           <span className={cn(chip, 'bg-gold-soft text-gold-ink')}>
-            <Icon name="award" size={18} /> شهادة لكل دورة
+            <Icon name="award" size={18} /> {tx('شهادة لكل دورة', 'A certificate for every course')}
           </span>
           <button
             type="submit"
             className={buttonClass({ variant: 'navy', className: 'max-sm:flex-[1_1_100%]' })}
           >
-            بحث
+            {tx('بحث', 'Search')}
           </button>
         </form>
       </PageHero>
 
       <section id="results" className={cn(sectionClass, 'scroll-mt-28 pt-8')}>
         <div className={cn(innerClass, 'grid grid-cols-[260px_1fr] items-start gap-7 max-md:grid-cols-1')}>
-          <aside className="sticky top-27 flex flex-col gap-4.5 max-md:static" aria-label="تصفية النتائج">
+          <aside
+            className="sticky top-27 flex flex-col gap-4.5 max-md:static"
+            aria-label={tx('تصفية النتائج', 'Filter results')}
+          >
             <div className="flex flex-col gap-3 rounded-card border border-line bg-white p-5">
               <div className="flex items-center justify-between">
-                <b className="font-head text-lg text-ink">تصفية النتائج</b>
+                <b className="font-head text-lg text-ink">{tx('تصفية النتائج', 'Filter results')}</b>
                 {filtered && (
                   <button
                     type="button"
                     className="border-0 bg-transparent font-bold text-blue-500"
                     onClick={clearAll}
                   >
-                    مسح
+                    {tx('مسح', 'Clear')}
                   </button>
                 )}
               </div>
-              <span className="mt-1 text-sm font-bold text-ink">التصنيف</span>
+              <span className="mt-1 text-sm font-bold text-ink">{tx('التصنيف', 'Category')}</span>
               <div
                 className="flex flex-col gap-1.5 max-md:flex-row max-md:flex-wrap"
                 role="radiogroup"
-                aria-label="التصنيف"
+                aria-label={tx('التصنيف', 'Category')}
               >
                 <button
                   type="button"
@@ -182,7 +190,7 @@ export function CoursesPage() {
                   className={categoryBtn}
                   onClick={() => update({ cat: null, page: null })}
                 >
-                  كل الدورات
+                  {tx('كل الدورات', 'All courses')}
                 </button>
                 {(categories.data ?? []).map((c) => (
                   <button
@@ -193,7 +201,7 @@ export function CoursesPage() {
                     className={categoryBtn}
                     onClick={() => update({ cat: c.id, page: null })}
                   >
-                    {c.nameAr}
+                    {loc(c.nameAr, c.nameEn)}
                   </button>
                 ))}
               </div>
@@ -213,9 +221,12 @@ export function CoursesPage() {
             </div>
 
             <div className="relative flex min-h-37.5 flex-col gap-2 overflow-hidden rounded-card bg-linear-160 from-gold-soft to-gold-light py-5 ps-5 pe-24 max-md:hidden">
-              <b className="font-head text-ink">مش عارف تبدأ بإيه؟</b>
+              <b className="font-head text-ink">{tx('مش عارف تبدأ بإيه؟', 'Not sure where to start?')}</b>
               <p className="text-sm leading-[1.7] text-[#6b4a14]">
-                اطلب استشارة قصيرة ونرشّحلك المسار المناسب لابنك.
+                {tx(
+                  'اطلب استشارة قصيرة ونرشّحلك المسار المناسب لابنك.',
+                  "Request a short consultation and we'll recommend the right path for your child.",
+                )}
               </p>
               <Link
                 to={routes.consultation}
@@ -228,7 +239,7 @@ export function CoursesPage() {
                 alt=""
                 aria-hidden="true"
                 loading="lazy"
-                className="absolute bottom-0 -left-1.5 h-32.5 w-auto"
+                className="absolute -end-1.5 bottom-0 h-32.5 w-auto"
               />
             </div>
           </aside>
@@ -237,8 +248,8 @@ export function CoursesPage() {
             <div className="mb-4 flex min-h-11 items-center justify-between text-muted" aria-live="polite">
               {pagination && (
                 <span>
-                  <b className="text-ink">{pagination.total}</b> دورة متاحة
-                  {search && <> لـ «{search}»</>}
+                  <b className="text-ink">{pagination.total}</b> {tx('دورة متاحة', 'courses available')}
+                  {search && <> {tx(`لـ «${search}»`, `for “${search}”`)}</>}
                 </span>
               )}
             </div>
@@ -254,8 +265,16 @@ export function CoursesPage() {
             ) : courses.length === 0 ? (
               <EmptyState
                 icon="search"
-                title={filtered ? 'مفيش دورات بالمواصفات دي' : 'الدورات جاية قريب'}
-                body={filtered ? 'جرّب كلمة تانية أو امسح الفلاتر.' : 'بنجهّز أول دفعة من الدورات.'}
+                title={
+                  filtered
+                    ? tx('مفيش دورات بالمواصفات دي', 'No courses match these filters')
+                    : tx('الدورات جاية قريب', 'Courses are coming soon')
+                }
+                body={
+                  filtered
+                    ? tx('جرّب كلمة تانية أو امسح الفلاتر.', 'Try another word or clear the filters.')
+                    : tx('بنجهّز أول دفعة من الدورات.', "We're preparing the first courses.")
+                }
                 action={
                   filtered && (
                     <button
@@ -263,7 +282,7 @@ export function CoursesPage() {
                       className={buttonClass({ variant: 'outline', size: 'sm' })}
                       onClick={clearAll}
                     >
-                      مسح الفلاتر
+                      {tx('مسح الفلاتر', 'Clear filters')}
                     </button>
                   )
                 }
@@ -287,7 +306,7 @@ export function CoursesPage() {
             {pagination && pagination.totalPages > 1 && (
               <Pager
                 pagination={pagination}
-                noun="دورة"
+                noun={tx('دورة', 'courses')}
                 onChange={(p) => {
                   update({ page: p > 1 ? String(p) : null })
                   scrollToResults()

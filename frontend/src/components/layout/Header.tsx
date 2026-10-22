@@ -10,28 +10,29 @@ import { cn } from '@/lib/cn'
 import { useActivity, useReadState } from '@/lib/activity'
 import { NotificationItem } from '@/components/account/NotificationItem'
 import { confirmAction } from '@/lib/confirm'
+import { isEn, setLang, tx } from '@/lib/i18n'
 
 const NAV = [
-  { to: routes.home, label: 'الرئيسية', end: true },
-  { to: routes.about, label: 'عن د. صالح' },
-  { to: routes.courses, label: 'الدورات' },
-  { to: routes.library, label: 'المكتبة' },
-  { to: routes.store, label: 'المتجر' },
+  { to: routes.home, label: tx('الرئيسية', 'Home'), end: true },
+  { to: routes.about, label: tx('عن د. صالح', 'About') },
+  { to: routes.courses, label: tx('الدورات', 'Courses') },
+  { to: routes.library, label: tx('المكتبة', 'Library') },
+  { to: routes.store, label: tx('المتجر', 'Store') },
   // The header keeps pointing to the original consultation page (decision with Amr).
-  { to: routes.consultation, label: 'الاستشارات' },
-  { to: routes.blog, label: 'المقالات' },
-  { to: routes.contact, label: 'تواصل معنا' },
+  { to: routes.consultation, label: tx('الاستشارات', 'Consultations') },
+  { to: routes.blog, label: tx('المقالات', 'Articles') },
+  { to: routes.contact, label: tx('تواصل معنا', 'Contact') },
 ]
 
 const ACCOUNT_MENU: { to: string; label: string; icon: IconName }[] = [
-  { to: routes.dashboard, label: 'نظرة عامة', icon: 'grid' },
-  { to: routes.myCourses, label: 'دوراتي', icon: 'video' },
-  { to: routes.myBooks, label: 'كتبي', icon: 'book' },
-  { to: routes.certificates, label: 'شهاداتي', icon: 'award' },
-  { to: routes.orders, label: 'طلباتي', icon: 'receipt' },
-  { to: routes.wishlist, label: 'المفضلة', icon: 'heart' },
-  { to: routes.myConsultations, label: 'استشاراتي', icon: 'chat' },
-  { to: routes.profile, label: 'الملف الشخصي', icon: 'user' },
+  { to: routes.dashboard, label: tx('نظرة عامة', 'Overview'), icon: 'grid' },
+  { to: routes.myCourses, label: tx('دوراتي', 'My courses'), icon: 'video' },
+  { to: routes.myBooks, label: tx('كتبي', 'My books'), icon: 'book' },
+  { to: routes.certificates, label: tx('شهاداتي', 'Certificates'), icon: 'award' },
+  { to: routes.orders, label: tx('طلباتي', 'My orders'), icon: 'receipt' },
+  { to: routes.wishlist, label: tx('المفضلة', 'Wishlist'), icon: 'heart' },
+  { to: routes.myConsultations, label: tx('استشاراتي', 'My consultations'), icon: 'chat' },
+  { to: routes.profile, label: tx('الملف الشخصي', 'Profile'), icon: 'user' },
 ]
 
 type Panel = 'menu' | 'notif' | 'mobile' | null
@@ -97,10 +98,13 @@ export function Header() {
     setPanel(null)
     if (
       !(await confirmAction({
-        title: 'تسجّل خروج؟',
-        body: 'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
-        confirmLabel: 'تسجيل الخروج',
-        cancelLabel: 'خليني',
+        title: tx('تسجّل خروج؟', 'Sign out?'),
+        body: tx(
+          'هتحتاج تدخل بالإيميل وكلمة السر تاني.',
+          "You'll need your email and password to sign in again.",
+        ),
+        confirmLabel: tx('تسجيل الخروج', 'Sign out'),
+        cancelLabel: tx('خليني', 'Stay'),
         tone: 'warning',
         icon: 'logout',
       }))
@@ -125,17 +129,20 @@ export function Header() {
             : 'border-white/70 shadow-[0_18px_40px_-22px_rgba(5,20,40,.55)]',
         )}
       >
-        <Link to={routes.home} aria-label="الرئيسية" className="flex flex-none">
+        <Link to={routes.home} aria-label={tx('الرئيسية', 'Home')} className="flex flex-none">
           <img
             src="/assets/brand/logo-blue.webp"
-            alt="الدكتور صالح عبد الكريم"
+            alt={tx('الدكتور صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
             width={102}
             height={46}
             className="h-11.5 w-auto max-sm:h-9.5"
           />
         </Link>
 
-        <nav aria-label="القائمة الرئيسية" className="flex flex-1 justify-center gap-0.5 max-xl:hidden">
+        <nav
+          aria-label={tx('القائمة الرئيسية', 'Main menu')}
+          className="flex flex-1 justify-center gap-0.5 max-xl:hidden"
+        >
           {NAV.map((n) => (
             <NavLink
               key={n.to}
@@ -143,7 +150,7 @@ export function Header() {
               end={n.end}
               className={({ isActive }) =>
                 cn(
-                  'flex h-10.5 items-center rounded-full px-3.5 text-[15px] whitespace-nowrap transition-colors',
+                  'flex h-10.5 items-center rounded-full px-3.5 text-[15px] whitespace-nowrap transition-colors ltr:px-3',
                   isActive
                     ? 'bg-navy px-4 font-bold text-white hover:text-white'
                     : 'font-medium text-muted hover:bg-hover hover:text-ink',
@@ -156,17 +163,29 @@ export function Header() {
         </nav>
 
         <div className="flex flex-none items-center gap-1.5">
-          <Link to={routes.search} aria-label="بحث" className={iconBtn}>
+          <Link to={routes.search} aria-label={tx('بحث', 'Search')} className={iconBtn}>
             <Icon name="search" />
           </Link>
+          <button
+            type="button"
+            className={cn(iconBtn, 'font-head text-[13px] font-bold')}
+            onClick={() => setLang(isEn ? 'ar' : 'en')}
+            aria-label={isEn ? 'التصفح بالعربي' : 'Switch to English'}
+            title={isEn ? 'العربية' : 'English'}
+            lang={isEn ? 'ar' : 'en'}
+          >
+            {isEn ? 'ع' : 'EN'}
+          </button>
           <Link
             to={routes.cart}
-            aria-label={cartCount ? `السلة، ${cartCount} عنصر` : 'السلة'}
+            aria-label={
+              cartCount ? tx(`السلة، ${cartCount} عنصر`, `Cart, ${cartCount} items`) : tx('السلة', 'Cart')
+            }
             className={iconBtn}
           >
             <Icon name="bag" />
             {cartCount > 0 && (
-              <span className="absolute top-0.75 left-0.75 flex h-4.25 min-w-4.25 bg-gold items-center justify-center rounded-full border-2 border-white px-1 text-[11px] font-bold text-white">
+              <span className="absolute end-0.75 top-0.75 flex h-4.25 min-w-4.25 bg-gold items-center justify-center rounded-full border-2 border-white px-1 text-[11px] font-bold text-white">
                 {cartCount}
               </span>
             )}
@@ -177,13 +196,17 @@ export function Header() {
               <button
                 type="button"
                 className={cn(iconBtn, panel === 'notif' && 'bg-hover')}
-                aria-label={unread ? `الإشعارات، ${unread} جديد` : 'الإشعارات'}
+                aria-label={
+                  unread
+                    ? tx(`الإشعارات، ${unread} جديد`, `Notifications, ${unread} new`)
+                    : tx('الإشعارات', 'Notifications')
+                }
                 aria-expanded={panel === 'notif'}
                 onClick={() => toggle('notif')}
               >
                 <Icon name="bell" />
                 {unread > 0 && (
-                  <span className="absolute top-0.75 left-0.75 flex h-4.25 min-w-4.25 items-center justify-center rounded-full border-2 border-white bg-danger-dot px-1 text-[11px] font-bold text-white">
+                  <span className="absolute end-0.75 top-0.75 flex h-4.25 min-w-4.25 items-center justify-center rounded-full border-2 border-white bg-danger-dot px-1 text-[11px] font-bold text-white">
                     {unread}
                   </span>
                 )}
@@ -196,7 +219,7 @@ export function Header() {
                   'max-sm:border-0 max-sm:px-1',
                   panel === 'menu' && 'bg-hover',
                 )}
-                aria-label={`قائمة حسابي: ${user.fullName}`}
+                aria-label={tx(`قائمة حسابي: ${user.fullName}`, `My account: ${user.fullName}`)}
                 aria-expanded={panel === 'menu'}
                 onClick={() => toggle('menu')}
               >
@@ -212,7 +235,7 @@ export function Header() {
                 to={routes.login}
                 className="flex h-10.5 items-center px-3 text-[15px] font-semibold text-ink max-sm:hidden"
               >
-                دخول
+                {tx('دخول', 'Sign in')}
               </Link>
               <Link
                 to={routes.register}
@@ -226,7 +249,7 @@ export function Header() {
           <button
             type="button"
             className={cn(iconBtn, 'hidden max-xl:flex')}
-            aria-label="القائمة"
+            aria-label={tx('القائمة', 'Menu')}
             aria-expanded={panel === 'mobile'}
             onClick={() => toggle('mobile')}
           >
@@ -235,7 +258,7 @@ export function Header() {
         </div>
 
         {panel === 'menu' && user && (
-          <div role="menu" className={cn(dropdown, 'left-1.5 w-72.5')}>
+          <div role="menu" className={cn(dropdown, 'end-1.5 w-72.5')}>
             <div className="mb-1 flex bg-navy items-center gap-3 rounded-2xl p-3">
               <Avatar letter={initial} large />
               <span className="flex min-w-0 flex-col">
@@ -250,9 +273,9 @@ export function Header() {
               </Link>
             ))}
             {user.role === 'Admin' && (
-              <Link to={routes.admin} role="menuitem" className={menuItem}>
+              <Link to={routes.admin} role="menuitem" className={menuItem} reloadDocument={isEn}>
                 <Icon name="grid" size={18} />
-                لوحة التحكم
+                {tx('لوحة التحكم', 'Dashboard')}
               </Link>
             )}
             <span className="mx-2 my-1.5 h-px bg-divider" />
@@ -263,15 +286,19 @@ export function Header() {
               onClick={handleLogout}
             >
               <Icon name="logout" size={18} />
-              تسجيل الخروج
+              {tx('تسجيل الخروج', 'Sign out')}
             </button>
           </div>
         )}
 
         {panel === 'notif' && user && (
-          <div role="dialog" aria-label="الإشعارات" className={cn(dropdown, 'left-27.5 w-95 p-3.5')}>
+          <div
+            role="dialog"
+            aria-label={tx('الإشعارات', 'Notifications')}
+            className={cn(dropdown, 'end-27.5 w-95 p-3.5')}
+          >
             <div className="flex items-center justify-between px-1.5 pt-1 pb-2.5">
-              <b className="font-head text-lg text-ink">الإشعارات</b>
+              <b className="font-head text-lg text-ink">{tx('الإشعارات', 'Notifications')}</b>
               {unread > 0 && (
                 <button
                   type="button"
@@ -279,7 +306,7 @@ export function Header() {
                   className="flex items-center gap-1.5 rounded-lg border-0 bg-transparent px-2 py-1 text-sm font-bold text-blue-600 hover:bg-hover"
                 >
                   <Icon name="check" size={15} />
-                  تعليم الكل كمقروء
+                  {tx('تعليم الكل كمقروء', 'Mark all as read')}
                 </button>
               )}
             </div>
@@ -288,7 +315,7 @@ export function Header() {
                 <span className="flex size-13 items-center justify-center rounded-2xl bg-surface-blue text-blue-600">
                   <Icon name="bell" size={22} />
                 </span>
-                مفيش إشعارات جديدة دلوقتي
+                {tx('مفيش إشعارات جديدة دلوقتي', 'No new notifications right now')}
               </div>
             ) : (
               <ul className="flex max-h-[60vh] flex-col gap-0.5 overflow-y-auto">
@@ -303,7 +330,7 @@ export function Header() {
               to={routes.notifications}
               className="mt-2 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border-t border-divider pt-2 text-sm font-bold text-blue-600 hover:text-blue-600"
             >
-              عرض كل الإشعارات
+              {tx('عرض كل الإشعارات', 'See all notifications')}
               <Icon name="chevLeft" size={16} />
             </Link>
           </div>
@@ -312,7 +339,7 @@ export function Header() {
 
       {panel === 'mobile' && (
         <div className="pointer-events-auto mx-auto mt-2.5 max-w-site animate-dd-in rounded-card border border-line bg-white p-2.5 shadow-pop">
-          <nav aria-label="القائمة" className="flex flex-col">
+          <nav aria-label={tx('القائمة', 'Menu')} className="flex flex-col">
             {NAV.map((n) => (
               <NavLink
                 key={n.to}
@@ -333,7 +360,7 @@ export function Header() {
           {!user && (
             <div className="grid grid-cols-2 gap-2.5 px-1 pt-2.5 pb-1">
               <Link to={routes.login} className={buttonClass({ variant: 'outline', block: true })}>
-                دخول
+                {tx('دخول', 'Sign in')}
               </Link>
               <Link to={routes.register} className={buttonClass({ variant: 'gold', block: true })}>
                 {t('cta.startFree')}

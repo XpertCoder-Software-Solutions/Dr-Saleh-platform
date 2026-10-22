@@ -6,6 +6,7 @@ import { routes } from '@/app/routes'
 import { AdminCard, AdminHeader } from '@/components/admin/AdminLayout'
 import { CourseCover } from '@/components/course/CourseCover'
 import { Icon } from '@/components/ui/Icon'
+import { Modal } from '@/components/ui/Modal'
 import { buttonClass } from '@/components/ui/button'
 import { CheckField, SelectField, TextField } from '@/components/ui/fields'
 import { RichTextEditor } from '@/components/ui/RichTextEditor'
@@ -302,7 +303,7 @@ function Editor({ course }: { course?: Course }) {
           </div>
 
           {section('معلومات عن الدورة', 'نبذة قصيرة بتظهر تحت اسم الدورة.')}
-          <div className="grid grid-cols-2 gap-4 max-lg:grid-cols-1">
+          <div className="flex flex-col gap-4">
             <RichTextEditor
               label="بالعربي"
               compact
@@ -706,6 +707,7 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
     onSuccess: onChange,
   })
   const error = patch.error ?? remove.error ?? media.error
+  const [viewing, setViewing] = useState<'video' | 'pdf' | null>(null)
 
   return (
     <li className="flex flex-wrap items-center gap-3 border-t border-divider px-4 py-3 first:border-t-0">
@@ -729,6 +731,24 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
         <UploadBar pct={pct} label="بيرفع الملف…" />
       ) : (
         <span className="flex flex-wrap gap-1">
+          {(lesson.hasVideo || lesson.videoKey) && (
+            <button
+              type="button"
+              className={buttonClass({ variant: 'ghost', size: 'sm' })}
+              onClick={() => setViewing('video')}
+            >
+              <Icon name="play" size={13} /> مشاهدة
+            </button>
+          )}
+          {(lesson.hasPdf || lesson.pdfKey) && (
+            <button
+              type="button"
+              className={buttonClass({ variant: 'ghost', size: 'sm' })}
+              onClick={() => setViewing('pdf')}
+            >
+              <Icon name="file" size={13} /> فتح الـ PDF
+            </button>
+          )}
           <button
             type="button"
             className={buttonClass({ variant: 'ghost', size: 'sm' })}
@@ -785,6 +805,7 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
           if (file) media.mutate(file)
         }}
       />
+      {viewing && <LessonPreview lesson={lesson} kind={viewing} onClose={() => setViewing(null)} />}
       {error && (
         <div className="w-full">
           <Alert tone="error">
@@ -795,6 +816,61 @@ function LessonRow({ lesson, onChange }: { lesson: Lesson; onChange: () => void 
         </div>
       )}
     </li>
+  )
+}
+
+/** Plays a lesson video (or shows its PDF) inside the dashboard with a short-lived link. */
+function LessonPreview({
+  lesson,
+  kind,
+  onClose,
+}: {
+  lesson: Lesson
+  kind: 'video' | 'pdf'
+  onClose: () => void
+}) {
+  const link = useQuery({
+    queryKey: ['admin', 'lesson-media', lesson.id, kind],
+    queryFn: () => adminCoursesApi.lessonMediaUrl(lesson.id, kind),
+    staleTime: 60_000,
+    retry: false,
+  })
+  return (
+    <Modal
+      title={lesson.titleAr}
+      sub={kind === 'video' ? 'معاينة الفيديو زي ما الطالب بيشوفه' : 'ملف الدرس'}
+      icon={kind === 'video' ? 'play' : 'file'}
+      onClose={onClose}
+      width={kind === 'video' ? 960 : 900}
+    >
+      {link.isLoading ? (
+        <div className="flex justify-center py-20 text-blue-600">
+          <Spinner />
+        </div>
+      ) : link.isError ? (
+        <Alert tone="error">مقدرناش نفتح الملف: {(link.error as Error).message}</Alert>
+      ) : kind === 'video' ? (
+        <video
+          src={link.data!.url}
+          controls
+          autoPlay
+          playsInline
+          controlsList="nodownload"
+          className="aspect-video w-full rounded-tile bg-black"
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          <iframe
+            src={link.data!.url}
+            title={lesson.titleAr}
+            className="h-[70vh] w-full rounded-tile border border-line"
+          />
+          <a href={link.data!.url} target="_blank" rel="noreferrer" className="self-start font-bold">
+            افتح في تاب جديدة
+          </a>
+        </div>
+      )}
+    </Modal>
   )
 }
 

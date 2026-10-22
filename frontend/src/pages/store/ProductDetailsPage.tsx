@@ -22,11 +22,12 @@ import { formatMoney } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { useRegion } from '@/lib/region'
+import { loc, tx } from '@/lib/i18n'
 
 const TRUST: { icon: IconName; text: string }[] = [
-  { icon: 'truck', text: 'توصيل لكل المحافظات' },
-  { icon: 'shield', text: 'Apple Pay · محافظ · كروت · PayPal' },
-  { icon: 'refresh', text: 'استرجاع خلال 14 يوم' },
+  { icon: 'truck', text: tx('توصيل لكل المحافظات', 'Delivery to all governorates') },
+  { icon: 'shield', text: tx('Apple Pay · محافظ · كروت · PayPal', 'Apple Pay · wallets · cards · PayPal') },
+  { icon: 'refresh', text: tx('استرجاع خلال 14 يوم', 'Returns within 14 days') },
 ]
 
 export function ProductDetailsPage() {
@@ -41,7 +42,7 @@ export function ProductDetailsPage() {
     queryKey: ['products', 'slug', slug],
     queryFn: () => productsApi.bySlug(slug),
   })
-  usePageTitle(product?.name ?? 'المنتج')
+  usePageTitle(product?.name ?? tx('المنتج', 'Product'))
 
   if (error instanceof ApiClientError && error.statusCode === 404) return <NotFoundPage />
   if (isError) {
@@ -95,7 +96,7 @@ function ProductDetails({ product }: { product: StoreProduct }) {
     }
     return photos.map((src, i) => ({
       key: `${i}-${src}`,
-      label: `صورة ${i + 1}`,
+      label: tx(`صورة ${i + 1}`, `Photo ${i + 1}`),
       main: <img src={src} alt={i === 0 ? product.name : ''} className="size-full object-cover" />,
       thumb: <img src={src} alt="" className="size-full object-cover" />,
     }))
@@ -109,7 +110,11 @@ function ProductDetails({ product }: { product: StoreProduct }) {
       setAdded(true)
       if (goToCart) navigate(routes.cart)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'حصلت مشكلة، حاول تاني.')
+      setError(
+        e instanceof Error
+          ? e.message
+          : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.'),
+      )
     }
   }
 
@@ -117,12 +122,16 @@ function ProductDetails({ product }: { product: StoreProduct }) {
     <>
       <section className="px-6 pt-30 pb-16 max-sm:px-4 max-sm:pt-26">
         <div className={cn(innerClass, 'flex flex-col gap-6')}>
-          <nav aria-label="مسار الصفحة" className="text-sm text-muted">
-            <Link to={routes.home}>الرئيسية</Link> / <Link to={routes.store}>المتجر</Link>
+          <nav aria-label={tx('مسار الصفحة', 'Breadcrumb')} className="text-sm text-muted">
+            <Link to={routes.home}>{tx('الرئيسية', 'Home')}</Link> /{' '}
+            <Link to={routes.store}>{tx('المتجر', 'Store')}</Link>
             {product.category && (
               <>
                 {' '}
-                / <Link to={`${routes.store}?cat=${product.category.id}`}>{product.category.nameAr}</Link>
+                /{' '}
+                <Link to={`${routes.store}?cat=${product.category.id}`}>
+                  {loc(product.category.nameAr, product.category.nameEn)}
+                </Link>
               </>
             )}{' '}
             /{' '}
@@ -135,31 +144,39 @@ function ProductDetails({ product }: { product: StoreProduct }) {
               <div className="flex flex-wrap gap-2">
                 {product.isFeatured && (
                   <span className="bg-gold rounded-full px-3 py-1 text-[13px] font-extrabold text-navy">
-                    الأكثر مبيعًا
+                    {tx('الأكثر مبيعًا', 'Best seller')}
                   </span>
                 )}
                 {product.category && (
                   <span className="rounded-full bg-surface-blue px-3 py-1 text-[13px] font-bold text-blue-600">
-                    {product.category.nameAr}
+                    {loc(product.category.nameAr, product.category.nameEn)}
                   </span>
                 )}
               </div>
               <h1 className="text-[clamp(32px,4.5vw,48px)] leading-tight">
                 <Highlight text={tail.length ? `${head} *${tail.join(' ')}*` : head} />
               </h1>
-              <p className="text-sm text-muted">تصميم: د. صالح عبد الكريم</p>
+              <p className="text-sm text-muted">
+                {tx('تصميم: د. صالح عبد الكريم', 'Designed by Dr. Saleh Abdelkarim')}
+              </p>
               {lead && <p className="text-[17px] leading-loose text-text-2">{lead}</p>}
 
               <div className="flex flex-col gap-4 rounded-card border border-line bg-white p-5">
                 <span
                   className={cn('text-[15px] font-semibold', outOfStock ? 'text-danger' : 'text-success')}
                 >
-                  ● {outOfStock ? 'نفد من المخزن حاليًا' : 'متوفر · يوصلك خلال 2 لـ 4 أيام عمل لأي محافظة'}
+                  ●{' '}
+                  {outOfStock
+                    ? tx('نفد من المخزن حاليًا', 'Out of stock for now')
+                    : tx(
+                        'متوفر · يوصلك خلال 2 لـ 4 أيام عمل لأي محافظة',
+                        'In stock · delivered within 2–4 business days to any governorate',
+                      )}
                 </span>
                 {!outOfStock && (
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex items-baseline gap-2">
-                      <span className="text-sm text-muted">الإجمالي</span>
+                      <span className="text-sm text-muted">{tx('الإجمالي', 'Total')}</span>
                       <b className="font-head text-2xl text-ink">
                         {formatMoney(price.current * qty, currency)}
                       </b>
@@ -180,7 +197,9 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                   {cart.isPending && buying ? (
                     <Spinner />
                   ) : (
-                    <>اشتري الآن · {formatMoney(price.current * qty, currency)}</>
+                    <>
+                      {tx('اشتري الآن', 'Buy now')} · {formatMoney(price.current * qty, currency)}
+                    </>
                   )}
                 </button>
                 <div className="flex gap-2.5">
@@ -195,7 +214,11 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                       ),
                     })}
                     aria-pressed={wishlist.has(product.id)}
-                    aria-label={wishlist.has(product.id) ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    aria-label={
+                      wishlist.has(product.id)
+                        ? tx('إزالة من المفضلة', 'Remove from wishlist')
+                        : tx('إضافة للمفضلة', 'Add to wishlist')
+                    }
                     onClick={() => wishlist.toggle(product.id)}
                   >
                     <Icon name="heart" filled={wishlist.has(product.id)} />
@@ -210,7 +233,7 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                       <Spinner />
                     ) : added ? (
                       <>
-                        <Icon name="check" /> اتضاف للسلة
+                        <Icon name="check" /> {tx('اتضاف للسلة', 'Added to cart')}
                       </>
                     ) : (
                       <>
@@ -221,7 +244,7 @@ function ProductDetails({ product }: { product: StoreProduct }) {
                 </div>
                 {added && (
                   <Link to={routes.cart} className="text-center font-bold">
-                    روح للسلة <Icon name="arrowLeft" size={16} className="inline" />
+                    {tx('روح للسلة', 'Go to cart')} <Icon name="arrowLeft" size={16} className="inline" />
                   </Link>
                 )}
               </div>
@@ -253,7 +276,7 @@ function ProductDetails({ product }: { product: StoreProduct }) {
       {rest.length > 0 && (
         <section className={sectionClass}>
           <div className={cn(innerClass, 'flex flex-col gap-4 rounded-panel p-9 gborder max-sm:p-6')}>
-            <h2 className="text-[26px]">تفاصيل المنتج</h2>
+            <h2 className="text-[26px]">{tx('تفاصيل المنتج', 'Product details')}</h2>
             <div className="flex flex-col gap-3 text-[17px] leading-[1.95] text-text-2">
               {rest.map((p, i) => (
                 <p key={i}>{p}</p>
@@ -279,10 +302,10 @@ function Related({ current }: { current: StoreProduct }) {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="من المتجر"
+          eyebrow={tx('من المتجر', 'From the store')}
           icon="box"
-          title={<Highlight text="ممكن *يعجبك* كمان" />}
-          more={{ to: routes.store, label: 'كل المنتجات' }}
+          title={<Highlight text={tx('ممكن *يعجبك* كمان', 'You might *also like*')} />}
+          more={{ to: routes.store, label: tx('كل المنتجات', 'All products') }}
         />
         <div className={productsGridClass}>
           {others.map((p) => (

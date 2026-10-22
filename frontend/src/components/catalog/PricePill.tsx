@@ -4,6 +4,7 @@ import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/format'
 import type { Currency } from '@/lib/region'
+import { isEn, tx } from '@/lib/i18n'
 
 /**
  * Toolbar version of the price filter: a pill that opens the range slider in a small panel.
@@ -60,8 +61,8 @@ export function PricePill({
     ? min !== undefined && max !== undefined
       ? `${fmt(min)} – ${fmt(max)}`
       : min !== undefined
-        ? `من ${fmt(min)}`
-        : `لحد ${fmt(max!)}`
+        ? tx(`من ${fmt(min)}`, `From ${fmt(min)}`)
+        : tx(`لحد ${fmt(max!)}`, `Up to ${fmt(max!)}`)
     : null
 
   return (
@@ -85,7 +86,7 @@ export function PricePill({
           )}
         >
           <Icon name="sliders" size={17} />
-          <span>السعر</span>
+          <span>{tx('السعر', 'Price')}</span>
           {summary && <span className="font-semibold opacity-90">· {summary}</span>}
           {!active && (
             <Icon name="chevDown" size={15} className={cn('transition-transform', open && 'rotate-180')} />
@@ -94,7 +95,7 @@ export function PricePill({
         {active && (
           <button
             type="button"
-            aria-label="شيل فلتر السعر"
+            aria-label={tx('شيل فلتر السعر', 'Clear price filter')}
             onClick={() => onChange(undefined, undefined)}
             className="me-1 flex size-10 items-center justify-center rounded-full border-0 bg-transparent text-white hover:bg-white/15"
           >
@@ -108,7 +109,7 @@ export function PricePill({
           ref={panelRef}
           id={`${id}-panel`}
           role="dialog"
-          aria-label="تصفية بالسعر"
+          aria-label={tx('تصفية بالسعر', 'Filter by price')}
           className="absolute end-0 top-full z-40 mt-2.5 w-[min(360px,calc(100vw-32px))] animate-dd-in rounded-card border border-line bg-white p-5 shadow-pop max-sm:-end-2"
         >
           <PriceFilter
@@ -137,6 +138,7 @@ export function PricePill({
 
 /** "اعرض 3 نتايج" with the Arabic count agreement. */
 function resultsLabel(n?: number) {
+  if (isEn) return n === undefined ? 'Done' : n === 0 ? 'No results' : `Show ${n} result${n === 1 ? '' : 's'}`
   if (n === undefined) return 'تمام'
   if (n === 0) return 'مفيش نتايج'
   if (n === 1) return 'اعرض نتيجة واحدة'

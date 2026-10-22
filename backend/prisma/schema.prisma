@@ -876,6 +876,8 @@ model Article {
   viewsCount     Int                  @default(0)
   isFeatured     Boolean              @default(false)
   isHomeDisplay  Boolean              @default(false)
+  /// Courses shown under the article; empty = chosen automatically.
+  relatedCourseIds String[]           @default([])
   tagRelations   ArticleTagRelation[]
   category       ArticleCategory      @relation(fields: [categoryId], references: [id])
 

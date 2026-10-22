@@ -15,6 +15,7 @@ import { isValidPhone } from '@/lib/phone'
 import { isStrongPassword, PASSWORD_POLICY_TEXT } from '@/lib/password'
 import { warnFormErrors } from '@/lib/formErrors'
 import { pendingSignup } from './pending'
+import { isEn, tx } from '@/lib/i18n'
 
 type Errors = Partial<
   Record<'fullName' | 'email' | 'phoneNumber' | 'password' | 'confirm' | 'gender', string>
@@ -28,7 +29,7 @@ const segClass =
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function RegisterPage() {
-  usePageTitle('إنشاء حساب')
+  usePageTitle(tx('إنشاء حساب', 'Create account'))
   const navigate = useNavigate()
   const location = useLocation()
   const [params] = useSearchParams()
@@ -55,12 +56,23 @@ export function RegisterPage() {
 
   function validate(): Errors {
     const e: Errors = {}
-    if (form.fullName.trim().split(/\s+/).length < 2) e.fullName = 'اكتب الاسم الأول واسم العيلة.'
-    if (!EMAIL_RE.test(form.email.trim())) e.email = 'البريد الإلكتروني مش صحيح.'
-    if (!isValidPhone(form.phoneNumber)) e.phoneNumber = 'رقم الموبايل مش صحيح للدولة اللي اخترتها.'
-    if (!form.gender) e.gender = 'اختار النوع عشان نكلمك بالصيغة المناسبة.'
+    if (form.fullName.trim().split(/\s+/).length < 2)
+      e.fullName = tx('اكتب الاسم الأول واسم العيلة.', 'Enter your first and last name.')
+    if (!EMAIL_RE.test(form.email.trim()))
+      e.email = tx('البريد الإلكتروني مش صحيح.', "That email doesn't look right.")
+    if (!isValidPhone(form.phoneNumber))
+      e.phoneNumber = tx(
+        'رقم الموبايل مش صحيح للدولة اللي اخترتها.',
+        "That number isn't valid for the selected country.",
+      )
+    if (!form.gender)
+      e.gender = tx(
+        'اختار النوع عشان نكلمك بالصيغة المناسبة.',
+        'Choose your gender so we address you correctly.',
+      )
     if (!isStrongPassword(form.password)) e.password = PASSWORD_POLICY_TEXT
-    if (form.confirm !== form.password) e.confirm = 'كلمتين المرور مش متطابقين.'
+    if (form.confirm !== form.password)
+      e.confirm = tx('كلمتين المرور مش متطابقين.', "The passwords don't match.")
     return e
   }
 
@@ -88,13 +100,22 @@ export function RegisterPage() {
       })
     } catch (err) {
       if (err instanceof ApiClientError && err.statusCode === 409) {
-        setServerError('البريد الإلكتروني أو رقم الموبايل ده مسجّل قبل كده. جرّب تسجّل دخول.')
+        setServerError(
+          tx(
+            'البريد الإلكتروني أو رقم الموبايل ده مسجّل قبل كده. جرّب تسجّل دخول.',
+            'This email or phone number is already registered. Try signing in.',
+          ),
+        )
       } else if (err instanceof ApiClientError && err.statusCode === 503) {
         // Account was created but the email failed; the verify page can resend.
         pendingSignup.set({ email, password: form.password })
         navigate(routes.verifyEmail, { state: { email, resend: true } })
       } else {
-        setServerError(err instanceof Error ? err.message : 'حصلت مشكلة، حاول تاني.')
+        setServerError(
+          err instanceof Error
+            ? err.message
+            : tx('حصلت مشكلة، حاول تاني.', 'Something went wrong. Please try again.'),
+        )
       }
     } finally {
       setBusy(false)
@@ -102,11 +123,14 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="إنشاء حساب جديد" sub="حساب واحد لدوراتك وكتبك وشهاداتك.">
+    <AuthShell
+      title={tx('إنشاء حساب جديد', 'Create a new account')}
+      sub={tx('حساب واحد لدوراتك وكتبك وشهاداتك.', 'One account for your courses, books and certificates.')}
+    >
       <form className="flex flex-col gap-4.5" onSubmit={onSubmit} noValidate>
         {serverError && <Alert tone="error">{serverError}</Alert>}
         <TextField
-          label="الاسم بالكامل"
+          label={tx('الاسم بالكامل', 'Full name')}
           autoComplete="name"
           value={form.fullName}
           onChange={set('fullName')}
@@ -115,7 +139,7 @@ export function RegisterPage() {
         />
 
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-          <legend className="mb-2 text-[15px] font-semibold text-ink">النوع</legend>
+          <legend className="mb-2 text-[15px] font-semibold text-ink">{tx('النوع', 'Gender')}</legend>
           <div className="grid grid-cols-2 gap-2.5">
             <label className={segClass}>
               <input
@@ -126,7 +150,7 @@ export function RegisterPage() {
                 onChange={set('gender')}
                 className="sr-only"
               />
-              ذكر
+              {tx('ذكر', 'Male')}
             </label>
             <label className={segClass}>
               <input
@@ -137,7 +161,7 @@ export function RegisterPage() {
                 onChange={set('gender')}
                 className="sr-only"
               />
-              أنثى
+              {tx('أنثى', 'Female')}
             </label>
           </div>
           {errors.gender && <span className="text-sm text-danger">{errors.gender}</span>}
@@ -145,7 +169,7 @@ export function RegisterPage() {
 
         <div className="grid gap-3.5">
           <TextField
-            label="البريد الإلكتروني"
+            label={tx('البريد الإلكتروني', 'Email')}
             type="email"
             ltr
             autoComplete="email"
@@ -157,14 +181,14 @@ export function RegisterPage() {
           />
         </div>
         <PhoneField
-          label="رقم الموبايل"
+          label={tx('رقم الموبايل', 'Mobile number')}
           value={form.phoneNumber}
           onChange={(phoneNumber) => setForm((f) => ({ ...f, phoneNumber }))}
           error={errors.phoneNumber}
           required
         />
         <PasswordField
-          label="كلمة المرور"
+          label={tx('كلمة المرور', 'Password')}
           autoComplete="new-password"
           value={form.password}
           onChange={set('password')}
@@ -173,7 +197,9 @@ export function RegisterPage() {
         />
         <PasswordRules password={form.password} />
         <PasswordField
-          label={female ? 'اكتبيها تاني' : male ? 'اكتبها تاني' : 'تأكيد كلمة المرور'}
+          label={
+            isEn ? 'Confirm password' : female ? 'اكتبيها تاني' : male ? 'اكتبها تاني' : 'تأكيد كلمة المرور'
+          }
           autoComplete="new-password"
           value={form.confirm}
           onChange={set('confirm')}
@@ -181,28 +207,39 @@ export function RegisterPage() {
           required
         />
         <TextField
-          label="كود الدعوة (اختياري)"
+          label={tx('كود الدعوة (اختياري)', 'Referral code (optional)')}
           ltr
           value={form.referralCode}
           onChange={set('referralCode')}
           autoCapitalize="characters"
         />
         <p className="text-[13px] text-muted">
-          بإنشاء الحساب {female ? 'إنتي موافقة' : 'إنت موافق'} على{' '}
-          <Link to={routes.terms}>الشروط والأحكام</Link> و<Link to={routes.privacy}>سياسة الخصوصية</Link>.
+          {isEn
+            ? 'By creating an account you agree to the'
+            : `بإنشاء الحساب ${female ? 'إنتي موافقة' : 'إنت موافق'} على`}{' '}
+          <Link to={routes.terms}>{tx('الشروط والأحكام', 'terms & conditions')}</Link> {tx('و', 'and')}{' '}
+          <Link to={routes.privacy}>{tx('سياسة الخصوصية', 'privacy policy')}</Link>.
         </p>
         <button
           type="submit"
           className={buttonClass({ variant: 'gold', size: 'lg', block: true })}
           disabled={busy}
         >
-          {busy ? <Spinner label="جاري إنشاء الحساب" /> : female ? 'ابدئي دلوقتي' : 'ابدأ دلوقتي'}
+          {busy ? (
+            <Spinner label={tx('جاري إنشاء الحساب', 'Creating account')} />
+          ) : isEn ? (
+            'Get started'
+          ) : female ? (
+            'ابدئي دلوقتي'
+          ) : (
+            'ابدأ دلوقتي'
+          )}
         </button>
       </form>
       <AuthSwitch>
-        عندك حساب؟{' '}
+        {tx('عندك حساب؟', 'Have an account?')}{' '}
         <Link to={routes.login} state={location.state}>
-          سجّل دخول
+          {tx('سجّل دخول', 'Sign in')}
         </Link>
       </AuthSwitch>
     </AuthShell>

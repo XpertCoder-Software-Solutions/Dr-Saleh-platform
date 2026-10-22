@@ -23,6 +23,7 @@ export interface CartLine {
     formatType?: 'Physical' | 'Digital' | 'Audio'
     bookId?: string
     nameAr: string
+    nameEn?: string
     image: string | null
     stock?: number | null
     isActive: boolean

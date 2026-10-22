@@ -15,6 +15,7 @@ import { ConsultSuccess } from './ConsultSuccess'
 import { PhoneField } from '@/components/ui/PhoneField'
 import { isValidPhone } from '@/lib/phone'
 import { warnFormErrors } from '@/lib/formErrors'
+import { isEn, loc, tx } from '@/lib/i18n'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -27,22 +28,56 @@ const CHILD_AGES = [
   'أكبر من 18',
 ]
 const RELATIONS = ['أم', 'أب', 'جد / جدة', 'مربي / مدرّس', 'أخرى']
+// Values are saved in Arabic; these are the English labels.
+const EN_LABEL: Record<string, string> = {
+  'أقل من 3 سنين': 'Under 3',
+  'من 3 لـ 6 سنين': '3 to 6',
+  'من 7 لـ 10 سنين': '7 to 10',
+  'من 11 لـ 14 سنة': '11 to 14',
+  'من 15 لـ 18 سنة': '15 to 18',
+  'أكبر من 18': 'Over 18',
+  أم: 'Mother',
+  أب: 'Father',
+  'جد / جدة': 'Grandparent',
+  'مربي / مدرّس': 'Caregiver / teacher',
+  أخرى: 'Other',
+}
+const optionLabel = (a: string) => (isEn ? (EN_LABEL[a] ?? a) : a)
 const SESSION_TYPES = [
-  { value: 'video', label: 'مكالمة فيديو' },
-  { value: 'voice', label: 'مكالمة صوتية' },
-  { value: 'any', label: 'مش فارقة' },
+  { value: 'video', label: tx('مكالمة فيديو', 'Video call') },
+  { value: 'voice', label: tx('مكالمة صوتية', 'Voice call') },
+  { value: 'any', label: tx('مش فارقة', "Doesn't matter") },
 ]
 const TIMES = [
-  { value: 'morning', label: 'الصبح' },
-  { value: 'afternoon', label: 'بعد الضهر' },
-  { value: 'evening', label: 'بالليل' },
+  { value: 'morning', label: tx('الصبح', 'Morning') },
+  { value: 'afternoon', label: tx('بعد الضهر', 'Afternoon') },
+  { value: 'evening', label: tx('بالليل', 'Evening') },
 ]
 
 const STEPS: { icon: IconName; title: string; body: string }[] = [
-  { icon: 'mail', title: 'ابعت الطلب', body: 'املأ الفورم في دقيقتين.' },
-  { icon: 'whatsapp', title: 'هنكلمك', body: 'فريقنا بيتواصل معاك على واتساب خلال 24 ساعة.' },
-  { icon: 'calendar', title: 'نحدد الميعاد', body: 'بنتفق على الوقت المناسب وطريقة الدفع.' },
-  { icon: 'video', title: 'الجلسة', body: 'أونلاين مع د. صالح بالفيديو أو صوت.' },
+  {
+    icon: 'mail',
+    title: tx('ابعت الطلب', 'Send the request'),
+    body: tx('املأ الفورم في دقيقتين.', 'Fill in the form in two minutes.'),
+  },
+  {
+    icon: 'whatsapp',
+    title: tx('هنكلمك', "We'll contact you"),
+    body: tx(
+      'فريقنا بيتواصل معاك على واتساب خلال 24 ساعة.',
+      'Our team contacts you on WhatsApp within 24 hours.',
+    ),
+  },
+  {
+    icon: 'calendar',
+    title: tx('نحدد الميعاد', 'We set the time'),
+    body: tx('بنتفق على الوقت المناسب وطريقة الدفع.', 'We agree on a suitable time and payment method.'),
+  },
+  {
+    icon: 'video',
+    title: tx('الجلسة', 'The session'),
+    body: tx('أونلاين مع د. صالح بالفيديو أو صوت.', 'Online with Dr. Saleh, by video or voice.'),
+  },
 ]
 
 type Errors = Partial<
@@ -51,7 +86,7 @@ type Errors = Partial<
 
 /** The newer detailed request form; submissions land in the admin's consultation requests. */
 export function ConsultRequestPage() {
-  usePageTitle('طلب استشارة')
+  usePageTitle(tx('طلب استشارة', 'Request a consultation'))
   const { user } = useAuth()
   const categories = useQuery({
     queryKey: ['consultations', 'categories'],
@@ -85,7 +120,7 @@ export function ConsultRequestPage() {
         whatsApp: form.whatsApp.trim(),
         country: [form.country, form.city.trim()].filter(Boolean).join('، ') || 'غير محدد',
         gender: user?.gender ?? undefined,
-        consultationTopic: category?.name ?? category?.nameAr ?? 'استشارة',
+        consultationTopic: category?.name ?? loc(category?.nameAr, category?.nameEn) ?? 'استشارة',
         notes: form.situation.trim(),
         childAge: form.childAge || undefined,
         relation: form.relation || undefined,
@@ -98,12 +133,25 @@ export function ConsultRequestPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     const er: Errors = {}
-    if (form.fullName.trim().length < 3) er.fullName = 'اكتب اسمك.'
-    if (!isValidPhone(form.whatsApp)) er.whatsApp = 'اكتب رقم واتساب صحيح.'
-    if (!EMAIL_RE.test(form.email.trim())) er.email = 'محتاجين الإيميل عشان نبعتلك تأكيد الطلب.'
-    if (!form.categoryId) er.categoryId = 'اختار نوع الاستشارة.'
-    if (form.situation.trim().length < 10) er.situation = 'احكيلنا عن الموقف في سطرين على الأقل.'
-    if (!form.agree) er.agree = 'محتاجين موافقتك عشان نكلمك على واتساب.'
+    if (form.fullName.trim().length < 3) er.fullName = tx('اكتب اسمك.', 'Enter your name.')
+    if (!isValidPhone(form.whatsApp))
+      er.whatsApp = tx('اكتب رقم واتساب صحيح.', 'Enter a valid WhatsApp number.')
+    if (!EMAIL_RE.test(form.email.trim()))
+      er.email = tx(
+        'محتاجين الإيميل عشان نبعتلك تأكيد الطلب.',
+        'We need your email to send you a confirmation.',
+      )
+    if (!form.categoryId) er.categoryId = tx('اختار نوع الاستشارة.', 'Choose the consultation type.')
+    if (form.situation.trim().length < 10)
+      er.situation = tx(
+        'احكيلنا عن الموقف في سطرين على الأقل.',
+        'Describe the situation in at least two lines.',
+      )
+    if (!form.agree)
+      er.agree = tx(
+        'محتاجين موافقتك عشان نكلمك على واتساب.',
+        'We need your consent to contact you on WhatsApp.',
+      )
     setErrors(er)
     warnFormErrors(er)
     if (Object.keys(er).length === 0) submit.mutate()
@@ -113,23 +161,28 @@ export function ConsultRequestPage() {
     <>
       <PageHero
         crumbs={[
-          { label: 'الرئيسية', to: routes.home },
-          { label: 'الاستشارات', to: routes.consultation },
-          { label: 'طلب استشارة' },
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          { label: tx('الاستشارات', 'Consultations'), to: routes.consultation },
+          { label: tx('طلب استشارة', 'Request a consultation') },
         ]}
         title={
           <>
-            اطلب <span className="text-sheen">استشارتك</span>
+            {tx('اطلب', 'Request')} <span className="text-sheen">{tx('استشارتك', 'your consultation')}</span>
           </>
         }
-        body="املأ الفورم وفريقنا هيكلمك على واتساب خلال 24 ساعة عشان نحدد معاك الميعاد المناسب. بياناتك سرية ومحدش بيشوفها غير الدكتور."
+        body={tx(
+          'املأ الفورم وفريقنا هيكلمك على واتساب خلال 24 ساعة عشان نحدد معاك الميعاد المناسب. بياناتك سرية ومحدش بيشوفها غير الدكتور.',
+          'Fill in the form and our team will message you on WhatsApp within 24 hours to set a suitable time. Your details are confidential and only the doctor sees them.',
+        )}
       />
 
       <section className={cn(sectionClass, 'relative z-2 -mt-14')}>
         <div className={cn(innerClass, 'grid grid-cols-[300px_1fr] items-start gap-7 max-lg:grid-cols-1')}>
           <aside className="flex flex-col gap-4 max-lg:order-last">
             <div className="flex bg-navy flex-col gap-4 rounded-card p-6 text-white">
-              <b className="font-head text-xl">الاستشارة بتمشي إزاي؟</b>
+              <b className="font-head text-xl">
+                {tx('الاستشارة بتمشي إزاي؟', 'How does the consultation work?')}
+              </b>
               {STEPS.map((s, i) => (
                 <div key={s.title} className="flex gap-3">
                   <span className="flex size-10 flex-none bg-gold items-center justify-center rounded-xl text-navy">
@@ -146,9 +199,9 @@ export function ConsultRequestPage() {
             </div>
             <div className="flex flex-col gap-3 rounded-card border border-line bg-white p-5 text-sm text-text-2">
               {[
-                ['shield', 'كل اللي بتكتبه سري تمامًا'],
-                ['clock', 'الجلسة من 45 لـ 60 دقيقة'],
-                ['globe', 'من أي مكان في العالم'],
+                ['shield', tx('كل اللي بتكتبه سري تمامًا', 'Everything you write is fully confidential')],
+                ['clock', tx('الجلسة من 45 لـ 60 دقيقة', 'Sessions last 45–60 minutes')],
+                ['globe', tx('من أي مكان في العالم', 'From anywhere in the world')],
               ].map(([icon, text]) => (
                 <span key={text} className="flex items-center gap-3">
                   <span className="flex size-9 items-center justify-center rounded-xl bg-surface-blue text-blue-600">
@@ -166,25 +219,27 @@ export function ConsultRequestPage() {
             ) : (
               <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
                 <div>
-                  <h2 className="text-2xl">بياناتك</h2>
-                  <p className="text-sm text-muted">الحقول اللي عليها * مطلوبة</p>
+                  <h2 className="text-2xl">{tx('بياناتك', 'Your details')}</h2>
+                  <p className="text-sm text-muted">
+                    {tx('الحقول اللي عليها * مطلوبة', 'Fields marked * are required')}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
                   <TextField
-                    label="الاسم *"
+                    label={tx('الاسم *', 'Name *')}
                     autoComplete="name"
                     value={form.fullName}
                     onChange={(e) => set('fullName', e.target.value)}
                     error={errors.fullName}
                   />
                   <PhoneField
-                    label="رقم الواتساب *"
+                    label={tx('رقم الواتساب *', 'WhatsApp number *')}
                     value={form.whatsApp}
                     onChange={(v) => set('whatsApp', v)}
                     error={errors.whatsApp}
                   />
                   <TextField
-                    label="الإيميل *"
+                    label={tx('الإيميل *', 'Email *')}
                     type="email"
                     ltr
                     placeholder="name@example.com"
@@ -192,74 +247,86 @@ export function ConsultRequestPage() {
                     value={form.email}
                     onChange={(e) => set('email', e.target.value)}
                     error={errors.email}
-                    hint="بنبعتلك عليه تأكيد الطلب"
+                    hint={tx('بنبعتلك عليه تأكيد الطلب', "We'll send the confirmation here")}
                   />
                   <CountrySelectField
-                    label="الدولة"
+                    label={tx('الدولة', 'Country')}
                     value={form.country}
                     onChange={(v) => set('country', v)}
                   />
                   <TextField
-                    label="المدينة"
-                    labelAside={<span className="text-muted">(اختياري)</span>}
-                    placeholder="مثال: القاهرة"
+                    label={tx('المدينة', 'City')}
+                    labelAside={<span className="text-muted">{tx('(اختياري)', '(optional)')}</span>}
+                    placeholder={tx('مثال: القاهرة', 'e.g. Cairo')}
                     value={form.city}
                     onChange={(e) => set('city', e.target.value)}
                   />
                 </div>
 
                 <hr className="border-divider" />
-                <h2 className="text-2xl">عن الاستشارة</h2>
+                <h2 className="text-2xl">{tx('عن الاستشارة', 'About the consultation')}</h2>
                 <ChoiceChips
-                  label="نوع الاستشارة *"
+                  label={tx('نوع الاستشارة *', 'Consultation type *')}
                   value={form.categoryId}
                   onChange={(v) => set('categoryId', v)}
-                  options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name ?? c.nameAr }))}
+                  options={(categories.data ?? []).map((c) => ({
+                    value: c.id,
+                    label: c.name ?? loc(c.nameAr, c.nameEn),
+                  }))}
                   error={errors.categoryId}
                 />
                 <div className="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
                   <SelectField
-                    label="سن الطفل"
-                    placeholder="اختار"
+                    label={tx('سن الطفل', "Child's age")}
+                    placeholder={tx('اختار', 'Choose')}
                     value={form.childAge}
                     onChange={(e) => set('childAge', e.target.value)}
-                    options={CHILD_AGES.map((a) => ({ value: a, label: a }))}
+                    options={CHILD_AGES.map((a) => ({ value: a, label: optionLabel(a) }))}
                   />
                   <SelectField
-                    label="علاقتك بالطفل"
-                    placeholder="اختار"
+                    label={tx('علاقتك بالطفل', 'Your relation to the child')}
+                    placeholder={tx('اختار', 'Choose')}
                     value={form.relation}
                     onChange={(e) => set('relation', e.target.value)}
-                    options={RELATIONS.map((a) => ({ value: a, label: a }))}
+                    options={RELATIONS.map((a) => ({ value: a, label: optionLabel(a) }))}
                   />
                 </div>
                 <ChoiceChips
-                  label="تحب الجلسة تكون"
-                  hint="بنحددها مع بعض في المكالمة"
+                  label={tx('تحب الجلسة تكون', 'Preferred session type')}
+                  hint={tx('بنحددها مع بعض في المكالمة', "We'll confirm it together on the call")}
                   value={form.sessionType}
                   onChange={(v) => set('sessionType', v)}
                   options={SESSION_TYPES}
                 />
                 <ChoiceChips
-                  label="أنسب وقت نكلمك فيه"
+                  label={tx('أنسب وقت نكلمك فيه', 'Best time to call you')}
                   value={form.preferredTime}
                   onChange={(v) => set('preferredTime', v)}
                   options={TIMES}
                 />
                 <TextAreaField
-                  label="احكيلنا باختصار عن الموقف *"
+                  label={tx('احكيلنا باختصار عن الموقف *', 'Briefly describe the situation *')}
                   rows={5}
-                  placeholder="مثال: ابني عنده 8 سنين وبقى عنيد جدًا الفترة الأخيرة، خصوصًا وقت المذاكرة..."
+                  placeholder={tx(
+                    'مثال: ابني عنده 8 سنين وبقى عنيد جدًا الفترة الأخيرة، خصوصًا وقت المذاكرة...',
+                    'e.g. My son is 8 and has become very stubborn lately, especially at study time...',
+                  )}
                   value={form.situation}
                   onChange={(e) => set('situation', e.target.value)}
                   error={errors.situation}
-                  hint="مش لازم تفاصيل كتير، الدكتور هيسألك في الجلسة."
+                  hint={tx(
+                    'مش لازم تفاصيل كتير، الدكتور هيسألك في الجلسة.',
+                    'No need for much detail; the doctor will ask you in the session.',
+                  )}
                   maxLength={2000}
                 />
                 <CheckField
                   checked={form.agree}
                   onChange={(e) => set('agree', e.target.checked)}
-                  label="موافق إن فريق المنصة يتواصل معايا على واتساب"
+                  label={tx(
+                    'موافق إن فريق المنصة يتواصل معايا على واتساب',
+                    'I agree to be contacted by the platform team on WhatsApp',
+                  )}
                 />
                 {errors.agree && <span className="-mt-3 text-sm text-danger">{errors.agree}</span>}
                 {submit.isError && <Alert tone="error">{(submit.error as Error).message}</Alert>}
@@ -269,15 +336,18 @@ export function ConsultRequestPage() {
                   disabled={submit.isPending}
                 >
                   {submit.isPending ? (
-                    <Spinner label="جاري الإرسال" />
+                    <Spinner label={tx('جاري الإرسال', 'Sending')} />
                   ) : (
                     <>
-                      ابعت الطلب <Icon name="mail" />
+                      {tx('ابعت الطلب', 'Send the request')} <Icon name="mail" />
                     </>
                   )}
                 </button>
                 <p className="text-center text-xs text-muted">
-                  مفيش دفع دلوقتي. الدفع بيكون بعد ما نتفق على الميعاد.
+                  {tx(
+                    'مفيش دفع دلوقتي. الدفع بيكون بعد ما نتفق على الميعاد.',
+                    'No payment now. You pay after we agree on the time.',
+                  )}
                 </p>
               </form>
             )}

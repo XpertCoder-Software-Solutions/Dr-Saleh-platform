@@ -1,12 +1,13 @@
 import type { Currency, Money } from '@/types/api'
+import { isEn, locale } from '@/lib/i18n'
 
-const egp = new Intl.NumberFormat('ar-EG', { maximumFractionDigits: 0, numberingSystem: 'latn' })
+const egp = new Intl.NumberFormat(locale, { maximumFractionDigits: 0, numberingSystem: 'latn' })
 const usd = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 })
 
 /** "450 ج.م" */
 export function formatEGP(value: number | null | undefined): string {
   if (value === null || value === undefined) return ''
-  return `${egp.format(value)} ج.م`
+  return isEn ? `EGP ${egp.format(value)}` : `${egp.format(value)} ج.م`
 }
 
 /** "450 ج.م" or "$9.99" */
@@ -45,6 +46,7 @@ export function coursePrice(course: Priced, currency: Currency = 'EGP') {
 
 /** "24 محاضرة" — Arabic counted-noun agreement for the common cases. */
 export function lessonsLabel(n: number): string {
+  if (isEn) return n === 1 ? '1 lesson' : `${n} lessons`
   if (n === 1) return 'محاضرة واحدة'
   if (n === 2) return 'محاضرتين'
   if (n >= 3 && n <= 10) return `${n} محاضرات`
@@ -54,6 +56,11 @@ export function lessonsLabel(n: number): string {
 /** "3 ساعات و20 دقيقة" or "45 دقيقة" */
 export function durationLabel(totalSeconds: number): string {
   const minutes = Math.round(totalSeconds / 60)
+  if (isEn) {
+    if (minutes < 60) return `${minutes} min`
+    const hrs = Math.floor(minutes / 60)
+    return minutes % 60 ? `${hrs} h ${minutes % 60} min` : `${hrs} h`
+  }
   if (minutes < 60) return `${minutes} دقيقة`
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
@@ -61,7 +68,7 @@ export function durationLabel(totalSeconds: number): string {
   return rest ? `${h} و${rest} دقيقة` : h
 }
 
-const dateFmt = new Intl.DateTimeFormat('ar-EG', {
+const dateFmt = new Intl.DateTimeFormat(locale, {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
@@ -84,6 +91,7 @@ export function readingMinutes(text: string | null | undefined): number {
 
 /** "دقيقة واحدة" / "5 دقائق" / "12 دقيقة" */
 export function minutesLabel(n: number): string {
+  if (isEn) return `${Math.max(1, n)} min`
   if (n <= 1) return 'دقيقة واحدة'
   if (n === 2) return 'دقيقتين'
   if (n <= 10) return `${n} دقائق`
@@ -94,6 +102,14 @@ export function minutesLabel(n: number): string {
 export function sinceLabel(iso: string | null | undefined) {
   if (!iso) return null
   const days = Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  if (isEn) {
+    if (days <= 0) return 'today'
+    if (days === 1) return 'yesterday'
+    if (days < 7) return `${days} days ago`
+    if (days < 30) return `${Math.round(days / 7)} week${Math.round(days / 7) > 1 ? 's' : ''} ago`
+    const m = Math.round(days / 30)
+    return `${m} month${m > 1 ? 's' : ''} ago`
+  }
   if (days <= 0) return 'النهارده'
   if (days === 1) return 'امبارح'
   if (days < 7) return `من ${days} أيام`

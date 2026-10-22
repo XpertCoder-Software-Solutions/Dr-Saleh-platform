@@ -54,6 +54,7 @@ const articleSelect = {
   isFeatured: true,
   isHomeDisplay: true,
   isActive: true,
+  relatedCourseIds: true,
   createdAt: true,
   updatedAt: true,
   category: {
@@ -345,6 +346,9 @@ export class ArticlesService {
             isFeatured: createArticleDto.isFeatured ?? false,
             isHomeDisplay: createArticleDto.isHomeDisplay ?? false,
             isActive: createArticleDto.isActive ?? true,
+            relatedCourseIds: await this.validateCourseIds(
+              createArticleDto.relatedCourseIds,
+            ),
           },
           select: { id: true },
         });
@@ -451,6 +455,12 @@ export class ArticlesService {
 
       if (updateArticleDto.isActive !== undefined) {
         data.isActive = updateArticleDto.isActive;
+      }
+
+      if (updateArticleDto.relatedCourseIds !== undefined) {
+        data.relatedCourseIds = await this.validateCourseIds(
+          updateArticleDto.relatedCourseIds,
+        );
       }
 
       const article = await this.prisma.$transaction(async (tx) => {
@@ -604,6 +614,21 @@ export class ArticlesService {
     }
   }
 
+  /** Keeps the admin's order; every id must be an existing course. */
+  private async validateCourseIds(ids?: string[]): Promise<string[]> {
+    const unique = [...new Set(ids ?? [])];
+    if (!unique.length) return [];
+    const found = await this.prisma.course.count({
+      where: { id: { in: unique } },
+    });
+    if (found !== unique.length) {
+      throw new BadRequestException(
+        'One or more related courses do not exist.',
+      );
+    }
+    return unique;
+  }
+
   private async validateTagIds(tagIds?: string[]): Promise<string[]> {
     const uniqueTagIds = this.getUniqueValues(tagIds ?? []);
 
@@ -746,6 +771,7 @@ export class ArticlesService {
       updatedAt: article.updatedAt,
       category: article.category,
       tags: article.tagRelations.map((relation) => relation.tag),
+      relatedCourseIds: article.relatedCourseIds,
     };
   }
 
@@ -782,6 +808,7 @@ export class ArticlesService {
       tags: article.tagRelations.map((relation) =>
         this.toPublicTag(relation.tag, language),
       ),
+      relatedCourseIds: article.relatedCourseIds,
       createdAt: article.createdAt,
     };
   }

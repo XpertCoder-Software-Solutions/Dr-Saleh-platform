@@ -10,6 +10,7 @@ import { buttonClass } from '@/components/ui/button'
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/States'
 import { readAudioPosition } from '@/lib/audio-position'
 import { durationLabel } from '@/lib/format'
+import { isEn, loc, tx } from '@/lib/i18n'
 
 type Filter = 'all' | 'Digital' | 'Audio'
 
@@ -23,16 +24,18 @@ export function MyBooksPage() {
   return (
     <AccountShell
       active="books"
-      pageTitle="كتبي"
+      pageTitle={tx('كتبي', 'My books')}
       title={
         <>
-          كتبي <span className="text-sheen">الرقمية والصوتية</span>
+          {tx('كتبي', 'My')}{' '}
+          <span className="text-sheen">{tx('الرقمية والصوتية', 'digital & audio books')}</span>
         </>
       }
       body={g(
         'اقرأ أو اسمع كتبك من أي جهاز.',
         'اقرئي أو اسمعي كتبك من أي جهاز.',
         'القراءة والاستماع من أي جهاز.',
+        'Read or listen to your books on any device.',
       )}
     >
       <Panel className="p-4">
@@ -40,9 +43,17 @@ export function MyBooksPage() {
           value={filter}
           onChange={setFilter}
           tabs={[
-            { id: 'all', label: 'الكل', count: list.length },
-            { id: 'Digital', label: 'رقمي', count: list.filter((b) => b.formatType === 'Digital').length },
-            { id: 'Audio', label: 'صوتي', count: list.filter((b) => b.formatType === 'Audio').length },
+            { id: 'all', label: tx('الكل', 'All'), count: list.length },
+            {
+              id: 'Digital',
+              label: tx('رقمي', 'Digital'),
+              count: list.filter((b) => b.formatType === 'Digital').length,
+            },
+            {
+              id: 'Audio',
+              label: tx('صوتي', 'Audio'),
+              count: list.filter((b) => b.formatType === 'Audio').length,
+            },
           ]}
         />
       </Panel>
@@ -57,11 +68,14 @@ export function MyBooksPage() {
         <Panel>
           <EmptyState
             icon="book"
-            title="مكتبتك لسه فاضية"
-            body="النسخ الرقمية والصوتية اللي بتشتريها بتظهر هنا على طول."
+            title={tx('مكتبتك لسه فاضية', 'Your library is empty')}
+            body={tx(
+              'النسخ الرقمية والصوتية اللي بتشتريها بتظهر هنا على طول.',
+              'Digital and audio editions you buy show up here right away.',
+            )}
             action={
               <Link to={routes.library} className={buttonClass({ variant: 'gold' })}>
-                المكتبة
+                {tx('المكتبة', 'Library')}
               </Link>
             }
           />
@@ -82,11 +96,13 @@ export function MyBooksPage() {
           <Icon name="truck" size={18} />
         </span>
         <span className="flex flex-1 flex-col">
-          <b className="text-ink">النسخ الورقية</b>
-          <span className="text-sm text-muted">الكتب الورقية بتتابع طلبها من صفحة طلباتي.</span>
+          <b className="text-ink">{tx('النسخ الورقية', 'Print copies')}</b>
+          <span className="text-sm text-muted">
+            {tx('الكتب الورقية بتتابع طلبها من صفحة طلباتي.', 'Track print book orders from My orders.')}
+          </span>
         </span>
         <span className="flex items-center gap-1 font-bold text-blue-600">
-          طلباتي <Icon name="arrowLeft" size={16} />
+          {tx('طلباتي', 'My orders')} <Icon name="arrowLeft" size={16} />
         </span>
       </Link>
     </AccountShell>
@@ -112,24 +128,30 @@ function BookRow({ book }: { book: OwnedBook }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-gold-soft px-2.5 py-0.5 text-xs font-bold text-gold-ink">
           <Icon name={audio ? 'headphones' : 'file'} size={12} />
-          {audio ? 'كتاب صوتي' : 'رقمي PDF'}
+          {audio ? tx('كتاب صوتي', 'Audiobook') : tx('رقمي PDF', 'Digital PDF')}
         </span>
         <h3 className="text-lg">
           <Link to={routes.book(book.book.slug)} className="text-ink">
-            {book.book.titleAr}
+            {loc(book.book.titleAr, book.book.titleEn)}
           </Link>
         </h3>
         <p className="text-sm text-muted">
           {audio
             ? pos
-              ? `${g('وقفت', 'وقفتي', 'آخر وقفة')} عند ${durationLabel(pos)}${book.audioDuration ? ` من ${durationLabel(book.audioDuration)}` : ''}`
+              ? isEn
+                ? `Stopped at ${durationLabel(pos)}${book.audioDuration ? ` of ${durationLabel(book.audioDuration)}` : ''}`
+                : `${g('وقفت', 'وقفتي', 'آخر وقفة')} عند ${durationLabel(pos)}${book.audioDuration ? ` من ${durationLabel(book.audioDuration)}` : ''}`
               : book.audioDuration
-                ? `لسه ${g('مبدأتش', 'مبدأتيش', 'متبدأش')} · ${durationLabel(book.audioDuration)}`
-                : 'كتاب صوتي'
-            : 'نسخة PDF تتقري من المتصفح'}
+                ? `${isEn ? 'Not started' : `لسه ${g('مبدأتش', 'مبدأتيش', 'متبدأش')}`} · ${durationLabel(book.audioDuration)}`
+                : tx('كتاب صوتي', 'Audiobook')
+            : tx('نسخة PDF تتقري من المتصفح', 'PDF you can read in the browser')}
         </p>
         {pct !== null && <ProgressBar value={pct} className="max-w-sm" />}
-        {!book.isAvailable && <span className="text-xs text-danger">الكتاب ده مش متاح حاليًا</span>}
+        {!book.isAvailable && (
+          <span className="text-xs text-danger">
+            {tx('الكتاب ده مش متاح حاليًا', 'This book is not available right now')}
+          </span>
+        )}
       </div>
       {book.isAvailable && book.hasFile ? (
         <Link
@@ -139,12 +161,12 @@ function BookRow({ book }: { book: OwnedBook }) {
           <Icon name={audio ? 'play' : 'book'} size={16} />
           {audio
             ? pos
-              ? g('كمّل الاستماع', 'كمّلي الاستماع', 'استكمال الاستماع')
-              : g('ابدأ الاستماع', 'ابدئي الاستماع', 'استماع')
-            : g('اقرأ', 'اقرئي', 'قراءة')}
+              ? g('كمّل الاستماع', 'كمّلي الاستماع', 'استكمال الاستماع', 'Continue listening')
+              : g('ابدأ الاستماع', 'ابدئي الاستماع', 'استماع', 'Start listening')
+            : g('اقرأ', 'اقرئي', 'قراءة', 'Read')}
         </Link>
       ) : (
-        <span className="text-sm text-muted">الملف لسه مش جاهز</span>
+        <span className="text-sm text-muted">{tx('الملف لسه مش جاهز', "The file isn't ready yet")}</span>
       )}
     </li>
   )

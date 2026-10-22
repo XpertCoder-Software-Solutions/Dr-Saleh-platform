@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { routes } from '@/app/routes'
 import { Icon } from '@/components/ui/Icon'
+import { tx } from '@/lib/i18n'
 
 /** Split auth layout: form on the right, brand panel on the left. No site header. */
 export function AuthShell({ title, sub, children }: { title: string; sub?: ReactNode; children: ReactNode }) {
@@ -10,10 +11,14 @@ export function AuthShell({ title, sub, children }: { title: string; sub?: React
       <div className="flex flex-col px-10 py-5 max-lg:px-4">
         <div className="flex items-center justify-between">
           <Link to={routes.home} className="inline-flex items-center gap-1.5 font-bold text-ink">
-            <Icon name="arrowRight" size={16} /> رجوع للرئيسية
+            <Icon name="arrowRight" size={16} /> {tx('رجوع للرئيسية', 'Back to home')}
           </Link>
-          <Link to={routes.home} aria-label="الرئيسية">
-            <img src="/assets/brand/logo-blue.webp" alt="الدكتور صالح عبد الكريم" className="h-11 w-auto" />
+          <Link to={routes.home} aria-label={tx('الرئيسية', 'Home')}>
+            <img
+              src="/assets/brand/logo-blue.webp"
+              alt={tx('الدكتور صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
+              className="h-11 w-auto"
+            />
           </Link>
         </div>
         <main id="main" className="mx-auto flex w-full max-w-110 flex-1 flex-col justify-center gap-6 py-10">
@@ -30,20 +35,25 @@ export function AuthShell({ title, sub, children }: { title: string; sub?: React
         aria-hidden="true"
       >
         <div className="absolute inset-0 dots opacity-50" />
-        <img className="absolute top-12 right-12 w-60" src="/assets/brand/logo-white.webp" alt="" />
+        <img className="absolute start-12 top-12 w-60" src="/assets/brand/logo-white.webp" alt="" />
         <img
-          className="absolute bottom-0 -left-2.5 h-[72%] w-auto max-w-none drop-shadow-[0_20px_40px_rgba(5,20,40,.45)]"
+          className="absolute -end-2.5 bottom-0 h-[72%] w-auto max-w-none drop-shadow-[0_20px_40px_rgba(5,20,40,.45)]"
           src="/assets/brand/saleh-cutout.webp"
           alt=""
         />
-        <div className="absolute right-12 bottom-12 flex w-[min(380px,70%)] flex-col gap-2.5 rounded-[22px] p-6 text-white glass">
+        <div className="absolute start-12 bottom-12 flex w-[min(380px,70%)] flex-col gap-2.5 rounded-[22px] p-6 text-white glass">
           <p className="font-head text-xl leading-[1.7]">
-            «مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون سوي، واثق في نفسه.»
+            {tx(
+              '«مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون سوي، واثق في نفسه.»',
+              '“Your child doesn’t need to be perfect… they need to be balanced and self-confident.”',
+            )}
           </p>
-          <span className="text-sm text-on-dark-muted">د. صالح عبد الكريم</span>
+          <span className="text-sm text-on-dark-muted">
+            {tx('د. صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
+          </span>
           <div className="flex flex-wrap gap-2 *:rounded-lg *:bg-white/14 *:px-2.5 *:py-1.25 *:text-[13px]">
-            <span>دوراتك وكتبك في مكان واحد</span>
-            <span>شهادات قابلة للمشاركة</span>
+            <span>{tx('دوراتك وكتبك في مكان واحد', 'Your courses and books in one place')}</span>
+            <span>{tx('شهادات قابلة للمشاركة', 'Shareable certificates')}</span>
           </div>
         </div>
       </aside>

@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { tx } from '@/lib/i18n'
 
 /**
  * Dual-thumb range slider: two native range inputs stacked on one track, so keyboard
@@ -13,7 +14,7 @@ export function RangeSlider({
   onChange,
   onCommit,
   formatValue = String,
-  labels = ['أقل قيمة', 'أعلى قيمة'],
+  labels = [tx('أقل قيمة', 'Minimum'), tx('أعلى قيمة', 'Maximum')],
 }: {
   min: number
   max: number

@@ -9,6 +9,7 @@ import { Icon, type IconName } from '@/components/ui/Icon'
 import { buttonClass } from '@/components/ui/button'
 import { ErrorState, Spinner } from '@/components/ui/States'
 import { formatDate, formatEGP } from '@/lib/format'
+import { isEn, tx } from '@/lib/i18n'
 
 // Captured once per page load; precise enough to grey out expired coupons.
 const LOADED_AT = Date.now()
@@ -25,7 +26,10 @@ export function ReferralPage() {
   const items = refs.data?.items ?? []
   const rewarded = items.filter((r) => r.isRewarded)
   const coupons = items.filter((r) => r.rewardCoupon)
-  const message = `سجّل في منصة د. صالح عبد الكريم للتربية بالكود ${value}: ${link}`
+  const message = tx(
+    `سجّل في منصة د. صالح عبد الكريم للتربية بالكود ${value}: ${link}`,
+    `Join Dr. Saleh Abdelkarim's parenting platform with code ${value}: ${link}`,
+  )
 
   async function copy(text: string, what: 'code' | 'link') {
     try {
@@ -33,7 +37,7 @@ export function ReferralPage() {
       setCopied(what)
       setTimeout(() => setCopied(null), 2000)
     } catch {
-      window.prompt('انسخ', text)
+      window.prompt(tx('انسخ', 'Copy'), text)
     }
   }
 
@@ -41,14 +45,19 @@ export function ReferralPage() {
     {
       icon: 'link',
       value: refs.data?.pagination.total ?? 0,
-      label: 'صحاب سجّلوا بكودك',
+      label: tx('صحاب سجّلوا بكودك', 'Friends who signed up with your code'),
       tint: 'bg-surface-blue text-blue-600',
     },
-    { icon: 'check', value: rewarded.length, label: 'اشتروا أول مرة', tint: 'bg-[#E7F6EC] text-success' },
+    {
+      icon: 'check',
+      value: rewarded.length,
+      label: tx('اشتروا أول مرة', 'Made a first purchase'),
+      tint: 'bg-[#E7F6EC] text-success',
+    },
     {
       icon: 'heartHand',
       value: coupons.length,
-      label: 'كوبونات خصم ليك',
+      label: tx('كوبونات خصم ليك', 'Your discount coupons'),
       tint: 'bg-gold-soft text-gold-ink',
     },
   ]
@@ -56,12 +65,15 @@ export function ReferralPage() {
   return (
     <AccountShell
       active="referral"
-      pageTitle="ادعُ صديق"
-      title={<Highlight text={g('ادعُ *صحابك*', 'ادعي *صحابك*', 'ادعوا *صحابكم*')} />}
+      pageTitle={tx('ادعُ صديق', 'Invite a friend')}
+      title={
+        <Highlight text={g('ادعُ *صحابك*', 'ادعي *صحابك*', 'ادعوا *صحابكم*', 'Invite *your friends*')} />
+      }
       body={g(
         'شارك كودك، وكل صاحب يشتري بيه بيطلعلك كوبون خصم.',
         'شاركي كودك، وكل صاحبة تشتري بيه بيطلعلك كوبون خصم.',
         'كل صاحب يسجّل بالكود ويشتري، بيطلع لصاحب الكود كوبون خصم.',
+        'Share your code, and you get a discount coupon for every friend who buys with it.',
       )}
     >
       <div className="relative grid bg-navy grid-cols-[1fr_200px] items-center gap-6 overflow-hidden rounded-card p-8 text-white max-md:grid-cols-1 max-sm:p-5">
@@ -69,13 +81,16 @@ export function ReferralPage() {
         <div className="relative flex flex-col gap-4">
           <h2 className="text-[28px] leading-snug text-white">{t('ref.cta')}</h2>
           <p className="leading-loose text-on-dark">
-            {g('صاحبك', 'صاحبتك', 'صاحبك')} يسجّل بالكود ده، وأول ما يشتري أول طلب، بيطلعلك كوبون خصم تستخدمه
-            في أي طلب جاي.
+            {isEn
+              ? 'Your friend signs up with this code, and once they place their first order you get a discount coupon for your next order.'
+              : `${g('صاحبك', 'صاحبتك', 'صاحبك')} يسجّل بالكود ده، وأول ما يشتري أول طلب، بيطلعلك كوبون خصم تستخدمه في أي طلب جاي.`}
           </p>
           {code.isLoading ? (
             <Spinner />
           ) : code.isError ? (
-            <p className="text-sm text-on-dark">مقدرناش نجيب كودك دلوقتي.</p>
+            <p className="text-sm text-on-dark">
+              {tx('مقدرناش نجيب كودك دلوقتي.', "We couldn't load your code right now.")}
+            </p>
           ) : (
             <div className="flex items-center gap-3 rounded-2xl border border-white/25 bg-white/10 p-2 ps-5">
               <b dir="ltr" className="flex-1 text-center font-head text-2xl tracking-[.2em]">
@@ -87,7 +102,7 @@ export function ReferralPage() {
                 onClick={() => copy(value, 'code')}
               >
                 <Icon name={copied === 'code' ? 'check' : 'copy'} size={14} />{' '}
-                {copied === 'code' ? 'اتنسخ' : 'نسخ الكود'}
+                {copied === 'code' ? tx('اتنسخ', 'Copied') : tx('نسخ الكود', 'Copy code')}
               </button>
             </div>
           )}
@@ -98,7 +113,7 @@ export function ReferralPage() {
               rel="noreferrer"
               className={buttonClass({ variant: 'glass', size: 'sm' })}
             >
-              <Icon name="whatsapp" size={15} /> واتساب
+              <Icon name="whatsapp" size={15} /> {tx('واتساب', 'WhatsApp')}
             </a>
             <button
               type="button"
@@ -115,7 +130,7 @@ export function ReferralPage() {
               }}
             >
               <Icon name={copied === 'link' ? 'check' : 'link'} size={15} />{' '}
-              {copied === 'link' ? 'اتنسخ' : 'مشاركة اللينك'}
+              {copied === 'link' ? tx('اتنسخ', 'Copied') : tx('مشاركة اللينك', 'Share link')}
             </button>
           </div>
         </div>
@@ -143,7 +158,7 @@ export function ReferralPage() {
       ) : (
         coupons.length > 0 && (
           <Panel className="flex flex-col gap-3">
-            <h2 className="text-xl">كوبوناتك من الدعوات</h2>
+            <h2 className="text-xl">{tx('كوبوناتك من الدعوات', 'Your referral coupons')}</h2>
             <ul className="flex flex-col gap-2.5">
               {coupons.map((r) => {
                 const c = r.rewardCoupon!
@@ -157,43 +172,58 @@ export function ReferralPage() {
                       {c.code}
                     </b>
                     <span className="flex-1 text-sm text-text-2">
-                      خصم {c.type === 'PERCENTAGE' ? `${c.value}%` : formatEGP(c.value)} · لحد{' '}
-                      {formatDate(c.expiresAt)}
+                      {tx('خصم', 'Discount')} {c.type === 'PERCENTAGE' ? `${c.value}%` : formatEGP(c.value)} ·{' '}
+                      {tx('لحد', 'until')} {formatDate(c.expiresAt)}
                     </span>
                     {expired ? (
-                      <StatusPill tone="muted">انتهى</StatusPill>
+                      <StatusPill tone="muted">{tx('انتهى', 'Expired')}</StatusPill>
                     ) : (
                       <button
                         type="button"
                         className={buttonClass({ variant: 'outline', size: 'sm' })}
                         onClick={() => copy(c.code, 'code')}
                       >
-                        <Icon name="copy" size={13} /> نسخ
+                        <Icon name="copy" size={13} /> {tx('نسخ', 'Copy')}
                       </button>
                     )}
                   </li>
                 )
               })}
             </ul>
-            <p className="text-xs text-muted">اكتب الكوبون في خطوة الدفع.</p>
+            <p className="text-xs text-muted">
+              {tx('اكتب الكوبون في خطوة الدفع.', 'Enter the coupon at the payment step.')}
+            </p>
           </Panel>
         )
       )}
 
       <Panel className="flex flex-col gap-5">
-        <h2 className="text-xl">إزاي بتشتغل؟</h2>
+        <h2 className="text-xl">{tx('إزاي بتشتغل؟', 'How it works')}</h2>
         <ol className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
           {[
             [
-              g('ابعت الكود', 'ابعتي الكود', 'ابعتوا الكود'),
+              g('ابعت الكود', 'ابعتي الكود', 'ابعتوا الكود', 'Send the code'),
               g(
                 'شارك كودك أو اللينك مع صحابك.',
                 'شاركي كودك أو اللينك مع صحابك.',
                 'الكود أو اللينك يتبعت للصحاب.',
+                'Share your code or link with your friends.',
               ),
             ],
-            ['يسجّلوا بالكود', 'يكتبوه في خانة «كود دعوة» وهما بيعملوا الحساب، أو يفتحوا اللينك على طول.'],
-            [g('تكسب كوبون', 'تكسبي كوبون', 'كوبون خصم'), 'أول ما صاحبك يدفع أول طلب، الكوبون بيظهر هنا.'],
+            [
+              tx('يسجّلوا بالكود', 'They sign up with the code'),
+              tx(
+                'يكتبوه في خانة «كود دعوة» وهما بيعملوا الحساب، أو يفتحوا اللينك على طول.',
+                'They enter it in the “Invite code” field when creating their account, or just open the link.',
+              ),
+            ],
+            [
+              g('تكسب كوبون', 'تكسبي كوبون', 'كوبون خصم', 'Earn a coupon'),
+              tx(
+                'أول ما صاحبك يدفع أول طلب، الكوبون بيظهر هنا.',
+                'As soon as your friend pays for their first order, the coupon shows up here.',
+              ),
+            ],
           ].map(([title, body], i) => (
             <li key={title} className="flex flex-col gap-2 rounded-tile bg-surface p-5">
               <span className="flex size-8 bg-gold items-center justify-center rounded-full font-bold text-navy">

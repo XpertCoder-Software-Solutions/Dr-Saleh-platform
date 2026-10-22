@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { ApiClientError, resolveAssetUrl } from '@/api/client'
 import { articlesApi, coursesApi, type ArticleSummary } from '@/api/endpoints'
 import { routes } from '@/app/routes'
@@ -18,6 +18,7 @@ import { CARD_GRADS, pickBySeed } from '@/lib/catalog'
 import { formatDate, minutesLabel, readingMinutes } from '@/lib/format'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { tx } from '@/lib/i18n'
 
 export function ArticlePage() {
   const { slug = '' } = useParams()
@@ -32,7 +33,7 @@ export function ArticlePage() {
     queryFn: () => articlesApi.bySlug(slug),
     staleTime: 5 * 60_000,
   })
-  usePageTitle(article?.title ?? 'مقال')
+  usePageTitle(article?.title ?? tx('مقال', 'Article'))
 
   if (error instanceof ApiClientError && error.statusCode === 404) return <NotFoundPage />
   if (isError) {
@@ -65,14 +66,14 @@ function Article({ article }: { article: ArticleSummary }) {
         <div className="relative mx-auto flex max-w-205 flex-col items-center gap-4">
           <Breadcrumbs
             crumbs={[
-              { label: 'الرئيسية', to: routes.home },
-              { label: 'المقالات', to: routes.blog },
-              { label: article.category?.name ?? 'مقال' },
+              { label: tx('الرئيسية', 'Home'), to: routes.home },
+              { label: tx('المقالات', 'Articles'), to: routes.blog },
+              { label: article.category?.name ?? tx('مقال', 'Article') },
             ]}
           />
           <span className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-bold glass">
             <span className="size-2 rounded-full bg-gold-light" />
-            {article.category?.name} · {minutesLabel(readingMinutes(article.content))} قراءة
+            {article.category?.name} · {minutesLabel(readingMinutes(article.content))} {tx('قراءة', 'read')}
           </span>
           <h1 className="animate-rise text-[clamp(30px,4.5vw,48px)] leading-tight text-white">
             {words.slice(0, cut).join(' ')} <span className="text-sheen">{words.slice(cut).join(' ')}</span>
@@ -85,10 +86,14 @@ function Article({ article }: { article: ArticleSummary }) {
                 className="h-[130%] w-full object-cover object-top"
               />
             </span>
-            <b className="text-white">د. صالح عبد الكريم</b>·<span>{formatDate(article.createdAt)}</span>
+            <b className="text-white">{tx('د. صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}</b>·
+            <span>{formatDate(article.createdAt)}</span>
             {!!article.viewsCount && (
               <>
-                ·<span>{article.viewsCount} مشاهدة</span>
+                ·
+                <span>
+                  {article.viewsCount} {tx('مشاهدة', 'views')}
+                </span>
               </>
             )}
           </div>
@@ -132,10 +137,10 @@ function Article({ article }: { article: ArticleSummary }) {
           <aside className="sticky top-27 flex flex-col gap-4 max-lg:static max-lg:order-first">
             {headings.length > 1 && (
               <nav
-                aria-label="في المقال ده"
+                aria-label={tx('في المقال ده', 'In this article')}
                 className="flex flex-col gap-1 rounded-card border border-line bg-white p-5 max-lg:hidden"
               >
-                <b className="mb-2 text-ink">في المقال ده</b>
+                <b className="mb-2 text-ink">{tx('في المقال ده', 'In this article')}</b>
                 {headings.map((h) => (
                   <a
                     key={h.id}
@@ -152,7 +157,7 @@ function Article({ article }: { article: ArticleSummary }) {
         </div>
       </section>
 
-      <RelatedCourses />
+      <RelatedCourses ids={article.relatedCourseIds ?? []} />
       <MoreArticles current={article} />
     </>
   )
@@ -163,12 +168,12 @@ function Share({ title }: { title: string }) {
   const url = typeof window !== 'undefined' ? window.location.href : ''
   const links: { label: string; icon: IconName; href: string }[] = [
     {
-      label: 'فيسبوك',
+      label: tx('فيسبوك', 'Facebook'),
       icon: 'facebook',
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
     },
     {
-      label: 'واتساب',
+      label: tx('واتساب', 'WhatsApp'),
       icon: 'whatsapp',
       href: `https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}`,
     },
@@ -177,14 +182,14 @@ function Share({ title }: { title: string }) {
     'flex size-10 items-center justify-center rounded-full border border-line bg-white text-ink hover:bg-hover hover:text-ink'
   return (
     <div className="flex items-center gap-2 text-sm text-muted">
-      شارك:
+      {tx('شارك:', 'Share:')}
       {links.map((l) => (
         <a
           key={l.label}
           href={l.href}
           target="_blank"
           rel="noreferrer"
-          aria-label={`شارك على ${l.label}`}
+          aria-label={tx(`شارك على ${l.label}`, `Share on ${l.label}`)}
           className={btn}
         >
           <Icon name={l.icon} size={17} />
@@ -193,7 +198,7 @@ function Share({ title }: { title: string }) {
       <button
         type="button"
         className={btn}
-        aria-label="انسخ الرابط"
+        aria-label={tx('انسخ الرابط', 'Copy link')}
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(url)
@@ -210,20 +215,34 @@ function Share({ title }: { title: string }) {
   )
 }
 
-function RelatedCourses() {
-  const { data } = useQuery({ queryKey: ['courses', 'home'], queryFn: coursesApi.home })
-  const courses = (data ?? []).slice(0, 2)
+function RelatedCourses({ ids }: { ids: string[] }) {
+  // Courses the admin picked for this article; hidden or deleted ones are skipped.
+  const picked = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['courses', 'detail', id],
+      queryFn: () => coursesApi.byId(id),
+      retry: false,
+    })),
+  })
+  const chosen = picked.flatMap((q) => (q.data ? [q.data] : []))
+  const pickedDone = picked.every((q) => !q.isLoading)
+  const fallback = useQuery({
+    queryKey: ['courses', 'home'],
+    queryFn: coursesApi.home,
+    enabled: ids.length === 0 || (pickedDone && chosen.length === 0),
+  })
+  const courses = chosen.length ? chosen : (fallback.data ?? []).slice(0, 2)
   if (!courses.length) return null
   return (
     <section className={sectionClass}>
       <div className={cn(innerClass, 'rounded-panel bg-surface-blue p-9 max-sm:p-5')}>
         <SectionHeader
-          eyebrow="دورات"
+          eyebrow={tx('دورات', 'Courses')}
           icon="video"
-          title="دورات ذات صلة بالمقال"
-          more={{ to: routes.courses, label: 'كل الدورات' }}
+          title={tx('دورات ذات صلة بالمقال', 'Courses related to this article')}
+          more={{ to: routes.courses, label: tx('كل الدورات', 'All courses') }}
         />
-        <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
           {courses.map((c) => (
             <CourseCard key={c.id} course={c} />
           ))}
@@ -244,10 +263,10 @@ function MoreArticles({ current }: { current: ArticleSummary }) {
     <section className={sectionClass}>
       <div className={innerClass}>
         <SectionHeader
-          eyebrow="اقرأ كمان"
+          eyebrow={tx('اقرأ كمان', 'Read more')}
           icon="pen"
-          title="مقالات تانية ممكن تفيدك"
-          more={{ to: routes.blog, label: 'كل المقالات' }}
+          title={tx('مقالات تانية ممكن تفيدك', 'Other articles you may find useful')}
+          more={{ to: routes.blog, label: tx('كل المقالات', 'All articles') }}
         />
         <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-6">
           {others.map((a) => (

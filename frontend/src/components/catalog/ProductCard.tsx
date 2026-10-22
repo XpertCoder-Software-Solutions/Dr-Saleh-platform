@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/States'
 import { CARD_GRADS, pickBySeed, productPrice } from '@/lib/catalog'
 import { formatMoney } from '@/lib/format'
 import { useRegion } from '@/lib/region'
+import { loc, tx } from '@/lib/i18n'
 
 export function ProductImage({ product, className }: { product: StoreProduct; className?: string }) {
   const src = resolveAssetUrl(product.coverImage)
@@ -51,14 +52,16 @@ export function ProductCard({ product }: { product: StoreProduct }) {
       <div className="relative">
         <ProductImage product={product} className="h-52 rounded-[18px] max-sm:h-40" />
         {off > 0 && (
-          <span className="absolute top-3 left-3 rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-ink">
-            وفّر {formatMoney(price.old! - price.current, currency)}
+          <span className="absolute end-3 top-3 rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-ink">
+            {tx('وفّر', 'Save')} {formatMoney(price.old! - price.current, currency)}
           </span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5 px-2">
         {product.category && (
-          <span className="text-[13px] font-bold text-blue-600">{product.category.nameAr}</span>
+          <span className="text-[13px] font-bold text-blue-600">
+            {loc(product.category.nameAr, product.category.nameEn)}
+          </span>
         )}
         <h3 className="text-lg font-semibold">{product.name}</h3>
         <p className="line-clamp-2 text-sm leading-relaxed text-muted">{product.description}</p>
@@ -67,7 +70,13 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         <span className="flex flex-col">
           <b className="font-head text-xl text-ink">{formatMoney(price.current, currency)}</b>
           <span className={outOfStock ? 'text-xs text-danger' : 'text-xs text-muted'}>
-            {outOfStock ? 'نفد من المخزن' : price.old ? <s>{formatMoney(price.old, currency)}</s> : 'متوفر'}
+            {outOfStock ? (
+              tx('نفد من المخزن', 'Out of stock')
+            ) : price.old ? (
+              <s>{formatMoney(price.old, currency)}</s>
+            ) : (
+              tx('متوفر', 'In stock')
+            )}
           </span>
         </span>
         <button
@@ -80,11 +89,11 @@ export function ProductCard({ product }: { product: StoreProduct }) {
             <Spinner />
           ) : added ? (
             <>
-              <Icon name="check" size={16} /> اتضاف
+              <Icon name="check" size={16} /> {tx('اتضاف', 'Added')}
             </>
           ) : (
             <>
-              <Icon name="plus" size={16} /> أضف للسلة
+              <Icon name="plus" size={16} /> {tx('أضف للسلة', 'Add to cart')}
             </>
           )}
         </button>

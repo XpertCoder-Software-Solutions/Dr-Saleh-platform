@@ -1,11 +1,12 @@
 import type { Order } from '@/api/shop'
+import { tx } from '@/lib/i18n'
 
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'muted'
 
 export const SHIPPING_LABEL = {
-  PREPARING: 'بيتجهّز',
-  SHIPPED: 'في الطريق',
-  DELIVERED: 'اتسلّم',
+  PREPARING: tx('بيتجهّز', 'Being prepared'),
+  SHIPPED: tx('في الطريق', 'On its way'),
+  DELIVERED: tx('اتسلّم', 'Delivered'),
 } as const
 
 /** Status pill for an order: payment first, then shipping for paid orders with physical items. */
@@ -18,17 +19,17 @@ export function orderStatus(
       if (order.hasPhysicalItems) {
         if (order.shippingStatus === 'DELIVERED') return { label: SHIPPING_LABEL.DELIVERED, tone: 'success' }
         if (order.shippingStatus === 'SHIPPED') return { label: SHIPPING_LABEL.SHIPPED, tone: 'info' }
-        return { label: 'مدفوع · بيتجهّز', tone: 'success' }
+        return { label: tx('مدفوع · بيتجهّز', 'Paid · being prepared'), tone: 'success' }
       }
-      return { label: 'مدفوع', tone: 'success' }
+      return { label: tx('مدفوع', 'Paid'), tone: 'success' }
     case 'CANCELLED':
-      return { label: 'ملغي', tone: 'muted' }
+      return { label: tx('ملغي', 'Cancelled'), tone: 'muted' }
     case 'REFUNDED':
-      return { label: 'مسترد', tone: 'info' }
+      return { label: tx('مسترد', 'Refunded'), tone: 'info' }
     default:
       return order.paymentStatus === 'FAILED'
-        ? { label: 'الدفع مكملش', tone: 'danger' }
-        : { label: 'في انتظار الدفع', tone: 'warning' }
+        ? { label: tx('الدفع مكملش', 'Payment failed'), tone: 'danger' }
+        : { label: tx('في انتظار الدفع', 'Awaiting payment'), tone: 'warning' }
   }
 }
 
@@ -43,7 +44,13 @@ export const TONE_CLASS: Record<Tone, string> = {
 /** "دورة + كتاب صوتي" style summary of what an order holds. */
 export function orderKinds(order: Pick<Order, 'items'>): string {
   const kinds = new Set(
-    order.items.map((i) => (i.itemType === 'COURSE' ? 'دورة' : i.itemType === 'BOOK' ? 'كتاب' : 'منتجات')),
+    order.items.map((i) =>
+      i.itemType === 'COURSE'
+        ? tx('دورة', 'Course')
+        : i.itemType === 'BOOK'
+          ? tx('كتاب', 'Book')
+          : tx('منتجات', 'Products'),
+    ),
   )
   return [...kinds].join(' + ')
 }

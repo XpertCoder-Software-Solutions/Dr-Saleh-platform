@@ -65,7 +65,11 @@ export function AdminStaffPage() {
         title="فريق العمل"
         sub="حسابات لوحة التحكم، وكل حساب بيشوف الأقسام اللي تحددها له بس."
         actions={
-          <button type="button" className={buttonClass({ variant: 'gold' })} onClick={() => setEditing('new')}>
+          <button
+            type="button"
+            className={buttonClass({ variant: 'gold' })}
+            onClick={() => setEditing('new')}
+          >
             <Icon name="plus" size={16} /> عضو جديد
           </button>
         }
@@ -102,7 +106,10 @@ export function AdminStaffPage() {
                     </span>
                   ) : m.adminPermissions.length ? (
                     m.adminPermissions.map((p) => (
-                      <span key={p} className="rounded-full bg-surface-blue px-2.5 py-1 text-xs font-bold text-blue-600">
+                      <span
+                        key={p}
+                        className="rounded-full bg-surface-blue px-2.5 py-1 text-xs font-bold text-blue-600"
+                      >
                         {PERMISSION_INFO[p]?.label ?? p}
                       </span>
                     ))
@@ -129,10 +136,7 @@ export function AdminStaffPage() {
         )}
       </AdminCard>
       {editing && (
-        <StaffModal
-          member={editing === 'new' ? undefined : editing}
-          onClose={() => setEditing(null)}
-        />
+        <StaffModal member={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />
       )}
     </>
   )

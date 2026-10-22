@@ -14,6 +14,7 @@ import {
 import { formatMoney } from '@/lib/format'
 import type { Book } from '@/types/api'
 import { useRegion } from '@/lib/region'
+import { loc, tx } from '@/lib/i18n'
 
 const bookShadow = 'rounded-[4px_10px_10px_4px] shadow-[-10px_16px_30px_-10px_rgba(12,42,74,.55)]'
 
@@ -45,13 +46,15 @@ export function BookCoverArt({
       )}
       style={{ background: theme.grad }}
     >
-      <span className="absolute inset-y-0 right-2 w-0.5 bg-white/25" />
+      <span className="absolute inset-y-0 start-2 w-0.5 bg-white/25" />
       {size === 'md' && (
         <>
           <span className="font-head text-xl leading-[1.3] font-bold text-white max-sm:text-base">
-            {book.titleAr}
+            {loc(book.titleAr, book.titleEn)}
           </span>
-          <span className="text-[11px] text-white/85">د. صالح عبد الكريم</span>
+          <span className="text-[11px] text-white/85">
+            {tx('د. صالح عبد الكريم', 'Dr. Saleh Abdelkarim')}
+          </span>
         </>
       )}
     </div>
@@ -75,16 +78,20 @@ export function BookCard({ book, showCategory }: { book: Book; showCategory?: bo
       >
         <BookCoverArt book={book} className="tilt" />
         {hours && (
-          <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-ink shadow-sm">
-            <Icon name="headphones" size={13} /> {hours} س
+          <span className="absolute end-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-ink shadow-sm">
+            <Icon name="headphones" size={13} /> {hours} {tx('س', 'h')}
           </span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 px-1 pb-1">
         {showCategory && book.category && (
-          <span className="text-[13px] font-bold text-blue-600">{book.category.nameAr}</span>
+          <span className="text-[13px] font-bold text-blue-600">
+            {loc(book.category.nameAr, book.category.nameEn)}
+          </span>
         )}
-        <span className="font-head text-[19px] font-semibold text-ink max-sm:text-base">{book.titleAr}</span>
+        <span className="font-head text-[19px] font-semibold text-ink max-sm:text-base">
+          {loc(book.titleAr, book.titleEn)}
+        </span>
         {formats.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {formats.map((f) => (
@@ -99,7 +106,7 @@ export function BookCard({ book, showCategory }: { book: Book; showCategory?: bo
         )}
         {price !== null && (
           <span className="mt-auto text-[15px] text-muted">
-            يبدأ من <b className="text-lg text-ink">{formatMoney(price, currency)}</b>
+            {tx('يبدأ من', 'From')} <b className="text-lg text-ink">{formatMoney(price, currency)}</b>
           </span>
         )}
       </div>

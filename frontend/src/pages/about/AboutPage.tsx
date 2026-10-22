@@ -10,54 +10,93 @@ import { cn } from '@/lib/cn'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { CHANNELS } from '@/pages/home/channels'
 import { SOCIAL } from '@/content/contact'
+import { tx } from '@/lib/i18n'
 
 const CREDENTIALS: { icon: IconName; text: string }[] = [
-  { icon: 'user', text: 'المستشار النفسي والتربوي' },
-  { icon: 'home', text: 'رئيس مركز السعادة للاستشارات النفسية والتربوية' },
-  { icon: 'video', text: 'مقدّم برنامج «فن التربية» على قناة الرحمة' },
-  { icon: 'book', text: 'مؤلف كتاب «فن تربية الأبناء»' },
+  { icon: 'user', text: tx('المستشار النفسي والتربوي', 'Psychological & parenting consultant') },
+  {
+    icon: 'home',
+    text: tx(
+      'رئيس مركز السعادة للاستشارات النفسية والتربوية',
+      'Head of Al-Saada Center for Psychological & Parenting Consultations',
+    ),
+  },
+  {
+    icon: 'video',
+    text: tx('مقدّم برنامج «فن التربية» على قناة الرحمة', 'Host of “The Art of Parenting” on Al-Rahma TV'),
+  },
+  { icon: 'book', text: tx('مؤلف كتاب «فن تربية الأبناء»', 'Author of “The Art of Parenting”') },
 ]
 
 // Topics from his «فن التربية» episodes on Al-Rahma TV.
 const TOPICS = [
-  'التربية بالثواب والعقاب',
-  'علاج الكذب عند الأبناء',
-  'فرط الحركة',
-  'العناد',
-  'خناقات الإخوات',
-  'ضعف الشخصية والثقة بالنفس',
-  'الحوار والاستماع للأبناء',
-  'الفجوة بين الأجيال',
-  'أخطاء شائعة في التربية',
-  'السعادة الزوجية',
+  tx('التربية بالثواب والعقاب', 'Parenting with rewards and consequences'),
+  tx('علاج الكذب عند الأبناء', 'Dealing with lying in children'),
+  tx('فرط الحركة', 'Hyperactivity'),
+  tx('العناد', 'Stubbornness'),
+  tx('خناقات الإخوات', 'Sibling fights'),
+  tx('ضعف الشخصية والثقة بالنفس', 'Low self-esteem and confidence'),
+  tx('الحوار والاستماع للأبناء', 'Talking and listening to children'),
+  tx('الفجوة بين الأجيال', 'The generation gap'),
+  tx('أخطاء شائعة في التربية', 'Common parenting mistakes'),
+  tx('السعادة الزوجية', 'A happy marriage'),
 ]
 
 const IDEAS: { icon: IconName; title: string; body: string }[] = [
-  { icon: 'heart', title: 'الحب غير المشروط', body: 'الطفل يحس إنه محبوب عشان هو، مش عشان درجاته أو سلوكه.' },
-  { icon: 'chat', title: 'الحوار قبل العقاب', body: 'نفهم السبب الأول، وبعدين نتصرف.' },
-  { icon: 'shield', title: 'حدود من غير عنف', body: 'قواعد واضحة وثابتة، بتتطبق بهدوء واحترام.' },
-  { icon: 'sparkle', title: 'خطوات عملية', body: 'كل فكرة معاها تطبيق تقدر تعمله النهارده.' },
+  {
+    icon: 'heart',
+    title: tx('الحب غير المشروط', 'Unconditional love'),
+    body: tx(
+      'الطفل يحس إنه محبوب عشان هو، مش عشان درجاته أو سلوكه.',
+      'Children feel loved for who they are, not for their grades or behavior.',
+    ),
+  },
+  {
+    icon: 'chat',
+    title: tx('الحوار قبل العقاب', 'Talk before punishment'),
+    body: tx('نفهم السبب الأول، وبعدين نتصرف.', 'First understand why, then act.'),
+  },
+  {
+    icon: 'shield',
+    title: tx('حدود من غير عنف', 'Boundaries without violence'),
+    body: tx(
+      'قواعد واضحة وثابتة، بتتطبق بهدوء واحترام.',
+      'Clear, consistent rules applied calmly and respectfully.',
+    ),
+  },
+  {
+    icon: 'sparkle',
+    title: tx('خطوات عملية', 'Practical steps'),
+    body: tx('كل فكرة معاها تطبيق تقدر تعمله النهارده.', 'Every idea comes with something you can do today.'),
+  },
 ]
 
 export function AboutPage() {
-  usePageTitle('عن د. صالح')
+  usePageTitle(tx('عن د. صالح', 'About Dr. Saleh'))
   const t = useCopy()
   return (
     <>
       <PageHero
-        crumbs={[{ label: 'الرئيسية', to: routes.home }, { label: 'عن د. صالح' }]}
+        crumbs={[
+          { label: tx('الرئيسية', 'Home'), to: routes.home },
+          { label: tx('عن د. صالح', 'About Dr. Saleh') },
+        ]}
         eyebrow={
           <>
             <span className="size-2 animate-pulse-ring rounded-full bg-gold-light" />
-            المستشار النفسي والتربوي
+            {tx('المستشار النفسي والتربوي', 'Psychological & parenting consultant')}
           </>
         }
         title={
           <>
-            الدكتور <span className="text-sheen">صالح عبد الكريم</span>
+            {tx('الدكتور', 'Dr.')}{' '}
+            <span className="text-sheen">{tx('صالح عبد الكريم', 'Saleh Abdelkarim')}</span>
           </>
         }
-        body="المستشار النفسي والتربوي، ومؤلف كتاب «فن تربية الأبناء». بيساعد الأهالي يربّوا أولاد أسوياء وواثقين في نفسهم، بأسلوب بسيط تقدر تطبقه في البيت."
+        body={tx(
+          'المستشار النفسي والتربوي، ومؤلف كتاب «فن تربية الأبناء». بيساعد الأهالي يربّوا أولاد أسوياء وواثقين في نفسهم، بأسلوب بسيط تقدر تطبقه في البيت.',
+          'Psychological and parenting consultant, and author of “The Art of Parenting”. He helps parents raise balanced, self-confident children, in a simple way you can apply at home.',
+        )}
       />
 
       <section className={cn(sectionClass, 'pt-12')}>
@@ -65,31 +104,42 @@ export function AboutPage() {
           <div className="flex flex-col gap-5">
             <span className={eyebrowClass}>
               <Icon name="quote" size={16} />
-              الحكاية
+              {tx('الحكاية', 'The story')}
             </span>
             <h2 className="text-[clamp(26px,3.4vw,38px)] leading-snug">
-              «مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون{' '}
-              <span className="uline text-ink-grad">سوي، واثق في نفسه</span>، وقادر يتكيّف مع الدنيا.»
+              {tx(
+                '«مش مطلوب إن ابنك يكون مثالي… المطلوب إنه يكون',
+                '“Your child doesn’t need to be perfect… they need to be',
+              )}{' '}
+              <span className="uline text-ink-grad">
+                {tx('سوي، واثق في نفسه', 'balanced and self-confident')}
+              </span>
+              {tx('، وقادر يتكيّف مع الدنيا.»', ', and able to adapt to the world.”')}
             </h2>
             <p className="text-[17px] leading-[1.9] text-text-2">
-              من سنين والدكتور صالح عبد الكريم بيدخل بيوت الأسر العربية من خلال برنامج «فن التربية» على قناة
-              الرحمة، اللي بيرد فيه على أسئلة الأهالي عن مشاكل ولادهم اليومية: الكذب، والعناد، وفرط الحركة،
-              وخناقات الإخوات، والثواب والعقاب.
+              {tx(
+                'من سنين والدكتور صالح عبد الكريم بيدخل بيوت الأسر العربية من خلال برنامج «فن التربية» على قناة الرحمة، اللي بيرد فيه على أسئلة الأهالي عن مشاكل ولادهم اليومية: الكذب، والعناد، وفرط الحركة، وخناقات الإخوات، والثواب والعقاب.',
+                'For years, Dr. Saleh Abdelkarim has been a guest in Arab homes through “The Art of Parenting” on Al-Rahma TV, answering parents’ questions about everyday challenges: lying, stubbornness, hyperactivity, sibling fights, rewards and consequences.',
+              )}
             </p>
             <p className="text-[17px] leading-[1.9] text-text-2">
-              كمستشار نفسي وتربوي ورئيس مركز السعادة للاستشارات النفسية والتربوية، أسلوبه بيبدأ بالفهم
-              والحوار، وبيقدّم لكل مشكلة خطوات عملية بسيطة تقدر تطبقها في البيت من غير مصطلحات معقدة.
+              {tx(
+                'كمستشار نفسي وتربوي ورئيس مركز السعادة للاستشارات النفسية والتربوية، أسلوبه بيبدأ بالفهم والحوار، وبيقدّم لكل مشكلة خطوات عملية بسيطة تقدر تطبقها في البيت من غير مصطلحات معقدة.',
+                'As a psychological and parenting consultant and head of Al-Saada Center, his approach starts with understanding and conversation, offering simple, practical steps for every problem that you can apply at home, without jargon.',
+              )}
             </p>
             <p className="text-[17px] leading-[1.9] text-text-2">
-              المنصة دي بتجمع خبرته في مكان واحد: دورات مسجّلة تتفرج عليها في الوقت اللي يناسبك، وكتب،
-              ومقالات، واستشارات خاصة لو محتاج حد يسمعك ويرشدك في موقف معيّن.
+              {tx(
+                'المنصة دي بتجمع خبرته في مكان واحد: دورات مسجّلة تتفرج عليها في الوقت اللي يناسبك، وكتب، ومقالات، واستشارات خاصة لو محتاج حد يسمعك ويرشدك في موقف معيّن.',
+                'This platform brings his experience together in one place: recorded courses you can watch whenever it suits you, books, articles, and private consultations when you need someone to listen and guide you.',
+              )}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to={routes.consultation} className={buttonClass({ variant: 'gold' })}>
                 <Icon name="chat" size={18} /> {t('cta.bookDoctor')}
               </Link>
               <Link to={routes.courses} className={buttonClass({ variant: 'outline' })}>
-                <Icon name="video" size={18} /> شوف الدورات
+                <Icon name="video" size={18} /> {tx('شوف الدورات', 'See the courses')}
               </Link>
             </div>
           </div>
@@ -113,9 +163,9 @@ export function AboutPage() {
         <div className={innerClass}>
           <SectionHeader
             center
-            eyebrow="طريقته في التربية"
+            eyebrow={tx('طريقته في التربية', 'His approach')}
             icon="sparkle"
-            title="أربع أفكار بيرجع لها دايمًا"
+            title={tx('أربع أفكار بيرجع لها دايمًا', 'Four ideas he always comes back to')}
           />
           <div className="grid stagger grid-cols-4 gap-5 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {IDEAS.map((idea) => (
@@ -136,9 +186,17 @@ export function AboutPage() {
 
       <section className={sectionClass}>
         <div className={innerClass}>
-          <SectionHeader center eyebrow="فن التربية" icon="video" title="مواضيع بيتكلم فيها" />
+          <SectionHeader
+            center
+            eyebrow={tx('فن التربية', 'The Art of Parenting')}
+            icon="video"
+            title={tx('مواضيع بيتكلم فيها', 'Topics he talks about')}
+          />
           <p className="-mt-4 mb-7 text-center text-muted">
-            من حلقات برنامج «فن التربية» على قناة الرحمة، وكتير منها موجود على قناته على يوتيوب.
+            {tx(
+              'من حلقات برنامج «فن التربية» على قناة الرحمة، وكتير منها موجود على قناته على يوتيوب.',
+              'From episodes of “The Art of Parenting” on Al-Rahma TV — many are on his YouTube channel.',
+            )}
           </p>
           <div className="flex flex-wrap justify-center gap-2.5">
             {TOPICS.map((topic) => (
@@ -168,7 +226,12 @@ export function AboutPage() {
 
       <section className={sectionClass}>
         <div className={innerClass}>
-          <SectionHeader center eyebrow="ظهر على" icon="video" title="ضيف على شاشات وإذاعات عربية" />
+          <SectionHeader
+            center
+            eyebrow={tx('ظهر على', 'As seen on')}
+            icon="video"
+            title={tx('ضيف على شاشات وإذاعات عربية', 'A guest on Arab TV and radio')}
+          />
           <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3">
             {CHANNELS.map((c) => (
               <span
@@ -182,7 +245,13 @@ export function AboutPage() {
         </div>
       </section>
 
-      <CTABand title="عندك سؤال عن ابنك؟" body="احجز استشارة خاصة مع الدكتور صالح، أونلاين من أي مكان." />
+      <CTABand
+        title={tx('عندك سؤال عن ابنك؟', 'Have a question about your child?')}
+        body={tx(
+          'احجز استشارة خاصة مع الدكتور صالح، أونلاين من أي مكان.',
+          'Book a private online consultation with Dr. Saleh, from anywhere.',
+        )}
+      />
     </>
   )
 }

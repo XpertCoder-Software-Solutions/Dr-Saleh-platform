@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { tx } from '@/lib/i18n'
 
 export interface Crumb {
   label: string
@@ -8,7 +9,7 @@ export interface Crumb {
 
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   return (
-    <nav aria-label="مسار الصفحة" className="text-sm text-on-dark-muted">
+    <nav aria-label={tx('مسار الصفحة', 'Breadcrumb')} className="text-sm text-on-dark-muted">
       {crumbs.map((c, i) => (
         <span key={c.label}>
           {i > 0 && <span aria-hidden="true"> / </span>}
@@ -60,7 +61,7 @@ export function PageHero({ crumbs, eyebrow, title, body, portrait = true, childr
   return (
     <section className="relative bg-navy overflow-hidden px-6 pt-34.5 pb-22.5 text-white max-sm:px-4 max-sm:pt-31">
       <div className="absolute inset-0 dots opacity-50" aria-hidden="true" />
-      <div className="orb -top-35 -left-15 size-95 bg-blue-300" aria-hidden="true" />
+      <div className="orb -end-15 -top-35 size-95 bg-blue-300" aria-hidden="true" />
       <div className="relative mx-auto flex min-h-55 max-w-site items-end justify-between gap-10">
         <div className="flex max-w-160 flex-col gap-4">
           <Breadcrumbs crumbs={crumbs} />
